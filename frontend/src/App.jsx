@@ -1,3 +1,13 @@
+<<<<<<< HEAD
+
+import SuperAdminDashboard from "./features/super-admin/SuperAdminDashboard";
+
+function App() {
+  return <SuperAdminDashboard />;
+}
+
+export default App;
+=======
 import Login from './features/login/pages/Login'
 
 function App() {
@@ -5,3 +15,4 @@ function App() {
 }
 
 export default App
+>>>>>>> dev
