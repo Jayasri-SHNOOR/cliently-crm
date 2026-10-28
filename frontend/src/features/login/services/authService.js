@@ -1,0 +1,55 @@
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
+import { auth } from "../config/firebase";
+import { api } from "./api";
+
+const ROLE_MAP = {
+    "SUPER-ADMIN": "SUPER_ADMIN",
+    "CLIENT-ADMIN": "CLIENT_ADMIN",
+    "CLIENT-USER": "SALES_USER",
+};
+
+const FIREBASE_ERRORS = {
+    "auth/invalid-credential": "Incorrect email or password.",
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/missing-email": "Please enter your work email.",
+    "auth/user-disabled": "This account has been disabled.",
+    "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
+    "auth/network-request-failed": "Network error. Check your internet connection.",
+};
+
+export async function login(email, password, selectedRoleId) {
+    let credential;
+    try {
+        credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (err) {
+        throw new Error(FIREBASE_ERRORS[err.code] || "Sign in failed. Please try again.", { cause: err });
+    }
+
+    try {
+        const token = await credential.user.getIdToken();
+        const data = await api("/api/auth/login", {
+            method: "POST",
+            token,
+            body: { selectedRole: ROLE_MAP[selectedRoleId] },
+        });
+        return data.user;
+    } catch (err) {
+        await signOut(auth);
+        throw err;
+    }
+}
+
+export async function requestPasswordReset(email) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+        throw new Error("Enter your work email above, then click Forgot password.");
+    }
+
+    try {
+        await sendPasswordResetEmail(auth, cleanEmail, {
+            url: `${window.location.origin}/`,
+        });
+    } catch (err) {
+        throw new Error(FIREBASE_ERRORS[err.code] || "Could not send the reset email. Please try again.", { cause: err });
+    }
+}
