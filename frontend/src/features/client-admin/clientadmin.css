@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+.client-admin {
+  --deep-teal: #123C3A;
+  --mint-accent: #75D5C5;
+  --teal-accent-dark: #55B9A8;
+  --soft-background: #F4FAF8;
+  --light-mint-card: #EAF6F3;
+  --pale-mint: #DDF6F1;
+  --soft-border: #CFE4DF;
+  --dark-text: #183735;
+  --muted-text: #637875;
+  --white: #FFFFFF;
+
+  font-family: 'Manrope', sans-serif;
+  background-color: var(--soft-background);
+  color: var(--dark-text);
+}
+:where(.client-admin) * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:where(.client-admin) button,
+:where(.client-admin) input,
+:where(.client-admin) textarea,
+:where(.client-admin) select {
+  font-family: inherit;
+}
+
+:where(.client-admin) button {
+  cursor: pointer;
+}
+
+:where(.client-admin) a {
+  text-decoration: none;
+  color: inherit;
+}
+.client-admin .app {
+  min-height: 100vh;
+  background-color: var(--soft-background);
+}
+
+.client-admin .main-area {
+  margin-left: 235px;
+  min-height: 100vh;
+}
