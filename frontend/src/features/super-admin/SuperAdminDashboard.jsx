@@ -1,0 +1,2573 @@
+import { useEffect, useState } from "react";
+import "./SuperAdminDashboard.css";
+
+const featureAccess = [
+  {
+    feature: "Lead Management",
+    description: "Core lead management capabilities",
+    starter: "Enabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Advanced Reports",
+    description: "Advanced analytics and reporting",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "AI Leads Scraper",
+    description: "AI-powered lead discovery",
+    starter: "Disabled",
+    pro: "Disabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Global Integrations",
+    description: "Platform-level third-party integrations",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Custom Workflows",
+    description: "Advanced workflow automation",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+];
+
+
+
+
+const integrations = [
+  {
+    name: "Twilio",
+    description: "Messaging and communication services",
+    initials: "T",
+  },
+  {
+    name: "Stripe",
+    description: "Payments and subscription billing",
+    initials: "S",
+  },
+  {
+    name: "Google Workspace",
+    description: "Productivity and workspace services",
+    initials: "G",
+  },
+];
+
+const services = [
+  ["Application Server", "86 ms"],
+  ["Database", "142 ms"],
+  ["API Gateway", "94 ms"],
+  ["Background Jobs", "118 ms"],
+];
+
+function FeatureState({ state }) {
+  const enabled = state === "Enabled";
+
+  return (
+    <span className={`feature-state ${enabled ? "enabled" : "disabled"}`}>
+      <span className="state-dot"></span>
+      {state}
+    </span>
+  );
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+export default function SuperAdminDashboard({ onLogout }) {
+  const [tenants, setTenants] = useState([]);
+  const [tenantError, setTenantError] = useState("");
+  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+
+  // Tenant summary counts are calculated from the records returned by the backend API.
+  const totalTenants = tenants.length;
+  const activeTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "active"
+  ).length;
+  const pendingTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "pending"
+  ).length;
+  const blockedTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "blocked"
+  ).length;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTenants() {
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/tenants");
+        if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.tenants)
+            ? result.tenants
+            : [];
+
+        const formattedTenants = records.map((tenant) => ({
+          ...tenant,
+          company: tenant.company || tenant.organization || tenant.name || "Unnamed tenant",
+          admin: tenant.admin || tenant.ownerName || tenant.email || "—",
+          plan: tenant.plan || "Starter",
+          environment: tenant.environment || "Production",
+          status: tenant.status || "Active",
+          date: tenant.date
+            ? tenant.date
+            : tenant.createdAt
+              ? new Date(tenant.createdAt).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—",
+        }));
+
+        if (!cancelled) {
+          setTenants(formattedTenants);
+          setTenantError("");
+        }
+      } catch (error) {
+        console.error("Error fetching tenants:", error);
+        if (!cancelled) {
+          setTenantError("Unable to load tenants. Check that the backend is running.");
+        }
+      } finally {
+        if (!cancelled) setTenantsLoading(false);
+      }
+    }
+
+    loadTenants();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
+  const [notificationFilter, setNotificationFilter] = useState("All");
+  const [notificationSort, setNotificationSort] = useState("latest");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotifications() {
+      setNotificationsLoading(true);
+      setNotificationError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/notifications");
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const result = await response.json();
+        if (result.success === false) {
+          throw new Error(result.message || "Unable to load notifications");
+        }
+
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.notifications)
+            ? result.notifications
+            : [];
+
+        const formattedRecords = records.map((item) => ({
+          ...item,
+          title: item.title || item.subject || item.name || "Notification",
+          description: item.description || item.message || item.body || "No additional details.",
+          category: item.category || item.type || item.source || "System",
+          source: item.source || item.company || item.tenantName || "Platform",
+          unread: item.unread ?? !(item.isRead ?? item.read ?? false),
+          createdAt: item.createdAt || item.date || item.timestamp || null,
+        }));
+
+        if (!cancelled) setNotifications(formattedRecords);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+        if (!cancelled) {
+          setNotificationError(
+            "Unable to load notifications. Check the notifications API route and backend connection."
+          );
+        }
+      } finally {
+        if (!cancelled) setNotificationsLoading(false);
+      }
+    }
+
+    loadNotifications();
+    return () => { cancelled = true; };
+  }, []);
+
+  const markNotificationRead = async (notification) => {
+    const notificationId = notification._id || notification.id;
+    if (!notificationId) {
+      setNotificationError("This notification has no database ID, so its read status cannot be saved.");
+      return;
+    }
+
+    setNotificationError("");
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/super-admin/notifications/${notificationId}/read`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+
+      setNotifications((current) =>
+        current.map((item) =>
+          String(item._id || item.id) === String(notificationId)
+            ? { ...item, unread: false, isRead: true, read: true }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      setNotificationError(error.message || "Could not save notification read status.");
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unreadNotifications = notifications.filter((item) => item.unread);
+    if (unreadNotifications.length === 0) return;
+
+    setNotificationError("");
+    for (const notification of unreadNotifications) {
+      const notificationId = notification._id || notification.id;
+      if (!notificationId) {
+        setNotificationError("One notification has no database ID, so its read status cannot be saved.");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/super-admin/notifications/${notificationId}/read`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+
+        setNotifications((current) =>
+          current.map((item) =>
+            String(item._id || item.id) === String(notificationId)
+              ? { ...item, unread: false, isRead: true, read: true }
+              : item
+          )
+        );
+      } catch (error) {
+        console.error("Error marking all notifications as read:", error);
+        setNotificationError(error.message || "Some notifications could not be marked as read.");
+        return;
+      }
+    }
+  };
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementError, setAnnouncementError] = useState("");
+  const [announcementFilter, setAnnouncementFilter] = useState("All");
+  const [announcementSort, setAnnouncementSort] = useState("latest");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAnnouncements() {
+      setAnnouncementsLoading(true);
+      setAnnouncementError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/announcements");
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const result = await response.json();
+        if (result.success === false) throw new Error(result.message || "Unable to load announcements");
+        const records = Array.isArray(result.data) ? result.data : Array.isArray(result.announcements) ? result.announcements : [];
+        if (!cancelled) setAnnouncements(records);
+      } catch (error) {
+        console.error("Error fetching announcements:", error);
+        if (!cancelled) setAnnouncementError("Unable to load announcements. Check the backend connection.");
+      } finally {
+        if (!cancelled) setAnnouncementsLoading(false);
+      }
+    }
+    loadAnnouncements();
+    return () => { cancelled = true; };
+  }, []);
+
+  const [activeSetting, setActiveSetting] = useState("Organization");
+  const [activePage, setActivePage] = useState("dashboard");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  // If the parent app supplies its existing logout handler, use it.
+  // Otherwise return to the login route without clearing unrelated browser data.
+  const handleAdminLogout = () => {
+    setProfileMenuOpen(false);
+    if (typeof onLogout === "function") {
+      onLogout();
+      return;
+    }
+    window.location.assign("/login");
+  };
+
+  // Subscription & Billing — reads real subscription records from the existing API.
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
+  const [subscriptionsError, setSubscriptionsError] = useState("");
+
+  useEffect(() => {
+    if (activePage !== "billing") return;
+    let cancelled = false;
+
+    async function loadSubscriptions() {
+      setSubscriptionsLoading(true);
+      setSubscriptionsError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/subscriptions");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.subscriptions)
+            ? result.subscriptions
+            : [];
+        if (!cancelled) setSubscriptions(records);
+      } catch (error) {
+        console.error("Error loading subscriptions:", error);
+        if (!cancelled) setSubscriptionsError(error.message || "Unable to load subscriptions from the backend.");
+      } finally {
+        if (!cancelled) setSubscriptionsLoading(false);
+      }
+    }
+
+    loadSubscriptions();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const refreshSubscriptions = async () => {
+    setSubscriptionsLoading(true);
+    setSubscriptionsError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/subscriptions");
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      const records = Array.isArray(result.data)
+        ? result.data
+        : Array.isArray(result.subscriptions)
+          ? result.subscriptions
+          : [];
+      setSubscriptions(records);
+    } catch (error) {
+      console.error("Error refreshing subscriptions:", error);
+      setSubscriptionsError(error.message || "Unable to refresh subscriptions.");
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  };
+
+  const formatINR = (value) => new Intl.NumberFormat("en-IN", {
+    style: "currency", currency: "INR", maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+
+  const activeSubscriptions = subscriptions.filter((item) => String(item.status || "Pending").toLowerCase() === "active");
+  const attentionSubscriptions = subscriptions.filter((item) => ["pending", "expired"].includes(String(item.status || "").toLowerCase()));
+  const monthlyRecurringRevenue = activeSubscriptions.reduce((total, item) => {
+    const amount = Number(item.amount) || 0;
+    return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+  }, 0);
+  const billingPlanSummary = ["Starter", "Pro", "Enterprise"]
+    .map((planName) => {
+      const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
+      const monthlyRevenue = matching.reduce((total, item) => {
+        const amount = Number(item.amount) || 0;
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+      }, 0);
+      const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+      const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly")
+        ? "Yearly"
+        : "Monthly";
+      return { name: planName, subscribers: matching.length, monthlyRevenue, averageAmount: matching.length ? totalAmount / matching.length : 0, cycle };
+    })
+    .concat([...new Set(activeSubscriptions.map((item) => String(item.plan || "").trim()).filter((name) => name && !["Starter", "Pro", "Enterprise"].some((known) => known.toLowerCase() === name.toLowerCase())))].map((planName) => {
+      const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
+      const monthlyRevenue = matching.reduce((total, item) => {
+        const amount = Number(item.amount) || 0;
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+      }, 0);
+      const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+      const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly") ? "Yearly" : "Monthly";
+      return { name: planName, subscribers: matching.length, monthlyRevenue, averageAmount: matching.length ? totalAmount / matching.length : 0, cycle };
+    }));
+
+  // Plans & Feature Flags — uses the existing plans API.
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState("");
+  const [plansMessage, setPlansMessage] = useState("");
+  const [plansSaving, setPlansSaving] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [planDraft, setPlanDraft] = useState({ name: "", price: "", billingCycle: "Monthly", description: "", isActive: true });
+  const [featureDrafts, setFeatureDrafts] = useState({});
+
+  const featureDefinitions = featureAccess.map(({ feature, description }) => ({ feature, description }));
+
+  useEffect(() => {
+    if (activePage !== "features") return;
+    let cancelled = false;
+    async function loadPlans() {
+      setPlansLoading(true);
+      setPlansError("");
+      setPlansMessage("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/plans");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data) ? result.data : Array.isArray(result.plans) ? result.plans : [];
+        if (!cancelled) {
+          setPlans(records);
+          const drafts = {};
+          records.forEach((plan) => {
+            drafts[String(plan._id || plan.name)] = Array.isArray(plan.features) ? [...plan.features] : [];
+          });
+          setFeatureDrafts(drafts);
+        }
+      } catch (error) {
+        console.error("Error loading plans:", error);
+        if (!cancelled) setPlansError(error.message || "Unable to load plans from the backend.");
+      } finally {
+        if (!cancelled) setPlansLoading(false);
+      }
+    }
+    loadPlans();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const openPlanEditor = (plan) => {
+    setEditingPlan(plan);
+    setPlanDraft({
+      name: plan.name || "",
+      price: plan.price == null ? "" : String(plan.price),
+      billingCycle: plan.billingCycle || "Monthly",
+      description: plan.description || "",
+      isActive: plan.isActive !== false,
+    });
+    setPlansError("");
+    setPlansMessage("");
+  };
+
+  const savePlan = async () => {
+    if (!editingPlan?._id) {
+      setPlansError("This plan has no database ID and cannot be updated.");
+      return;
+    }
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/plans/${editingPlan._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...planDraft, price: planDraft.price === "" ? 0 : Number(planDraft.price) }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      const updated = result.data || result.plan || { ...editingPlan, ...planDraft, price: Number(planDraft.price) };
+      setPlans((current) => current.map((plan) => String(plan._id) === String(editingPlan._id) ? { ...plan, ...updated } : plan));
+      setEditingPlan(null);
+      setPlansMessage("Plan updated successfully.");
+    } catch (error) {
+      console.error("Error saving plan:", error);
+      setPlansError(error.message || "Unable to save plan changes.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  const togglePlanFeature = (plan, feature, checked) => {
+    const key = String(plan._id || plan.name);
+    setFeatureDrafts((current) => {
+      const existing = current[key] || (Array.isArray(plan.features) ? plan.features : []);
+      return { ...current, [key]: checked ? [...new Set([...existing, feature])] : existing.filter((item) => item !== feature) };
+    });
+  };
+
+  const saveFeatureFlags = async () => {
+    const unsavedPlans = plans.filter((plan) => plan._id);
+    if (unsavedPlans.length === 0) {
+      setPlansError("No saved plan records with database IDs were found.");
+      return;
+    }
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      for (const plan of unsavedPlans) {
+        const key = String(plan._id || plan.name);
+        const features = featureDrafts[key] || (Array.isArray(plan.features) ? plan.features : []);
+        const response = await fetch(`http://localhost:5000/api/super-admin/plans/${plan._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ features }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.success === false) throw new Error(result.message || `Could not save ${plan.name}: ${response.status}`);
+        const updated = result.data || result.plan || { ...plan, features };
+        setPlans((current) => current.map((item) => String(item._id) === String(plan._id) ? { ...item, ...updated, features } : item));
+      }
+      setPlansMessage("Feature flags saved successfully.");
+    } catch (error) {
+      console.error("Error saving feature flags:", error);
+      setPlansError(error.message || "Unable to save feature flags.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  const [settings, setSettings] = useState({
+    general: {
+      companyName: "Cliently",
+      supportEmail: "",
+      timezone: "Asia/Kolkata",
+    },
+    notifications: {
+      emailEnabled: true,
+      systemAlertsEnabled: true,
+    },
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState("");
+
+  useEffect(() => {
+    if (activePage !== "settings") return;
+
+    let cancelled = false;
+    async function loadSettings() {
+      setSettingsLoading(true);
+      setSettingsError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/settings");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+
+        const saved = result.data || result.settings || {};
+        if (!cancelled) {
+          setSettings({
+            general: {
+              companyName: saved.general?.companyName ?? "Cliently",
+              supportEmail: saved.general?.supportEmail ?? "",
+              timezone: saved.general?.timezone ?? "Asia/Kolkata",
+            },
+            notifications: {
+              emailEnabled: saved.notifications?.emailEnabled ?? true,
+              systemAlertsEnabled: saved.notifications?.systemAlertsEnabled ?? true,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+        if (!cancelled) {
+          setSettingsError(
+            "Could not load settings from the backend. Check that the server is running and the settings route is mounted."
+          );
+        }
+      } finally {
+        if (!cancelled) setSettingsLoading(false);
+      }
+    }
+
+    loadSettings();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const updateGeneralSetting = (field, value) => {
+    setSettings((current) => ({
+      ...current,
+      general: { ...current.general, [field]: value },
+    }));
+    setSettingsMessage("");
+  };
+
+  const updateNotificationSetting = (field, value) => {
+    setSettings((current) => ({
+      ...current,
+      notifications: { ...current.notifications, [field]: value },
+    }));
+    setSettingsMessage("");
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsError("");
+    setSettingsMessage("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          general: settings.general,
+          notifications: settings.notifications,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+
+      const saved = result.data || result.settings;
+      if (saved) {
+        setSettings({
+          general: {
+            companyName: saved.general?.companyName ?? settings.general.companyName,
+            supportEmail: saved.general?.supportEmail ?? settings.general.supportEmail,
+            timezone: saved.general?.timezone ?? settings.general.timezone,
+          },
+          notifications: {
+            emailEnabled: saved.notifications?.emailEnabled ?? settings.notifications.emailEnabled,
+            systemAlertsEnabled: saved.notifications?.systemAlertsEnabled ?? settings.notifications.systemAlertsEnabled,
+          },
+        });
+      }
+      setSettingsMessage(result.message || "Settings saved successfully.");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      setSettingsError(error.message || "Unable to save settings. Please try again.");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [integrationRecords, setIntegrationRecords] = useState([]);
+  const [integrationsLoading, setIntegrationsLoading] = useState(false);
+  const [integrationError, setIntegrationError] = useState("");
+  const [integrationMessage, setIntegrationMessage] = useState("");
+  const [integrationSaving, setIntegrationSaving] = useState(false);
+  const [integrationDraft, setIntegrationDraft] = useState({
+    name: "",
+    description: "",
+    enabled: false,
+  });
+
+  useEffect(() => {
+    if (activePage !== "integrations") return;
+
+    let cancelled = false;
+    async function loadIntegrations() {
+      setIntegrationsLoading(true);
+      setIntegrationError("");
+      setIntegrationMessage("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/integrations");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.integrations)
+            ? result.integrations
+            : [];
+
+        if (!cancelled) setIntegrationRecords(records);
+      } catch (error) {
+        console.error("Error fetching integrations:", error);
+        if (!cancelled) {
+          setIntegrationError(
+            error.message || "Unable to load integrations. Check the backend connection."
+          );
+        }
+      } finally {
+        if (!cancelled) setIntegrationsLoading(false);
+      }
+    }
+
+    loadIntegrations();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage]);
+
+  const openIntegrationConfig = (integration) => {
+    setSelectedIntegration(integration);
+    setIntegrationDraft({
+      name: integration.name || "",
+      description: integration.description || "",
+      enabled: Boolean(integration.enabled),
+    });
+    setIntegrationError("");
+    setIntegrationMessage("");
+  };
+
+  const saveIntegration = async () => {
+    if (!selectedIntegration?._id) {
+      setIntegrationError("This integration has no database ID and cannot be saved.");
+      return;
+    }
+
+    setIntegrationSaving(true);
+    setIntegrationError("");
+    setIntegrationMessage("");
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/super-admin/integrations/${selectedIntegration._id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(integrationDraft),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+
+      const updated = result.data || result.integration || {
+        ...selectedIntegration,
+        ...integrationDraft,
+      };
+      const savedIntegration = { ...selectedIntegration, ...updated, ...integrationDraft };
+      setIntegrationRecords((current) =>
+        current.map((item) => String(item._id) === String(selectedIntegration._id) ? savedIntegration : item)
+      );
+      setSelectedIntegration(savedIntegration);
+      setIntegrationMessage("Integration updated successfully.");
+    } catch (error) {
+      console.error("Error saving integration:", error);
+      setIntegrationError(error.message || "Unable to save integration changes.");
+    } finally {
+      setIntegrationSaving(false);
+    }
+  };
+
+  // System Health: load live values only from the existing backend APIs.
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthError, setSystemHealthError] = useState("");
+  const [systemHealthCheckedAt, setSystemHealthCheckedAt] = useState(null);
+  const [securityLogs, setSecurityLogs] = useState([]);
+  const [securityLogsError, setSecurityLogsError] = useState("");
+
+  useEffect(() => {
+    if (activePage !== "health") return;
+    let cancelled = false;
+
+    async function loadSystemHealth() {
+      setSystemHealthLoading(true);
+      setSystemHealthError("");
+      setSecurityLogsError("");
+      const healthStartedAt = Date.now();
+
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/system-health");
+        const elapsedMs = Date.now() - healthStartedAt;
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `System health request failed: ${response.status}`);
+        }
+
+        // Support either a direct data object or common response wrappers.
+        const rawHealth = result.data || result.health || result.systemHealth || result;
+        const isPlaceholder = !rawHealth || (rawHealth.message &&
+          !rawHealth.status && !rawHealth.services && !rawHealth.metrics &&
+          rawHealth.uptime === undefined && rawHealth.storage === undefined);
+        const healthData = isPlaceholder
+          ? { apiAvailable: true, apiResponseMs: elapsedMs }
+          : { ...rawHealth, apiAvailable: true, apiResponseMs: elapsedMs };
+
+        if (!cancelled) {
+          setSystemHealth(healthData);
+          setSystemHealthCheckedAt(new Date());
+        }
+      } catch (error) {
+        console.error("Error fetching system health:", error);
+        if (!cancelled) {
+          setSystemHealth(null);
+          setSystemHealthError(error.message || "Unable to load system health.");
+          setSystemHealthCheckedAt(new Date());
+        }
+      } finally {
+        if (!cancelled) setSystemHealthLoading(false);
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/security-logs");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Security logs request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.logs)
+            ? result.logs
+            : Array.isArray(result.securityLogs)
+              ? result.securityLogs
+              : [];
+        if (!cancelled) setSecurityLogs(records);
+      } catch (error) {
+        console.error("Error fetching security logs:", error);
+        if (!cancelled) {
+          setSecurityLogs([]);
+          setSecurityLogsError(error.message || "Unable to load security logs.");
+        }
+      }
+    }
+
+    loadSystemHealth();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const refreshSystemHealth = () => {
+    // Changing away and back to this page triggers a fresh read without changing other modules.
+    setActivePage("dashboard");
+    window.setTimeout(() => setActivePage("health"), 0);
+  };
+
+  const readHealthValue = (...values) => {
+    const value = values.find((item) => item !== undefined && item !== null && item !== "");
+    return value === undefined ? "Not reported by API" : value;
+  };
+
+  const formatSecurityEventTime = (item) => {
+    const value = item.createdAt || item.timestamp || item.date || item.time;
+    if (!value) return "Time not provided";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  };
+
+  const pageHeaders = {
+    dashboard: {
+      eyebrow: "ADMINISTRATION",
+      title: "Super Admin Dashboard",
+      subtitle: "Platform overview and administration controls.",
+    },
+    tenants: {
+      eyebrow: "PLATFORM MANAGEMENT",
+      title: "Tenant Management",
+      subtitle: "Manage subscribed companies and their environments.",
+    },
+    billing: {
+      eyebrow: "FINANCIAL MANAGEMENT",
+      title: "Subscription & Billing",
+      subtitle: "Manage subscription plans, revenue and tenant billing.",
+    },
+    features: {
+      eyebrow: "PLATFORM CONFIGURATION",
+      title: "Plans & Feature Flags",
+      subtitle: "Control plan access and platform feature availability.",
+    },
+    health: {
+      eyebrow: "SYSTEM MONITORING",
+      title: "System Health",
+      subtitle: "Monitor platform performance, infrastructure and security.",
+    },
+    integrations: {
+      eyebrow: "PLATFORM SERVICES",
+      title: "Integrations",
+      subtitle: "Manage global integrations and connected services.",
+    },
+    notifications: {
+      eyebrow: "COMMUNICATION",
+      title: "Notifications",
+      subtitle: "Review important platform alerts and system activity.",
+    },
+    announcements: {
+      eyebrow: "COMMUNICATION",
+      title: "Announcements",
+      subtitle: "Manage platform-wide announcements and updates.",
+    },
+    settings: {
+      eyebrow: "ADMINISTRATION",
+      title: "Settings",
+      subtitle: "Configure Cliently platform administration and security.",
+    },
+  };
+
+  return (
+    <div className="super-admin-layout">
+      {/* SIDEBAR */}
+      <aside className="super-admin-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-mark">CRM</div>
+
+          <div className="brand-text">
+            <strong>Cliently</strong>
+            <span>Administration</span>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+
+  <p className="nav-group-title">MAIN</p>
+
+  <button
+  className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
+  onClick={() => setActivePage("dashboard")}
+>
+  <span>▦</span>
+  Dashboard
+</button>
+
+  <p className="nav-group-title">PLATFORM</p>
+
+  <button
+    className={`nav-item ${activePage === "tenants" ? "active" : ""}`}
+    onClick={() => setActivePage("tenants")}
+  >
+    <span>▣</span>
+    Tenant Management
+  </button>
+
+  <button
+    className={`nav-item ${activePage === "billing" ? "active" : ""}`}
+    onClick={() => setActivePage("billing")}
+  >
+    <span>◫</span>
+    Subscription & Billing
+  </button>
+
+  <button
+    className={`nav-item ${activePage === "features" ? "active" : ""}`}
+    onClick={() => setActivePage("features")}
+  >
+    <span>⚙</span>
+    Plans & Feature Flags
+  </button>
+
+  <button
+    className={`nav-item ${activePage === "health" ? "active" : ""}`}
+    onClick={() => setActivePage("health")}
+  >
+    <span>◉</span>
+    System Health
+  </button>
+
+  <button
+    className={`nav-item ${activePage === "integrations" ? "active" : ""}`}
+    onClick={() => setActivePage("integrations")}
+  >
+    <span>⊞</span>
+    Integrations
+  </button>
+
+  <p className="nav-group-title">COMMUNICATION</p>
+
+  <button
+    className={`nav-item ${activePage === "notifications" ? "active" : ""}`}
+    onClick={() => setActivePage("notifications")}
+  >
+    <span>♢</span>
+    Notifications
+  </button>
+
+  <button
+    className={`nav-item ${activePage === "announcements" ? "active" : ""}`}
+    onClick={() => setActivePage("announcements")}
+  >
+    <span>◌</span>
+    Announcements
+  </button>
+
+  <p className="nav-group-title">SYSTEM</p>
+
+  <button
+    className={`nav-item ${activePage === "settings" ? "active" : ""}`}
+    onClick={() => setActivePage("settings")}
+  >
+    <span>⚙</span>
+    Settings
+  </button>
+
+</nav>
+      </aside>
+
+      {/* MAIN */}
+      <main className={`super-admin-main page-${activePage}`}>
+        {/* HEADER */}
+        <header className="dashboard-header">
+          <div>
+            <p className="section-eyebrow">ADMINISTRATION</p>
+            <h1>{pageHeaders[activePage].title}</h1>
+            <p className="dashboard-subtitle">
+  {pageHeaders[activePage].subtitle}
+</p>
+
+        
+          </div>
+
+          <div className="dashboard-header-actions">
+            <div className="admin-menu-wrapper">
+              <button
+                type="button"
+                className="admin-profile admin-profile-trigger"
+                aria-haspopup="menu"
+                aria-expanded={profileMenuOpen}
+                onClick={() => setProfileMenuOpen((open) => !open)}
+              >
+                <span className="admin-avatar">SA</span>
+                <span className="admin-profile-info">
+                  <strong>Super Admin</strong>
+                  <span>Platform Administrator</span>
+                </span>
+                <span className="profile-arrow" aria-hidden="true">⌄</span>
+              </button>
+
+              {profileMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="profile-menu-backdrop"
+                    aria-label="Close profile menu"
+                    onClick={() => setProfileMenuOpen(false)}
+                  />
+                  <div className="admin-profile-menu" role="menu">
+                    <div className="profile-menu-heading">
+                      <strong>Super Admin</strong>
+                      <span>Platform Administrator</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setProfileDialogOpen(true);
+                      }}
+                    >
+                      <span aria-hidden="true">◉</span> Profile
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="profile-menu-logout"
+                      onClick={handleAdminLogout}
+                    >
+                      <span aria-hidden="true">↪</span> Logout
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+</header>
+
+        {/* OVERVIEW */}
+       <section
+  className={`dashboard-section ${
+    activePage === "dashboard" ? "page-active" : ""
+  }`}
+  id="overview"
+>
+          <div className="section-heading">
+            <div>
+              <p className="section-eyebrow">OVERVIEW</p>
+             <h2>Platform Overview</h2>
+            </div>
+          </div>
+
+          <div className="overview-grid">
+            <div className="overview-card">
+              <div className="overview-card-top">
+                <span>Total Tenants</span>
+                <span className="metric-icon">▣</span>
+              </div>
+              <strong>116</strong>
+              <small>All subscribed companies</small>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-card-top">
+                <span>Active Subscriptions</span>
+                <span className="metric-icon">✓</span>
+              </div>
+              <strong>116</strong>
+              <small>Currently active plans</small>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-card-top">
+                <span>Monthly Recurring Revenue</span>
+                <span className="metric-icon">$</span>
+              </div>
+              <strong>$42.8K</strong>
+              <small>Current MRR</small>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-card-top">
+                <span>Platform Uptime</span>
+                <span className="metric-icon">◉</span>
+              </div>
+              <strong>99.9%</strong>
+              <small>Last 30 days</small>
+            </div>
+          </div>
+        </section>
+
+        {/* TENANTS */}
+        <section
+  className={`dashboard-section ${
+    activePage === "tenants" ? "page-active" : ""
+  }`}
+  id="tenants"
+>
+          <div className="section-heading section-heading-row">
+            <div>
+              <p className="section-eyebrow">PLATFORM MANAGEMENT</p>
+              <h2>Tenant Management</h2>
+              <p>Manage subscribed companies and their environments.</p>
+            </div>
+
+            <button className="secondary-button">View All Tenants</button>
+          </div>
+
+          <div className="tenant-summary-grid">
+            <div>
+              <span>Total Tenants</span>
+              <strong>{tenantsLoading ? "…" : totalTenants}</strong>
+            </div>
+            <div>
+              <span>Active</span>
+              <strong>{tenantsLoading ? "…" : activeTenants}</strong>
+            </div>
+            <div>
+              <span>Pending</span>
+              <strong>{tenantsLoading ? "…" : pendingTenants}</strong>
+            </div>
+            <div>
+              <span>Blocked</span>
+              <strong>{tenantsLoading ? "…" : blockedTenants}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-card table-card">
+            <div className="table-header">
+              <div>
+                <h3>Recent Tenants</h3>
+                <p>Latest tenant environments created on the platform.</p>
+              </div>
+              <button className="text-button">Export</button>
+            </div>
+
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Plan</th>
+                    <th>Environment</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {tenantsLoading ? (
+                    <tr><td colSpan={6}>Loading tenants...</td></tr>
+                  ) : tenantError ? (
+                    <tr><td colSpan={6}>{tenantError}</td></tr>
+                  ) : tenants.length === 0 ? (
+                    <tr><td colSpan={6}>No tenants found.</td></tr>
+                  ) : (
+                    tenants.map((tenant) => (
+                    <tr key={tenant._id || tenant.company}>
+                      <td>
+                        <div className="company-cell">
+                          <div className="company-avatar">
+                            {tenant.company.charAt(0)}
+                          </div>
+
+                          <div>
+                            <strong>{tenant.company}</strong>
+                            <span>{tenant.admin}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`plan-badge ${tenant.plan.toLowerCase()}`}>
+                          {tenant.plan}
+                        </span>
+                      </td>
+
+                      <td>{tenant.environment}</td>
+
+                      <td>
+                        <span
+                          className={`status-badge ${tenant.status.toLowerCase()}`}
+                        >
+                          <span></span>
+                          {tenant.status}
+                        </span>
+                      </td>
+
+                      <td>{tenant.date}</td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="table-action"
+                          onClick={() => setSelectedTenant(tenant)}
+                        >
+                          Manage
+                        </button>
+                      </td>
+                    </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {selectedTenant && (
+          <div
+            role="presentation"
+            onClick={() => setSelectedTenant(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 2000,
+              background: "rgba(15, 23, 42, 0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="tenant-details-title"
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: "480px",
+                background: "var(--card-bg, #ffffff)",
+                color: "var(--text-color, #172033)",
+                borderRadius: "14px",
+                padding: "24px",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.25)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "18px" }}>
+                <h2 id="tenant-details-title" style={{ margin: 0 }}>Tenant Details</h2>
+                <button type="button" className="table-action" onClick={() => setSelectedTenant(null)} aria-label="Close tenant details">Close</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(110px, 1fr) 2fr", gap: "12px 16px", overflowWrap: "anywhere" }}>
+                <strong>Company</strong><span>{selectedTenant.company || "—"}</span>
+                <strong>Administrator</strong><span>{selectedTenant.admin || "—"}</span>
+                <strong>Email</strong><span>{selectedTenant.email || "—"}</span>
+                <strong>Plan</strong><span>{selectedTenant.plan || "—"}</span>
+                <strong>Environment</strong><span>{selectedTenant.environment || "—"}</span>
+                <strong>Status</strong><span>{selectedTenant.status || "—"}</span>
+                <strong>Created</strong><span>{selectedTenant.date || "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
+                <button type="button" className="secondary-button" onClick={() => setSelectedTenant(null)}>Done</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BILLING — subscription counts and revenue are calculated from MongoDB records */}
+        {activePage === "billing" && (
+          <section className="dashboard-card" id="billing">
+            <div className="section-heading section-heading-row">
+              <div>
+                <p className="section-eyebrow">FINANCIAL OVERVIEW</p>
+                <h2>Subscription &amp; Billing Control</h2>
+                <p>Monitor subscription records, recurring revenue and billing status.</p>
+              </div>
+              <button type="button" className="secondary-button" onClick={refreshSubscriptions} disabled={subscriptionsLoading}>
+                {subscriptionsLoading ? "Refreshing..." : "Refresh Subscriptions"}
+              </button>
+            </div>
+
+            {subscriptionsError && <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{subscriptionsError}</p>}
+
+            <div className="billing-summary-grid">
+              {billingPlanSummary.slice(0, 3).map((plan) => (
+                <div className="billing-summary-card" key={plan.name}>
+                  <span>{plan.name}</span>
+                  <strong>{subscriptionsLoading ? "…" : plan.subscribers}</strong>
+                  <small>Active subscriptions</small>
+                </div>
+              ))}
+              <div className="billing-summary-card highlight">
+                <span>Monthly Recurring Revenue</span>
+                <strong>{subscriptionsLoading ? "…" : formatINR(monthlyRecurringRevenue)}</strong>
+                <small>Calculated from active subscriptions</small>
+              </div>
+            </div>
+
+            <div className="billing-alert">
+              <div className="billing-alert-indicator">!</div>
+              <div>
+                <strong>Subscriptions needing attention</strong>
+                <p>{subscriptionsLoading ? "Checking subscription statuses..." : `${attentionSubscriptions.length} subscription(s) have Pending or Expired status.`}</p>
+              </div>
+            </div>
+
+            <div className="dashboard-card">
+              <div className="table-header">
+                <div>
+                  <h3>Subscription Plans</h3>
+                  <p>Distribution and revenue calculated from saved subscription records.</p>
+                </div>
+                <span className="integration-count">{subscriptions.length} record{subscriptions.length === 1 ? "" : "s"}</span>
+              </div>
+
+              <div className="table-wrapper">
+                <table className="billing-table">
+                  <thead>
+                    <tr>
+                      <th>Plan</th>
+                      <th>Active Subscribers</th>
+                      <th>Average Price</th>
+                      <th>Monthly Revenue</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptionsLoading ? (
+                      <tr><td colSpan={5}>Loading subscriptions from MongoDB...</td></tr>
+                    ) : subscriptionsError ? (
+                      <tr><td colSpan={5}>Subscriptions could not be loaded. Check the backend API.</td></tr>
+                    ) : billingPlanSummary.length === 0 || subscriptions.length === 0 ? (
+                      <tr><td colSpan={5}>No subscription records found in the database yet.</td></tr>
+                    ) : billingPlanSummary.map((plan) => (
+                      <tr key={plan.name}>
+                        <td><strong>{plan.name}</strong></td>
+                        <td>{plan.subscribers}</td>
+                        <td>{plan.subscribers ? `${formatINR(plan.averageAmount)} / ${plan.cycle.toLowerCase()}` : "—"}</td>
+                        <td>{formatINR(plan.monthlyRevenue)}</td>
+                        <td><span className="billing-status">{plan.subscribers ? "Active" : "No active subscriptions"}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="billing-revenue-grid">
+              <div className="revenue-card">
+                <span>Annual Recurring Revenue</span>
+                <strong>{subscriptionsLoading ? "…" : formatINR(monthlyRecurringRevenue * 12)}</strong>
+                <small>Monthly recurring revenue × 12</small>
+              </div>
+              <div className="revenue-card">
+                <span>Total Subscriptions</span>
+                <strong>{subscriptionsLoading ? "…" : subscriptions.length}</strong>
+                <small>{activeSubscriptions.length} active · {subscriptions.length - activeSubscriptions.length} non-active</small>
+              </div>
+            </div>
+
+            {!subscriptionsLoading && !subscriptionsError && subscriptions.length > 0 && (
+              <div className="dashboard-card" style={{ marginTop: "20px" }}>
+                <div className="table-header">
+                  <div>
+                    <h3>Subscription Records</h3>
+                    <p>Individual records returned by the subscriptions API.</p>
+                  </div>
+                </div>
+                <div className="table-wrapper">
+                  <table className="billing-table">
+                    <thead><tr><th>Company</th><th>Plan</th><th>Billing Cycle</th><th>Amount</th><th>Status</th><th>Start Date</th><th>End Date</th></tr></thead>
+                    <tbody>
+                      {subscriptions.map((item, index) => (
+                        <tr key={item._id || `${item.company}-${index}`}>
+                          <td><strong>{item.company || "Unnamed company"}</strong></td>
+                          <td>{item.plan || "—"}</td>
+                          <td>{item.billingCycle || "Monthly"}</td>
+                          <td>{formatINR(item.amount)}</td>
+                          <td><span className="billing-status">{item.status || "Pending"}</span></td>
+                          <td>{item.startDate ? new Date(item.startDate).toLocaleDateString("en-IN") : "—"}</td>
+                          <td>{item.endDate ? new Date(item.endDate).toLocaleDateString("en-IN") : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* PLANS & FEATURE FLAGS — connected to the existing plans API */}
+        {activePage === "features" && (
+          <section className="dashboard-section features-page" id="features">
+            <div className="section-heading section-heading-row">
+              <div>
+                <p className="section-eyebrow">PLATFORM CONFIGURATION</p>
+                <h2>Plans &amp; Feature Flags</h2>
+                <p>Manage subscription plan details and feature availability.</p>
+              </div>
+              <button type="button" className="secondary-button" onClick={() => {
+                setPlansMessage(""); setPlansError(""); setActivePage("features");
+                fetch("http://localhost:5000/api/super-admin/plans").then(async (response) => {
+                  const result = await response.json();
+                  if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+                  const records = Array.isArray(result.data) ? result.data : Array.isArray(result.plans) ? result.plans : [];
+                  setPlans(records);
+                  const drafts = {};
+                  records.forEach((plan) => { drafts[String(plan._id || plan.name)] = Array.isArray(plan.features) ? [...plan.features] : []; });
+                  setFeatureDrafts(drafts);
+                }).catch((error) => setPlansError(error.message || "Unable to refresh plans."));
+              }}>Refresh Plans</button>
+            </div>
+
+            {plansError && <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{plansError}</p>}
+            {plansMessage && <p role="status" style={{ color: "#218838", margin: "12px 0" }}>{plansMessage}</p>}
+
+            <div className="dashboard-card plan-overview">
+              <div className="card-title-area">
+                <h3>Subscription Plans</h3>
+                <p>Plan details loaded from the backend database.</p>
+              </div>
+              {plansLoading ? <p>Loading plans from the backend...</p> : plans.length === 0 ? (
+                <p>{plansError ? "Plans could not be loaded. Check the plans API." : "No plans found in the database."}</p>
+              ) : (
+                <div className="plan-overview-grid">
+                  {plans.map((plan) => (
+                    <div className="plan-column" key={plan._id || plan.name}>
+                      <span className="plan-number">{plan.price != null ? `₹${plan.price}` : "Price not set"}</span>
+                      <strong>{plan.name || "Unnamed plan"}</strong>
+                      <small>{plan.description || plan.billingCycle || "Subscription plan"}</small>
+                      <span className="plan-active">{plan.isActive === false ? "Inactive" : "Active"}</span>
+                      <button type="button" className="table-action" onClick={() => openPlanEditor(plan)}>Edit Plan</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {editingPlan && (
+              <div className="dashboard-card" style={{ marginTop: "20px", padding: "20px" }}>
+                <div className="card-title-area">
+                  <h3>Edit {editingPlan.name}</h3>
+                  <p>Changes are saved to the existing Plans API.</p>
+                </div>
+                <div className="settings-form-grid">
+                  <div className="settings-field">
+                    <label htmlFor="plan-name">Plan name</label>
+                    <input id="plan-name" value={planDraft.name} onChange={(event) => setPlanDraft((current) => ({ ...current, name: event.target.value }))} />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="plan-price">Price (₹)</label>
+                    <input id="plan-price" type="number" min="0" value={planDraft.price} onChange={(event) => setPlanDraft((current) => ({ ...current, price: event.target.value }))} />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="plan-billing-cycle">Billing cycle</label>
+                    <select id="plan-billing-cycle" value={planDraft.billingCycle} onChange={(event) => setPlanDraft((current) => ({ ...current, billingCycle: event.target.value }))}>
+                      <option value="Monthly">Monthly</option><option value="Yearly">Yearly</option><option value="Custom">Custom</option>
+                    </select>
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="plan-description">Description</label>
+                    <input id="plan-description" value={planDraft.description} onChange={(event) => setPlanDraft((current) => ({ ...current, description: event.target.value }))} />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="plan-active">Plan status</label>
+                    <select id="plan-active" value={planDraft.isActive ? "active" : "inactive"} onChange={(event) => setPlanDraft((current) => ({ ...current, isActive: event.target.value === "active" }))}>
+                      <option value="active">Active</option><option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap" }}>
+                  <button type="button" className="primary-button" onClick={savePlan} disabled={plansSaving}>{plansSaving ? "Saving..." : "Save Plan"}</button>
+                  <button type="button" className="secondary-button" onClick={() => setEditingPlan(null)} disabled={plansSaving}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            <div className="dashboard-card feature-access-card" style={{ marginTop: "20px" }}>
+              <div className="card-title-area">
+                <h3>Feature Access</h3>
+                <p>Check a feature to enable it for a plan. Changes are saved to MongoDB when you click Save Feature Flags.</p>
+              </div>
+              {plansLoading ? <p>Loading feature flags...</p> : plans.length === 0 ? <p>Load subscription plans to configure feature access.</p> : (
+                <>
+                  <div className="table-wrapper">
+                    <table className="feature-table">
+                      <thead><tr><th>Feature</th>{plans.map((plan) => <th key={plan._id || plan.name}>{plan.name}</th>)}</tr></thead>
+                      <tbody>
+                        {featureDefinitions.map((item) => (
+                          <tr key={item.feature}>
+                            <td><div className="feature-information"><strong>{item.feature}</strong><span>{item.description}</span></div></td>
+                            {plans.map((plan) => {
+                              const key = String(plan._id || plan.name);
+                              const enabledFeatures = featureDrafts[key] || (Array.isArray(plan.features) ? plan.features : []);
+                              const enabled = enabledFeatures.includes(item.feature);
+                              return <td key={key}>
+                                <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                                  <input type="checkbox" checked={enabled} onChange={(event) => togglePlanFeature(plan, item.feature, event.target.checked)} aria-label={`${item.feature} for ${plan.name}`} />
+                                  <FeatureState state={enabled ? "Enabled" : "Disabled"} />
+                                </label>
+                              </td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
+                    <button type="button" className="primary-button" onClick={saveFeatureFlags} disabled={plansSaving || plansLoading}>{plansSaving ? "Saving..." : "Save Feature Flags"}</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+    {/* SYSTEM HEALTH — connected to the existing backend APIs only */}
+    {activePage === "health" && (
+      <section className="dashboard-section" id="health">
+        <div className="section-heading section-heading-row">
+          <div>
+            <p className="section-eyebrow">SYSTEM MONITORING</p>
+            <h2>System Health</h2>
+            <p>Live API availability and security activity from the backend.</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <span className="last-checked">
+              {systemHealthCheckedAt ? `Last checked: ${systemHealthCheckedAt.toLocaleTimeString("en-IN")}` : "Not checked yet"}
+            </span>
+            <button type="button" className="secondary-button" onClick={refreshSystemHealth}>
+              Refresh Health
+            </button>
+          </div>
+        </div>
+
+        {systemHealthError && (
+          <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>
+            System Health API error: {systemHealthError}
+          </p>
+        )}
+
+        <div className="health-overview-bar">
+          <div className="health-overview-main">
+            <div className="health-status-dot"></div>
+            <div>
+              <strong>
+                {systemHealthLoading ? "Checking backend services…" : systemHealthError ? "Health check unavailable" : "Backend health endpoint reachable"}
+              </strong>
+              <p>
+                {systemHealthError
+                  ? "The frontend could not confirm system health. Check the backend route and server."
+                  : systemHealthLoading
+                    ? "Waiting for the System Health API response."
+                    : "Only values returned by the backend are shown; unavailable metrics are not fabricated."}
+              </p>
+            </div>
+          </div>
+          <span className="health-status-badge">
+            {systemHealthLoading ? "Checking" : systemHealthError ? "Unavailable" : "API reachable"}
+          </span>
+        </div>
+
+        <div className="health-metrics-grid">
+          <div className="health-metric-card">
+            <div className="health-metric-top">
+              <span>System Health API</span>
+              <span className={`metric-status ${systemHealthError ? "normal" : "healthy"}`}>
+                {systemHealthLoading ? "Checking" : systemHealthError ? "Unavailable" : "Reachable"}
+              </span>
+            </div>
+            <strong>{systemHealthLoading ? "…" : systemHealthError ? "—" : `${readHealthValue(systemHealth?.apiResponseMs)}${typeof systemHealth?.apiResponseMs === "number" ? " ms" : ""}`}</strong>
+            <small>Response time measured by this dashboard</small>
+          </div>
+
+          <div className="health-metric-card">
+            <div className="health-metric-top">
+              <span>Server Uptime</span>
+              <span className="metric-status normal">Backend metric</span>
+            </div>
+           {systemHealth?.data?.server?.uptimeSeconds != null
+  ? `${Math.floor(systemHealth.data.server.uptimeSeconds / 3600)}h ${Math.floor((systemHealth.data.server.uptimeSeconds % 3600) / 60)}m`
+  : "Not reported by API"}
+            <small>Shown only when supplied by the API</small>
+          </div>
+
+          <div className="health-metric-card">
+            <div className="health-metric-top">
+              <span>Storage Capacity</span>
+              <span className="metric-status normal">Backend metric</span>
+            </div>
+           <strong>
+  {systemHealth?.system?.totalMemoryMB != null
+    ? `${systemHealth.system.totalMemoryMB} MB total RAM`
+    : "Not reported by API"}
+</strong>
+     <small>Shown only when supplied by the API</small>
+          </div>
+        </div>
+
+        <div className="health-content-grid">
+          <div className="dashboard-card">
+            <div className="card-title-area">
+              <h3>Service Status</h3>
+              <p>Services reported by the System Health API.</p>
+            </div>
+            <div className="service-status-table">
+              {systemHealthLoading ? (
+                <p style={{ padding: "16px" }}>Loading system health…</p>
+              ) : systemHealthError ? (
+                <p style={{ padding: "16px" }}>Service status is unavailable because the health request failed.</p>
+              ) : (() => {
+                const rawServices = systemHealth?.services || systemHealth?.data?.services || systemHealth?.metrics?.services || [];
+                const serviceRows = Array.isArray(rawServices)
+                  ? rawServices.map((item) => typeof item === "string"
+                    ? { name: item, status: "Reported by API", responseTime: "Not reported by API" }
+                    : { name: item.name || item.service || item.label || "Unnamed service", status: item.status || item.state || "Not reported by API", responseTime: item.responseTime ?? item.latency ?? item.response ?? "Not reported by API" })
+                  : Object.entries(rawServices).map(([name, item]) => typeof item === "object" && item !== null
+                    ? { name, status: item.status || item.state || "Not reported by API", responseTime: item.responseTime ?? item.latency ?? "Not reported by API" }
+                    : { name, status: String(item), responseTime: "Not reported by API" });
+                return serviceRows.length ? serviceRows.map((service, index) => (
+                  <div className="service-status-row" key={`${service.name}-${index}`}>
+                    <div><strong>{service.name}</strong></div>
+                    <span className="service-operational"><span></span>{service.status}</span>
+                    <span>{service.responseTime}</span>
+                  </div>
+                )) : <p style={{ padding: "16px" }}>The health endpoint did not provide individual service metrics.</p>;
+              })()}
+            </div>
+          </div>
+          
+      <div className="dashboard-card health-memory-card">
+  <div className="card-title-area">
+    <h3>Server Memory Usage</h3>
+    <p>Live memory metrics reported by the backend.</p>
+  </div>
+
+  <div className="health-memory-grid">
+    <div className="health-memory-item">
+      <span>Total Memory</span>
+      <strong>
+       {systemHealth?.system?.totalMemoryMB ?? "—"} MB
+      </strong>
+    </div>
+
+    <div className="health-memory-item">
+      <span>Free Memory</span>
+      <strong>
+        {systemHealth?.system?.freeMemoryMB ?? "—"} MB
+      </strong>
+    </div>
+
+    <div className="health-memory-item">
+      <span>Process Memory</span>
+      <strong>
+        {systemHealth?.system?.processMemoryMB ?? "—"} MB
+      </strong>
+    </div>
+
+    <div className="health-memory-item">
+      <span>Database Status</span>
+      <strong>
+        {systemHealth?.database?.status ?? "Unknown"}
+      </strong>
+    </div>
+  </div>
+</div>
+        <div className="dashboard-card security-events-card">
+            <div className="card-title-area">
+              <h3>Security Events</h3>
+              <p>Recent records returned by the Security Logs API.</p>
+            </div>
+            <div className="security-summary">
+              <strong>{securityLogs.length}</strong>
+              <span>Events returned by API</span>
+            </div>
+            {securityLogsError && (
+              <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{securityLogsError}</p>
+            )}
+            <div className="security-event-list">
+              {securityLogsError ? (
+                <p style={{ padding: "12px" }}>Security logs could not be loaded.</p>
+              ) : securityLogs.length === 0 ? (
+                <p style={{ padding: "12px" }}>No security events were returned by the API.</p>
+              ) : securityLogs.slice(0, 8).map((event, index) => (
+                <div className="security-event-row" key={event._id || event.id || index}>
+                  <span className="security-event-indicator"></span>
+                  <div>
+                    <strong>{event.title || event.event || event.action || event.message || event.type || "Security event"}</strong>
+                    <span>{formatSecurityEventTime(event)}{event.severity ? ` · ${event.severity}` : event.status ? ` · ${event.status}` : ""}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    )}
+        {/* INTEGRATIONS */}
+        {activePage === "integrations" && (
+          <section className="dashboard-section" id="integrations">
+            <div className="section-heading section-heading-row">
+              <div>
+                <p className="section-eyebrow">PLATFORM SERVICES</p>
+                <h2>Global Integrations</h2>
+                <p>Manage third-party services available across Cliently tenants.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setIntegrationsLoading(true);
+                  setIntegrationError("");
+                  fetch("http://localhost:5000/api/super-admin/integrations")
+                    .then(async (response) => {
+                      const result = await response.json();
+                      if (!response.ok || result.success === false) {
+                        throw new Error(result.message || `Request failed: ${response.status}`);
+                      }
+                      const records = Array.isArray(result.data)
+                        ? result.data
+                        : Array.isArray(result.integrations)
+                          ? result.integrations
+                          : [];
+                      setIntegrationRecords(records);
+                    })
+                    .catch((error) => {
+                      console.error("Error refreshing integrations:", error);
+                      setIntegrationError(error.message || "Could not refresh integrations.");
+                    })
+                    .finally(() => setIntegrationsLoading(false));
+                }}
+              >
+                Refresh Integrations
+              </button>
+            </div>
+
+            {integrationError && (
+              <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>
+                {integrationError}
+              </p>
+            )}
+            {integrationMessage && (
+              <p role="status" style={{ color: "#218838", margin: "12px 0" }}>
+                {integrationMessage}
+              </p>
+            )}
+
+            <div className="integration-overview">
+              <div className="integration-overview-item">
+                <span className="integration-overview-label">Configured Integrations</span>
+                <strong>{integrationRecords.length}</strong>
+                <small>Stored in the database</small>
+              </div>
+              <div className="integration-overview-item">
+                <span className="integration-overview-label">Enabled Integrations</span>
+                <strong>{integrationRecords.filter((item) => item.enabled).length}</strong>
+                <small>Platform-level availability</small>
+              </div>
+              <div className="integration-overview-item">
+                <span className="integration-overview-label">API Status</span>
+                <strong className="integration-status-text">
+                  {integrationsLoading ? "Checking…" : integrationError ? "Check API" : "Connected"}
+                </strong>
+                <small>Integration API response</small>
+              </div>
+            </div>
+
+            <div className="integration-section-header">
+              <div>
+                <h3>Configured Integrations</h3>
+                <p>Names, descriptions and enabled status are loaded from MongoDB.</p>
+              </div>
+              <span className="integration-count">
+                {integrationRecords.length} integration{integrationRecords.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <div className="integration-card-grid">
+              {integrationsLoading ? (
+                <div className="dashboard-card" style={{ padding: "20px" }}>
+                  Loading integrations from the database...
+                </div>
+              ) : integrationRecords.length === 0 ? (
+                <div className="dashboard-card" style={{ padding: "20px" }}>
+                  {integrationError
+                    ? "Integrations could not be loaded. Check the backend API."
+                    : "No integrations found. Add records to the Integrations collection first."}
+                </div>
+              ) : (
+                integrationRecords.map((integration) => {
+                  const isEnabled = Boolean(integration.enabled);
+                  const rawStatus = String(integration.status || "").toLowerCase();
+                  const status = ["error", "pending"].includes(rawStatus)
+                    ? integration.status
+                    : (isEnabled ? "Connected" : "Disconnected");
+                  const initials = String(integration.name || "I").trim().charAt(0).toUpperCase();
+                  return (
+                    <div className="integration-card" key={integration._id || integration.name}>
+                      <div className="integration-card-top">
+                        <div className="integration-provider">
+                          <div className="integration-logo">{initials}</div>
+                          <div>
+                            <h3>{integration.name || "Unnamed integration"}</h3>
+                            <span>Platform integration</span>
+                          </div>
+                        </div>
+                        <span className={`integration-connected ${isEnabled ? "" : "integration-disconnected"}`}>
+                          <span></span>
+                          {status}
+                        </span>
+                      </div>
+
+                      <div className="integration-divider"></div>
+                      <p className="integration-description">
+                        {integration.description || "No description provided."}
+                      </p>
+
+                      <div className="integration-details">
+                        <div>
+                          <span>Enabled</span>
+                          <strong>{isEnabled ? "Yes" : "No"}</strong>
+                        </div>
+                        <div>
+                          <span>Last Sync</span>
+                          <strong>
+                            {integration.lastSyncAt
+                              ? new Date(integration.lastSyncAt).toLocaleString("en-IN", {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })
+                              : "Not synced"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="integration-card-footer">
+                        <span className="integration-api-status">
+                          <span></span>
+                          {isEnabled ? "Enabled on platform" : "Disabled on platform"}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => openIntegrationConfig(integration)}
+                        >
+                          Configure
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {selectedIntegration && (
+              <div className="dashboard-card integration-config-panel">
+                <div className="table-header">
+                  <div>
+                    <h3>Configure {selectedIntegration.name}</h3>
+                    <p>Update the integration record stored in the backend.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      setSelectedIntegration(null);
+                      setIntegrationError("");
+                      setIntegrationMessage("");
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="settings-form-grid">
+                  <div className="settings-field">
+                    <label htmlFor="integration-name">Integration Name</label>
+                    <input
+                      id="integration-name"
+                      type="text"
+                      value={integrationDraft.name}
+                      onChange={(event) =>
+                        setIntegrationDraft((current) => ({ ...current, name: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="integration-description">Description</label>
+                    <input
+                      id="integration-description"
+                      type="text"
+                      value={integrationDraft.description}
+                      onChange={(event) =>
+                        setIntegrationDraft((current) => ({
+                          ...current,
+                          description: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="integration-enabled">Platform Availability</label>
+                    <select
+                      id="integration-enabled"
+                      value={integrationDraft.enabled ? "true" : "false"}
+                      onChange={(event) =>
+                        setIntegrationDraft((current) => ({
+                          ...current,
+                          enabled: event.target.value === "true",
+                        }))
+                      }
+                    >
+                      <option value="true">Enabled</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={saveIntegration}
+                    disabled={integrationSaving}
+                  >
+                    {integrationSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setIntegrationDraft({
+                        name: selectedIntegration.name || "",
+                        description: selectedIntegration.description || "",
+                        enabled: Boolean(selectedIntegration.enabled),
+                      });
+                      setIntegrationError("");
+                      setIntegrationMessage("");
+                    }}
+                    disabled={integrationSaving}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* NOTIFICATIONS */}
+{activePage === "notifications" && (
+  <section className="dashboard-section" id="notifications">
+    <div className="section-heading section-heading-row">
+      <div>
+        <p className="section-eyebrow">ACTIVITY CENTER</p>
+        <h2>Notifications</h2>
+        <p>Monitor important platform events, billing alerts and system activity.</p>
+      </div>
+      <button
+        className="secondary-button"
+        onClick={markAllNotificationsRead}
+        disabled={notificationsLoading || notifications.every((item) => !item.unread)}
+        title="Save read status for all unread notifications in MongoDB."
+      >
+        Mark All as Read
+      </button>
+    </div>
+
+    {notificationError && (
+      <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{notificationError}</p>
+    )}
+
+    <div className="notification-summary">
+      <div className="notification-summary-card">
+        <div><span>Total Notifications</span><strong>{notifications.length}</strong></div>
+        <div className="notification-summary-icon">N</div>
+      </div>
+      <div className="notification-summary-card">
+        <div><span>Unread</span><strong className="notification-unread-count">{notifications.filter((item) => item.unread).length}</strong></div>
+        <div className="notification-summary-icon unread">{notifications.filter((item) => item.unread).length}</div>
+      </div>
+      <div className="notification-summary-card">
+        <div><span>Critical Alerts</span><strong>{notifications.filter((item) => /critical|urgent|high/i.test(String(item.priority || item.severity || ""))).length}</strong></div>
+        <div className="notification-summary-icon alert">!</div>
+      </div>
+    </div>
+
+    <div className="notification-toolbar">
+      <div className="notification-tabs">
+        {["All", "Unread", "Billing", "System"].map((filter) => (
+          <button
+            key={filter}
+            className={`notification-tab ${notificationFilter === filter ? "active" : ""}`}
+            onClick={() => setNotificationFilter(filter)}
+          >
+            {filter}
+            {filter === "Unread" && <span>{notifications.filter((item) => item.unread).length}</span>}
+          </button>
+        ))}
+      </div>
+      <select
+        className="notification-filter"
+        value={notificationSort}
+        onChange={(event) => setNotificationSort(event.target.value)}
+        aria-label="Sort notifications"
+      >
+        <option value="latest">Latest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+    </div>
+
+    <div className="notification-panel">
+      {notificationsLoading ? (
+        <p style={{ padding: "20px" }}>Loading notifications from the database...</p>
+      ) : (() => {
+        const filtered = notifications.filter((item) => {
+          if (notificationFilter === "Unread") return item.unread;
+          if (notificationFilter === "Billing") return /billing|payment|subscription|invoice/i.test(`${item.category} ${item.title} ${item.description}`);
+          if (notificationFilter === "System") return /system|security|maintenance|platform/i.test(`${item.category} ${item.title} ${item.description}`);
+          return true;
+        }).sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return notificationSort === "latest" ? bTime - aTime : aTime - bTime;
+        });
+
+        if (filtered.length === 0) {
+          return <p style={{ padding: "20px" }}>{notificationError ? "Notifications could not be loaded." : "No notifications found for this filter."}</p>;
+        }
+
+        return filtered.map((item, index) => {
+          const categoryText = String(item.category || "System");
+          const categoryClass = /billing|payment/i.test(categoryText) ? "billing" : /tenant|company/i.test(categoryText) ? "tenant" : /security|critical/i.test(categoryText) ? "security" : /plan|feature|config/i.test(categoryText) ? "plan" : "system";
+          const timestamp = item.createdAt
+            ? new Date(item.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+            : (item.time || "Time unavailable");
+          const id = item._id || item.id || `${item.title}-${index}`;
+
+          return (
+            <div key={id} className={`notification-item ${item.unread ? "unread" : ""}`}>
+              <div className={`notification-item-icon ${categoryClass}`}>
+                {categoryClass === "billing" ? "$" : categoryClass === "tenant" ? "+" : categoryClass === "security" ? "!" : categoryClass === "plan" ? "P" : "i"}
+              </div>
+              <div className="notification-item-content">
+                <div className="notification-item-title">
+                  <h3>{item.title}</h3>
+                  <span className={`notification-priority ${/critical|urgent|high/i.test(String(item.priority || item.severity || "")) ? "critical" : categoryClass === "billing" ? "attention" : "normal"}`}>
+                    {item.priority || item.severity || categoryText}
+                  </span>
+                </div>
+                <p>{item.description}</p>
+                <div className="notification-meta">
+                  <span>{item.source}</span><span>•</span><span>{timestamp}</span>
+                </div>
+              </div>
+              <div className="notification-item-actions">
+                {item.unread && <span className="notification-unread-dot"></span>}
+                <button
+                  onClick={() => item.unread ? markNotificationRead(item) : undefined}
+                  disabled={!item.unread}
+                  title={item.unread ? "Mark this notification as read" : "Already read"}
+                >
+                  {item.unread ? "Mark Read" : "Read"}
+                </button>
+              </div>
+            </div>
+          );
+        });
+      })()}
+    </div>
+
+    <div className="notification-footer">
+      <span>Showing {notifications.filter((item) => {
+        if (notificationFilter === "Unread") return item.unread;
+        if (notificationFilter === "Billing") return /billing|payment|subscription|invoice/i.test(`${item.category} ${item.title} ${item.description}`);
+        if (notificationFilter === "System") return /system|security|maintenance|platform/i.test(`${item.category} ${item.title} ${item.description}`);
+        return true;
+      }).length} notification(s) from the API</span>
+      <button className="text-button" onClick={() => setNotificationFilter("All")}>View All Notifications →</button>
+    </div>
+  </section>
+)}
+
+{/* ANNOUNCEMENTS */}
+ {activePage === "announcements" && (
+  <section className="dashboard-section" id="announcements">
+    <div className="section-heading section-heading-row">
+      <div>
+        <p className="section-eyebrow">PLATFORM COMMUNICATION</p>
+        <h2>Announcements</h2>
+        <p>Publish important updates and platform communications to Cliently tenants.</p>
+      </div>
+      <button
+        className="primary-button"
+        onClick={async () => {
+          const title = window.prompt("Announcement title:");
+          if (!title || !title.trim()) return;
+          const message = window.prompt("Announcement message:");
+          if (!message || !message.trim()) return;
+          const type = window.prompt("Announcement type (General, Billing, Security, Feature):", "General") || "General";
+          const statusInput = window.prompt("Status (Draft or Published):", "Draft") || "Draft";
+          const status = statusInput.trim().toLowerCase() === "published" ? "Published" : "Draft";
+          try {
+            const response = await fetch("http://localhost:5000/api/super-admin/announcements", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: title.trim(), message: message.trim(), type: type.trim(), status, ...(status === "Published" ? { publishedAt: new Date().toISOString() } : {}) })
+            });
+            const result = await response.json();
+            if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+            const created = result.data || result.announcement;
+            if (created) setAnnouncements((current) => [created, ...current]);
+            else {
+              const refreshed = await fetch("http://localhost:5000/api/super-admin/announcements");
+              const refreshedResult = await refreshed.json();
+              setAnnouncements(Array.isArray(refreshedResult.data) ? refreshedResult.data : []);
+            }
+            window.alert("Announcement saved successfully.");
+          } catch (error) {
+            console.error("Create announcement error:", error);
+            window.alert("Could not save announcement. Check whether the backend supports POST on this route.");
+          }
+        }}
+      >+ New Announcement</button>
+    </div>
+
+    <div className="announcement-summary">
+      <div className="announcement-summary-card"><div><span>Total Announcements</span><strong>{announcements.length}</strong></div><div className="announcement-summary-icon">A</div></div>
+      <div className="announcement-summary-card"><div><span>Published</span><strong className="announcement-published-count">{announcements.filter((item) => String(item.status || "").toLowerCase() === "published").length}</strong></div><div className="announcement-summary-icon published">✓</div></div>
+      <div className="announcement-summary-card"><div><span>Drafts</span><strong>{announcements.filter((item) => String(item.status || "").toLowerCase() === "draft").length}</strong></div><div className="announcement-summary-icon draft">D</div></div>
+    </div>
+
+    <div className="announcement-toolbar">
+      <div className="announcement-tabs">
+        {["All", "Published", "Drafts"].map((filter) => (
+          <button key={filter} className={`announcement-tab ${announcementFilter === filter ? "active" : ""}`} onClick={() => setAnnouncementFilter(filter)}>{filter}</button>
+        ))}
+      </div>
+      <select className="announcement-filter" value={announcementSort} onChange={(event) => setAnnouncementSort(event.target.value)}>
+        <option value="latest">Latest first</option><option value="oldest">Oldest first</option>
+      </select>
+    </div>
+
+    <div className="announcement-panel">
+      {announcementsLoading ? <p>Loading announcements...</p> : announcementError ? <p role="alert">{announcementError}</p> : (() => {
+        let visible = announcements.filter((item) => announcementFilter === "All" || String(item.status || "").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, ""));
+        visible = [...visible].sort((a, b) => {
+          const aDate = new Date(a.publishedAt || a.updatedAt || a.createdAt || 0).getTime();
+          const bDate = new Date(b.publishedAt || b.updatedAt || b.createdAt || 0).getTime();
+          return announcementSort === "latest" ? bDate - aDate : aDate - bDate;
+        });
+        if (!visible.length) return <p>{announcements.length ? "No announcements match this filter." : "No announcements found."}</p>;
+        return visible.map((item) => {
+          const status = String(item.status || "Draft");
+          const type = String(item.type || "General");
+          const date = item.publishedAt || item.updatedAt || item.createdAt;
+          return <div className="announcement-row" key={item._id || `${item.title}-${date || "item"}`}>
+            <div className={`announcement-type ${type.toLowerCase()}`}>{type.charAt(0).toUpperCase()}</div>
+            <div className="announcement-main">
+              <div className="announcement-title-line"><h3>{item.title || "Untitled announcement"}</h3><span className={`announcement-status ${status.toLowerCase()}`}>{status}</span></div>
+              <p>{item.message || item.description || "No message provided."}</p>
+              <div className="announcement-details"><span>Type: {type}</span><span>•</span><span>{date ? `${status === "Published" ? "Published" : "Updated"} ${new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "Date unavailable"}</span></div>
+           {status.toLowerCase() === "draft" && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={async () => {
+      const confirmed = window.confirm(
+        `Publish "${item.title}"?`
+      );
+
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/super-admin/announcements/${item._id}/publish`,
+          { method: "PATCH" }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || result.success === false) {
+          throw new Error(
+            result.message || "Failed to publish announcement"
+          );
+        }
+
+        const refreshed = await fetch(
+          "http://localhost:5000/api/super-admin/announcements"
+        );
+        const refreshedResult = await refreshed.json();
+
+        if (!refreshed.ok || !refreshedResult.success) {
+          throw new Error("Published, but failed to refresh the list");
+        }
+
+        setAnnouncements(refreshedResult.data || []);
+        window.alert("Announcement published successfully.");
+      } catch (error) {
+        console.error("Publish announcement error:", error);
+        window.alert(error.message || "Could not publish announcement.");
+      }
+    }}
+  >
+    Publish
+  </button>
+)}
+            </div>
+          </div>;
+        });
+      })()}
+    </div>
+    <div className="announcement-footer"><span>Showing {announcements.filter((item) => announcementFilter === "All" || String(item.status || "").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, "")).length} of {announcements.length} announcements</span></div>
+  </section>
+)}
+ {activePage === "settings" && (
+  <section className="settings-page" id="settings">
+    <div className="settings-page-header">
+      <div>
+        <span className="section-eyebrow">ADMINISTRATION</span>
+        <h2>Setup Center</h2>
+        <p>Configure the Cliently platform settings stored in the database.</p>
+      </div>
+      <span className="settings-admin-badge">● Super Admin</span>
+    </div>
+
+    <div className="settings-search-box">
+      <span>⌕</span>
+      <input
+        type="text"
+        placeholder="Search settings, users, security, modules..."
+        aria-label="Search settings"
+        onChange={(event) => {
+          const value = event.target.value.trim().toLowerCase();
+          if (value.includes("regional") || value.includes("timezone")) {
+            setActiveSetting("Regional Settings");
+          } else if (value.includes("organization") || value.includes("company") || value.includes("email")) {
+            setActiveSetting("Organization");
+          }
+        }}
+      />
+      <small>⌘ K</small>
+    </div>
+
+    <div className="settings-layout">
+      <aside className="settings-menu">
+        <div className="settings-menu-group">
+          <h4>GENERAL</h4>
+          <button
+            className={`settings-menu-item ${activeSetting === "Organization" ? "active" : ""}`}
+            onClick={() => { setActiveSetting("Organization"); setSettingsMessage(""); }}
+          >
+            <span>▣</span> Organization
+          </button>
+          <button
+            className={`settings-menu-item ${activeSetting === "Regional Settings" ? "active" : ""}`}
+            onClick={() => { setActiveSetting("Regional Settings"); setSettingsMessage(""); }}
+          >
+            <span>◷</span> Regional Settings
+          </button>
+          <button
+            className={`settings-menu-item ${activeSetting === "Business Hours" ? "active" : ""}`}
+            onClick={() => setActiveSetting("Business Hours")}
+          >
+            <span>◫</span> Business Hours
+          </button>
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>USERS &amp; CONTROL</h4>
+          {["Users", "Roles & Profiles", "Permissions", "Data Sharing"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>♙</span> {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>SECURITY</h4>
+          {["Authentication", "Login & Session Security", "Password Policy"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>⌾</span> {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>CUSTOMIZATION</h4>
+          {["CRM Modules", "Fields & Layouts", "Pipelines"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>▦</span> {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>DATA ADMINISTRATION</h4>
+          {["Import / Export", "Data Backup", "Storage", "Audit Log"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>⇅</span> {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>INTEGRATIONS</h4>
+          {["API", "Webhooks", "Connected Services"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>⌘</span> {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-menu-group">
+          <h4>SUBSCRIPTION</h4>
+          {["Plans & Licenses", "Billing", "Feature Access"].map((item) => (
+            <button key={item} className={`settings-menu-item ${activeSetting === item ? "active" : ""}`} onClick={() => setActiveSetting(item)}>
+              <span>◇</span> {item}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className="settings-content">
+        <div className="settings-content-header">
+          <div>
+            <span className="settings-content-eyebrow">PLATFORM SETTINGS</span>
+            <h3>{activeSetting}</h3>
+            <p>
+              {activeSetting === "Organization"
+                ? "Manage the company name and support contact saved for Cliently."
+                : activeSetting === "Regional Settings"
+                  ? "Choose the platform timezone."
+                  : activeSetting === "Business Hours"
+                    ? "Business hours are not included in the current settings database schema."
+                    : `${activeSetting} is not yet connected to the current settings database schema.`}
+            </p>
+          </div>
+          {(activeSetting === "Organization" || activeSetting === "Regional Settings") && (
+            <button className="primary-button" onClick={saveSettings} disabled={settingsSaving || settingsLoading}>
+              {settingsSaving ? "Saving..." : "Save Changes"}
+            </button>
+          )}
+        </div>
+
+        {settingsLoading && <p role="status">Loading settings from database...</p>}
+        {settingsError && <p role="alert" style={{ color: "#c0392b", marginBottom: "12px" }}>{settingsError}</p>}
+        {settingsMessage && <p role="status" style={{ color: "#218838", marginBottom: "12px" }}>{settingsMessage}</p>}
+
+        {(activeSetting === "Organization" || activeSetting === "Regional Settings") && (
+          <>
+            {activeSetting === "Organization" && (
+              <div className="settings-card">
+                <div className="settings-card-header">
+                  <div>
+                    <h3>Organization Information</h3>
+                    <p>These fields match the settings model in your backend.</p>
+                  </div>
+                  <span className="settings-card-status">Database</span>
+                </div>
+                <div className="settings-form-grid">
+                  <div className="settings-field">
+                    <label htmlFor="settings-company-name">Organization Name</label>
+                    <input
+                      id="settings-company-name"
+                      type="text"
+                      value={settings.general.companyName}
+                      onChange={(event) => updateGeneralSetting("companyName", event.target.value)}
+                      disabled={settingsLoading || settingsSaving}
+                    />
+                  </div>
+                  <div className="settings-field">
+                    <label htmlFor="settings-support-email">Support Email</label>
+                    <input
+                      id="settings-support-email"
+                      type="email"
+                      value={settings.general.supportEmail}
+                      onChange={(event) => updateGeneralSetting("supportEmail", event.target.value)}
+                      disabled={settingsLoading || settingsSaving}
+                      placeholder="support@cliently.com"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSetting === "Regional Settings" && (
+              <div className="settings-card">
+                <div className="settings-card-header">
+                  <div>
+                    <h3>Regional Preferences</h3>
+                    <p>Timezone is stored as <code>general.timezone</code> in MongoDB.</p>
+                  </div>
+                </div>
+                <div className="settings-form-grid">
+                  <div className="settings-field">
+                    <label htmlFor="settings-timezone">Timezone</label>
+                    <select
+                      id="settings-timezone"
+                      value={settings.general.timezone}
+                      onChange={(event) => updateGeneralSetting("timezone", event.target.value)}
+                      disabled={settingsLoading || settingsSaving}
+                    >
+                      <option value="Asia/Kolkata">India Standard Time (Asia/Kolkata)</option>
+                      <option value="UTC">Coordinated Universal Time (UTC)</option>
+                      <option value="America/New_York">Eastern Time (America/New_York)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="settings-card">
+              <div className="settings-card-header">
+                <div>
+                  <h3>Platform Preferences</h3>
+                  <p>Notification preferences saved in the settings document.</p>
+                </div>
+              </div>
+              <div className="settings-option-row">
+                <div>
+                  <strong>Administrator Email Notifications</strong>
+                  <p>Enable or disable administrator email notifications.</p>
+                </div>
+                <label className="settings-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.notifications.emailEnabled}
+                    onChange={(event) => updateNotificationSetting("emailEnabled", event.target.checked)}
+                    disabled={settingsLoading || settingsSaving}
+                  />
+                  <span></span>
+                </label>
+              </div>
+              <div className="settings-option-row">
+                <div>
+                  <strong>System Alerts</strong>
+                  <p>Enable or disable system alert notifications.</p>
+                </div>
+                <label className="settings-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.notifications.systemAlertsEnabled}
+                    onChange={(event) => updateNotificationSetting("systemAlertsEnabled", event.target.checked)}
+                    disabled={settingsLoading || settingsSaving}
+                  />
+                  <span></span>
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeSetting !== "Organization" && activeSetting !== "Regional Settings" && (
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <div>
+                <h3>{activeSetting}</h3>
+                <p>
+                  This menu item is selectable, but its fields cannot be saved yet because the backend settings model currently supports only organization details, timezone, and notification preferences. No other module data has been changed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </section>
+)}
+
+</main>
+      {profileDialogOpen && (
+        <div className="profile-dialog-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setProfileDialogOpen(false);
+        }}>
+          <section className="profile-dialog profile-dialog-enhanced" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
+            <button type="button" className="profile-dialog-close" aria-label="Close profile" onClick={() => setProfileDialogOpen(false)}>×</button>
+            <div className="profile-dialog-hero">
+              <div className="profile-dialog-avatar">SA</div>
+              <div className="profile-dialog-identity">
+                <span className="profile-status-pill"><span className="profile-status-dot" /> Active session</span>
+                <h2 id="profile-dialog-title">Super Admin Profile</h2>
+                <p>Platform Administrator</p>
+              </div>
+            </div>
+            <div className="profile-dialog-section-title">Account overview</div>
+            <div className="profile-dialog-detail"><span>Account role</span><strong>Super Admin</strong></div>
+            <div className="profile-dialog-detail"><span>Permission level</span><strong>Full platform access</strong></div>
+            <div className="profile-dialog-detail"><span>Managed environment</span><strong>All tenants</strong></div>
+            <div className="profile-dialog-detail"><span>Session</span><strong>Signed in</strong></div>
+            <div className="profile-dialog-section-title profile-dialog-quick-title">Quick access</div>
+            <div className="profile-dialog-quick-actions">
+              <button type="button" onClick={() => { setProfileDialogOpen(false); setActivePage("settings"); }}><span>⚙</span><span><strong>Platform settings</strong><small>Manage global preferences</small></span><b>›</b></button>
+              <button type="button" onClick={() => { setProfileDialogOpen(false); setActivePage("health"); }}><span>◉</span><span><strong>System health</strong><small>Review platform status</small></span><b>›</b></button>
+            </div>
+            <div className="profile-dialog-footer">
+              <span>Protected administrator account</span>
+              <button type="button" className="primary-button" onClick={() => setProfileDialogOpen(false)}>Done</button>
+            </div>
+          </section>
+        </div>
+      )}
+      <style>{`
+        .admin-profile-trigger { cursor: pointer; border: 1px solid rgba(148,163,184,.22); text-align: left; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+        .admin-profile-trigger:hover { border-color: #818cf8; box-shadow: 0 8px 24px rgba(30,41,59,.10); transform: translateY(-1px); }
+        .admin-profile-trigger:focus-visible, .profile-dialog-quick-actions button:focus-visible { outline: 3px solid rgba(99,102,241,.35); outline-offset: 3px; }
+        .profile-dialog-enhanced { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; padding: 26px; border: 1px solid rgba(148,163,184,.25); border-radius: 22px; box-shadow: 0 28px 90px rgba(15,23,42,.28); animation: profileCardIn .18s ease-out; }
+        .profile-dialog-hero { display:flex; align-items:center; gap:16px; padding: 6px 30px 22px 0; border-bottom:1px solid #e8edf5; }
+        .profile-dialog-enhanced .profile-dialog-avatar { flex:0 0 68px; width:68px; height:68px; display:grid; place-items:center; border-radius:20px; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; font-size:22px; font-weight:800; box-shadow:0 8px 20px rgba(79,70,229,.25); }
+        .profile-dialog-identity { min-width:0; }
+        .profile-dialog-identity h2 { margin:9px 0 4px; font-size:21px; line-height:1.25; color:#111827; }
+        .profile-dialog-identity p { margin:0; color:#64748b; font-size:13px; }
+        .profile-status-pill { display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:5px 9px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:700; }
+        .profile-status-dot { width:7px; height:7px; border-radius:50%; background:#10b981; }
+        .profile-dialog-section-title { margin:21px 0 9px; color:#64748b; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+        .profile-dialog-enhanced .profile-dialog-detail { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid #eef2f7; }
+        .profile-dialog-enhanced .profile-dialog-detail span { color:#64748b; font-size:13px; }
+        .profile-dialog-enhanced .profile-dialog-detail strong { color:#1e293b; font-size:13px; text-align:right; }
+        .profile-dialog-quick-title { margin-top:22px; }
+        .profile-dialog-quick-actions { display:grid; gap:9px; }
+        .profile-dialog-quick-actions button { display:flex; align-items:center; gap:12px; width:100%; padding:13px; border:1px solid #e8edf5; border-radius:13px; background:#fff; text-align:left; cursor:pointer; transition:background .2s,border-color .2s; }
+        .profile-dialog-quick-actions button:hover { background:#f8faff; border-color:#c7d2fe; }
+        .profile-dialog-quick-actions button > span:first-child { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border-radius:11px; background:#eef2ff; color:#4f46e5; font-size:18px; }
+        .profile-dialog-quick-actions button > span:nth-child(2) { display:grid; gap:4px; flex:1; }
+        .profile-dialog-quick-actions strong { color:#1e293b; font-size:13px; }
+        .profile-dialog-quick-actions small { color:#64748b; font-size:11px; }
+        .profile-dialog-quick-actions b { color:#94a3b8; font-size:22px; font-weight:400; }
+        .profile-dialog-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; padding-top:17px; border-top:1px solid #e8edf5; }
+        .profile-dialog-footer > span { color:#64748b; font-size:11px; }
+        .profile-dialog-footer .primary-button { min-width:86px; }
+        @keyframes profileCardIn { from { opacity:0; transform:translateY(8px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @media (max-width:520px) { .profile-dialog-enhanced { padding:20px; } .profile-dialog-hero { gap:12px; } .profile-dialog-enhanced .profile-dialog-avatar { width:56px; height:56px; flex-basis:56px; border-radius:16px; } .profile-dialog-identity h2 { font-size:18px; } .profile-dialog-footer { align-items:flex-start; flex-direction:column; } }
+      `}</style>
+</div>
+  );
+}
+
