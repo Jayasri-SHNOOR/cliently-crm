@@ -43,7 +43,7 @@ app.use('/api', requireSession)
 app.use('/api', userLimiter)
 app.use('/api', clientAdminRoutes);
 
-app.use('/api/super-admin', requireRole('SUPER_ADMIN'), superAdminRoutes);
+app.use('/api/super-admin', superAdminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
