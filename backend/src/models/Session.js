@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const REVOKE_REASONS = ['logout', 'idle', 'expired', 'user_inactive', 'tenant_inactive', 'reuse']
+const REVOKE_REASONS = ['logout', 'idle', 'expired', 'user_inactive', 'tenant_inactive', 'role_changed', 'reuse']
 const sessionSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

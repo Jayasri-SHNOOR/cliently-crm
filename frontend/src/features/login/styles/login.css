@@ -218,8 +218,8 @@
     top: 50%;
     transform: translateY(-50%);
     color: #287D71;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 1000;
     pointer-events: none;
 }
 

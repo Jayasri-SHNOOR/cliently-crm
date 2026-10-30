@@ -87,8 +87,8 @@ async function rotateRefreshToken(session){
   return refreshToken
 }
 
-function toProfile(user, tenant){
-  return{
+function toProfile(user, tenant) {
+  return {
     id: user._id,
     name: user.name,
     email: user.email,
