@@ -3,8 +3,12 @@ function notFound(req, res){
   }
 
   function errorHandler(err, req, res, next){
-    if(err.statusCode){
-      return res.status(err.statusCode).json({message: err.message})
+    if (err.statusCode){
+      const body = {message: err.message}
+      if (err.code){
+        body.code = err.code
+      }
+      return res.status(err.statusCode).json(body)
     }
     if(err.name === 'ValidationError'){
       const errors = {}
