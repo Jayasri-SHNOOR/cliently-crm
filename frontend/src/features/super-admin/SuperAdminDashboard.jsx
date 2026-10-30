@@ -289,32 +289,45 @@ export default function SuperAdminDashboard({ onLogout }) {
   const [announcementError, setAnnouncementError] = useState("");
   const [announcementFilter, setAnnouncementFilter] = useState("All");
   const [announcementSort, setAnnouncementSort] = useState("latest");
+  const [activePage, setActivePage] = useState("dashboard");
 
+  // Load announcements when the user opens this module. This also retries the
+  // request after the backend has started, instead of failing only on first mount.
   useEffect(() => {
+    if (activePage !== "announcements") return;
     let cancelled = false;
     async function loadAnnouncements() {
       setAnnouncementsLoading(true);
       setAnnouncementError("");
       try {
         const response = await fetch("http://localhost:5000/api/super-admin/announcements");
-        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-        const result = await response.json();
-        if (result.success === false) throw new Error(result.message || "Unable to load announcements");
-        const records = Array.isArray(result.data) ? result.data : Array.isArray(result.announcements) ? result.announcements : [];
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.message || `Announcements API returned HTTP ${response.status}`);
+        }
+        if (result.success === false) {
+          throw new Error(result.message || "Announcements API reported a failure");
+        }
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.announcements)
+            ? result.announcements
+            : [];
         if (!cancelled) setAnnouncements(records);
       } catch (error) {
         console.error("Error fetching announcements:", error);
-        if (!cancelled) setAnnouncementError("Unable to load announcements. Check the backend connection.");
+        if (!cancelled) {
+          setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
+        }
       } finally {
         if (!cancelled) setAnnouncementsLoading(false);
       }
     }
     loadAnnouncements();
     return () => { cancelled = true; };
-  }, []);
+  }, [activePage]);
 
   const [activeSetting, setActiveSetting] = useState("Organization");
-  const [activePage, setActivePage] = useState("dashboard");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
@@ -927,7 +940,6 @@ export default function SuperAdminDashboard({ onLogout }) {
 
         <nav className="sidebar-nav">
 
-  <p className="nav-group-title">MAIN</p>
 
   <button
   className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
@@ -937,7 +949,6 @@ export default function SuperAdminDashboard({ onLogout }) {
   Dashboard
 </button>
 
-  <p className="nav-group-title">PLATFORM</p>
 
   <button
     className={`nav-item ${activePage === "tenants" ? "active" : ""}`}
@@ -979,7 +990,6 @@ export default function SuperAdminDashboard({ onLogout }) {
     Integrations
   </button>
 
-  <p className="nav-group-title">COMMUNICATION</p>
 
   <button
     className={`nav-item ${activePage === "notifications" ? "active" : ""}`}
@@ -997,7 +1007,6 @@ export default function SuperAdminDashboard({ onLogout }) {
     Announcements
   </button>
 
-  <p className="nav-group-title">SYSTEM</p>
 
   <button
     className={`nav-item ${activePage === "settings" ? "active" : ""}`}
@@ -2509,64 +2518,18 @@ export default function SuperAdminDashboard({ onLogout }) {
         <div className="profile-dialog-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setProfileDialogOpen(false);
         }}>
-          <section className="profile-dialog profile-dialog-enhanced" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
+          <section className="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
             <button type="button" className="profile-dialog-close" aria-label="Close profile" onClick={() => setProfileDialogOpen(false)}>×</button>
-            <div className="profile-dialog-hero">
-              <div className="profile-dialog-avatar">SA</div>
-              <div className="profile-dialog-identity">
-                <span className="profile-status-pill"><span className="profile-status-dot" /> Active session</span>
-                <h2 id="profile-dialog-title">Super Admin Profile</h2>
-                <p>Platform Administrator</p>
-              </div>
-            </div>
-            <div className="profile-dialog-section-title">Account overview</div>
-            <div className="profile-dialog-detail"><span>Account role</span><strong>Super Admin</strong></div>
-            <div className="profile-dialog-detail"><span>Permission level</span><strong>Full platform access</strong></div>
-            <div className="profile-dialog-detail"><span>Managed environment</span><strong>All tenants</strong></div>
-            <div className="profile-dialog-detail"><span>Session</span><strong>Signed in</strong></div>
-            <div className="profile-dialog-section-title profile-dialog-quick-title">Quick access</div>
-            <div className="profile-dialog-quick-actions">
-              <button type="button" onClick={() => { setProfileDialogOpen(false); setActivePage("settings"); }}><span>⚙</span><span><strong>Platform settings</strong><small>Manage global preferences</small></span><b>›</b></button>
-              <button type="button" onClick={() => { setProfileDialogOpen(false); setActivePage("health"); }}><span>◉</span><span><strong>System health</strong><small>Review platform status</small></span><b>›</b></button>
-            </div>
-            <div className="profile-dialog-footer">
-              <span>Protected administrator account</span>
-              <button type="button" className="primary-button" onClick={() => setProfileDialogOpen(false)}>Done</button>
-            </div>
+            <div className="profile-dialog-avatar">SA</div>
+            <p className="section-eyebrow">ACCOUNT</p>
+            <h2 id="profile-dialog-title">Super Admin Profile</h2>
+            <p className="profile-dialog-description">You are signed in with platform administrator access.</p>
+            <div className="profile-dialog-detail"><span>Role</span><strong>Super Admin</strong></div>
+            <div className="profile-dialog-detail"><span>Access</span><strong>Platform administration</strong></div>
+            <button type="button" className="primary-button" onClick={() => setProfileDialogOpen(false)}>Close</button>
           </section>
         </div>
       )}
-      <style>{`
-        .admin-profile-trigger { cursor: pointer; border: 1px solid rgba(148,163,184,.22); text-align: left; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
-        .admin-profile-trigger:hover { border-color: #818cf8; box-shadow: 0 8px 24px rgba(30,41,59,.10); transform: translateY(-1px); }
-        .admin-profile-trigger:focus-visible, .profile-dialog-quick-actions button:focus-visible { outline: 3px solid rgba(99,102,241,.35); outline-offset: 3px; }
-        .profile-dialog-enhanced { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; padding: 26px; border: 1px solid rgba(148,163,184,.25); border-radius: 22px; box-shadow: 0 28px 90px rgba(15,23,42,.28); animation: profileCardIn .18s ease-out; }
-        .profile-dialog-hero { display:flex; align-items:center; gap:16px; padding: 6px 30px 22px 0; border-bottom:1px solid #e8edf5; }
-        .profile-dialog-enhanced .profile-dialog-avatar { flex:0 0 68px; width:68px; height:68px; display:grid; place-items:center; border-radius:20px; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; font-size:22px; font-weight:800; box-shadow:0 8px 20px rgba(79,70,229,.25); }
-        .profile-dialog-identity { min-width:0; }
-        .profile-dialog-identity h2 { margin:9px 0 4px; font-size:21px; line-height:1.25; color:#111827; }
-        .profile-dialog-identity p { margin:0; color:#64748b; font-size:13px; }
-        .profile-status-pill { display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:5px 9px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:700; }
-        .profile-status-dot { width:7px; height:7px; border-radius:50%; background:#10b981; }
-        .profile-dialog-section-title { margin:21px 0 9px; color:#64748b; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
-        .profile-dialog-enhanced .profile-dialog-detail { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid #eef2f7; }
-        .profile-dialog-enhanced .profile-dialog-detail span { color:#64748b; font-size:13px; }
-        .profile-dialog-enhanced .profile-dialog-detail strong { color:#1e293b; font-size:13px; text-align:right; }
-        .profile-dialog-quick-title { margin-top:22px; }
-        .profile-dialog-quick-actions { display:grid; gap:9px; }
-        .profile-dialog-quick-actions button { display:flex; align-items:center; gap:12px; width:100%; padding:13px; border:1px solid #e8edf5; border-radius:13px; background:#fff; text-align:left; cursor:pointer; transition:background .2s,border-color .2s; }
-        .profile-dialog-quick-actions button:hover { background:#f8faff; border-color:#c7d2fe; }
-        .profile-dialog-quick-actions button > span:first-child { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border-radius:11px; background:#eef2ff; color:#4f46e5; font-size:18px; }
-        .profile-dialog-quick-actions button > span:nth-child(2) { display:grid; gap:4px; flex:1; }
-        .profile-dialog-quick-actions strong { color:#1e293b; font-size:13px; }
-        .profile-dialog-quick-actions small { color:#64748b; font-size:11px; }
-        .profile-dialog-quick-actions b { color:#94a3b8; font-size:22px; font-weight:400; }
-        .profile-dialog-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; padding-top:17px; border-top:1px solid #e8edf5; }
-        .profile-dialog-footer > span { color:#64748b; font-size:11px; }
-        .profile-dialog-footer .primary-button { min-width:86px; }
-        @keyframes profileCardIn { from { opacity:0; transform:translateY(8px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @media (max-width:520px) { .profile-dialog-enhanced { padding:20px; } .profile-dialog-hero { gap:12px; } .profile-dialog-enhanced .profile-dialog-avatar { width:56px; height:56px; flex-basis:56px; border-radius:16px; } .profile-dialog-identity h2 { font-size:18px; } .profile-dialog-footer { align-items:flex-start; flex-direction:column; } }
-      `}</style>
 </div>
   );
 }

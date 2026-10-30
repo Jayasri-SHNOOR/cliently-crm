@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/seed.js",
     "seed:help": "node src/seed/seedHelp.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "seed:super-admin": "node scripts/seedSuperAdmin.js"
   },
   "keywords": [],
   "author": "",
@@ -19,15 +20,11 @@
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-<<<<<<< HEAD
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.11.4"
-=======
     "firebase": "^13.1.0",
     "firebase-admin": "^14.5.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.4",
     "morgan": "^1.12.1"
->>>>>>> dev
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,4 +1,13 @@
 node_modules/
+
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Firebase credentials
 firebase-service-account.json
 *firebase-adminsdk*.json
+
+# Logs
+server-log.txt
