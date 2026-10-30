@@ -22,7 +22,7 @@ async function verifyFirebaseToken(token){
   }
 }
 
-async function requireAuth(req, res, next){
+async function requireFirebaseAuth(req, res, next){
   try{
     const token = readBearerToken(req)
     const decoded = await verifyFirebaseToken(token)
@@ -58,4 +58,4 @@ async function requireAuth(req, res, next){
     next(err)
   }
 }
-module.exports = requireAuth
+module.exports = requireFirebaseAuth

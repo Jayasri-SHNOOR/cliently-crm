@@ -3,8 +3,8 @@ const app = require('./app')
 console.log('App type:', typeof app);
 console.log('App listen:', typeof app.listen);
 const connectDB = require('./config/db')
-const { initFirebaseAdmin } = require('./config/firebaseAdmin')
-
+const {initFirebaseAdmin} = require('./config/firebaseAdmin')
+const { assertSessionConfig } = require('./config/session')
 const PORT = process.env.PORT || 5000
 
 function initFirebaseSafely() {
