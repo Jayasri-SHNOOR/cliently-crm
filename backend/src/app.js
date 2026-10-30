@@ -1,18 +1,18 @@
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const mongoose = require('mongoose');
-require('dotenv').config();
+const express = require('express')
+const cors = require('cors')
+const morgan = require('morgan')
+const mongoose = require('mongoose')
+const cookieParser = require('cookie-parser')
+const requireSession = require('./middleware/requireSession')
+const { ipShield, userLimiter } = require('./middleware/limiters')
+const { notFound, errorHandler } = require('./middleware/errorHandler')
+const authRoutes = require('./modules/auth/routes/authRoutes')
+const clientAdminRoutes = require('./modules/client-admin')
 
-const requireAuth = require('./middleware/auth');
-const { ipShield, userLimiter } = require('./middleware/limiters');
-const { notFound, errorHandler } = require('./middleware/errorHandler');
-
-const authRoutes = require('./modules/auth/routes/authRoutes');
-const clientAdminRoutes = require('./modules/client-admin');
 const superAdminRoutes = require('./modules/super-admin/index.js');
 
 const app = express();
+
 
 app.use(cors({
   origin: process.env.CLIENT_URL || true,
@@ -24,6 +24,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan('dev'));
 
 app.get('/api/health', (req, res) => {
@@ -34,22 +35,15 @@ app.get('/api/health', (req, res) => {
       : 'disconnected',
     dbName: mongoose.connection.name,
     time: new Date().toISOString()
-  });
-});
-
-app.use('/api', ipShield);
-app.use('/api/auth', authRoutes);
-
-// 1. requireAuth must run first: it sets req.user
-app.use('/api', requireAuth);
-// 2. userLimiter needs req.user.tenantId, so it comes after
-app.use('/api', userLimiter);
-
-// Existing Client Admin routes - preserved
+  })
+})
+app.use('/api', ipShield)
+app.use('/api/auth', authRoutes)
+app.use('/api', requireSession)
+app.use('/api', userLimiter)
 app.use('/api', clientAdminRoutes);
 
-// Super Admin routes
-app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/super-admin', requireRole('SUPER_ADMIN'), superAdminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

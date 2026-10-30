@@ -12,7 +12,7 @@ module.exports = {
     message: 'Too many attempts.'
   },
   user:{
-    capacity: 10,
+    capacity: 20,
     refillPerSecond: 1,
     defaultCost: 1,
     costs:{

@@ -1,11 +1,11 @@
 const {createTokenBucketLimiter} = require('../utils/rateLimit/tokenBucket')
 const AppError = require('../utils/AppError')
 
-function userKey(req){
-  if (!req.user || !req.user.tenantId){
-    throw new Error('tokenBucketLimit must run after requireAuth')
+function userKey(req) {
+  if (!req.user || !req.user.id) {
+    throw new Error('tokenBucketLimit must run after requireSession')
   }
-  return `${req.user.tenantId}:${req.user.id || req.ip}`
+  return `${req.user.tenantId || 'platform'}:${req.user.id}`
 }
 
 function tokenBucketLimit({
