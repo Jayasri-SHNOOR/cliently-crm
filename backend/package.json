@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/seed.js",
     "seed:help": "node src/seed/seedHelp.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "seed:super-admin": "node scripts/seedSuperAdmin.js"
   },
   "keywords": [],
   "author": "",
