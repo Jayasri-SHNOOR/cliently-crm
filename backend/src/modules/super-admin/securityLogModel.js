@@ -1,11 +1,24 @@
-﻿const mongoose = require("mongoose");
+﻿
+const mongoose = require("mongoose");
 
 const securityLogSchema = new mongoose.Schema(
   {
-    event: { type: String, required: true, trim: true, maxlength: 500 },
+    event: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 500,
+    },
     category: {
       type: String,
-      enum: ["Authentication", "Authorization", "Data Access", "Configuration", "System", "General"],
+      enum: [
+        "Authentication",
+        "Authorization",
+        "Data Access",
+        "Configuration",
+        "System",
+        "General",
+      ],
       default: "General",
     },
     severity: {
@@ -13,13 +26,32 @@ const securityLogSchema = new mongoose.Schema(
       enum: ["Low", "Medium", "High", "Critical"],
       default: "Low",
     },
-    actor: { type: String, trim: true, maxlength: 150, default: "System" },
-    details: { type: String, trim: true, maxlength: 2000, default: "" },
-    occurredAt: { type: Date, default: Date.now, index: true },
+    actor: {
+      type: String,
+      trim: true,
+      maxlength: 150,
+      default: "System",
+    },
+    details: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: "",
+    },
+    occurredAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );
 
+securityLogSchema.index({ occurredAt: -1, _id: -1 });
+
 module.exports =
   mongoose.models.SuperAdminSecurityLog ||
-  mongoose.model("SuperAdminSecurityLog", securityLogSchema, "superadmin_security_logs");
+  mongoose.model(
+    "SuperAdminSecurityLog",
+    securityLogSchema,
+    "superadmin_security_logs"
+  );

@@ -6,8 +6,8 @@ const {
   getTenantById,
   createTenant,
   updateTenant,
-  deleteTenant
-} = require('../controllers/tenantController');
+  deleteTenant,
+} = require("../controllers/tenantController");
 router.get("/", getTenants);
 router.get("/:id", getTenantById);
 router.post("/", createTenant);

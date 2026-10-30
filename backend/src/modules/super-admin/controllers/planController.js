@@ -2,23 +2,46 @@
 const mongoose = require("mongoose");
 const Plan = require("../planModel");
 
+
 const getPlans = async (req, res) => {
   try {
-    const data = await Plan.find().sort({ price: 1 });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit, 10) || 10)
+    );
+    const skip = (page - 1) * limit;
 
-    res.status(200).json({
+    const [data, total] = await Promise.all([
+      Plan.find()
+        .sort({ price: 1, _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Plan.countDocuments(),
+    ]);
+
+    return res.status(200).json({
       success: true,
       count: data.length,
       data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Get plans error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to retrieve plans",
     });
   }
 };
+
 
 const getPlanById = async (req, res) => {
   try {

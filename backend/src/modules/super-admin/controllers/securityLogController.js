@@ -1,9 +1,14 @@
+
 const mongoose = require("mongoose");
 const SecurityLog = require("../securityLogModel");
 
 const getSecurityLogs = async (req, res) => {
   try {
-    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const page = Math.max(
+      1,
+      Number.parseInt(req.query.page, 10) || 1
+    );
+
     const limit = Math.min(
       100,
       Math.max(1, Number.parseInt(req.query.limit, 10) || 20)
@@ -12,14 +17,14 @@ const getSecurityLogs = async (req, res) => {
     const [data, total] = await Promise.all([
       SecurityLog.find()
         .select("-__v")
-        .sort({ occurredAt: -1 })
+        .sort({ occurredAt: -1, _id: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .lean(),
       SecurityLog.countDocuments(),
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data,
       pagination: {
@@ -31,7 +36,8 @@ const getSecurityLogs = async (req, res) => {
     });
   } catch (error) {
     console.error("Get security logs error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to retrieve security logs",
     });
@@ -49,7 +55,9 @@ const getSecurityLogById = async (req, res) => {
       });
     }
 
-    const data = await SecurityLog.findById(id).select("-__v").lean();
+    const data = await SecurityLog.findById(id)
+      .select("-__v")
+      .lean();
 
     if (!data) {
       return res.status(404).json({
@@ -58,16 +66,19 @@ const getSecurityLogById = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, data });
+    return res.status(200).json({
+      success: true,
+      data,
+    });
   } catch (error) {
     console.error("Get security log error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to retrieve security log",
     });
   }
 };
-
 
 const createSecurityLog = async (req, res) => {
   try {
@@ -88,7 +99,7 @@ const createSecurityLog = async (req, res) => {
       details,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Security event recorded",
       data,
@@ -97,12 +108,13 @@ const createSecurityLog = async (req, res) => {
     if (error.name === "ValidationError") {
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: "Invalid security log data",
       });
     }
 
     console.error("Create security log error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to record security event",
     });
