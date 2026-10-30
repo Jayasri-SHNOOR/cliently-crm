@@ -6,23 +6,26 @@ const getSystemHealth = async (req, res) => {
   try {
     const dbState = mongoose.connection.readyState;
 
-    const databaseStatus = {
-      0: "Disconnected",
-      1: "Connected",
-      2: "Connecting",
-      3: "Disconnecting",
-    }[dbState] || "Unknown";
+    const databaseStatus =
+      {
+        0: "Disconnected",
+        1: "Connected",
+        2: "Connecting",
+        3: "Disconnecting",
+      }[dbState] || "Unknown";
+
+    const databaseConnected = dbState === 1;
 
     const data = {
       server: {
-        status: "Healthy",
+        status: databaseConnected ? "Healthy" : "Degraded",
         uptimeSeconds: Math.floor(process.uptime()),
         nodeVersion: process.version,
         platform: process.platform,
       },
       database: {
         status: databaseStatus,
-        connected: dbState === 1,
+        connected: databaseConnected,
       },
       system: {
         totalMemoryMB: Math.round(os.totalmem() / 1024 / 1024),
@@ -34,17 +37,15 @@ const getSystemHealth = async (req, res) => {
       checkedAt: new Date().toISOString(),
     };
 
-    const overallHealthy = data.database.connected;
-
-    res.status(overallHealthy ? 200 : 503).json({
-      success: true,
-      status: overallHealthy ? "Healthy" : "Degraded",
+    return res.status(databaseConnected ? 200 : 503).json({
+      success: databaseConnected,
+      status: databaseConnected ? "Healthy" : "Degraded",
       data,
     });
   } catch (error) {
     console.error("System health error:", error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       status: "Error",
       message: "Unable to retrieve system health",
