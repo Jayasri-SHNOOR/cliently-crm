@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const morgan = require('morgan')
 const mongoose = require('mongoose')
+const cookieParser = require('cookie-parser')
 const requireAuth = require('./middleware/auth')
 const { ipShield, userLimiter } = require('./middleware/limiters')
 const { notFound, errorHandler } = require('./middleware/errorHandler')
@@ -12,9 +13,11 @@ const app = express()
 
 app.use(cors({
   origin: process.env.CLIENT_URL,
+  credentials : true,
   exposedHeaders: ['Retry-After', 'RateLimit-Limit', 'RateLimit-Remaining']
 }))
 app.use(express.json())
+app.use(cookieParser())
 app.use(morgan('dev'))
 
 

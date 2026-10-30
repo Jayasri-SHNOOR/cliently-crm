@@ -1,11 +1,12 @@
 require('dotenv').config()
 const app = require('./app')
 const connectDB = require('./config/db')
-const { initFirebaseAdmin } = require('./config/firebaseAdmin')
-
+const {initFirebaseAdmin} = require('./config/firebaseAdmin')
+const { assertSessionConfig } = require('./config/session')
 const PORT = process.env.PORT || 5000
 
 async function start() {
+  assertSessionConfig()
   initFirebaseAdmin()
   await connectDB()
   app.listen(PORT, () => {
