@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 
@@ -10,6 +9,7 @@ const systemHealthRoutes = require('./routes/systemHealthRoutes');
 const securityLogRoutes = require('./routes/securityLogRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
+const settingRouter = require('./routes/settingRouter'); // NEW: Settings module
 
 router.use('/tenants', tenantRoutes);
 router.use('/subscriptions', subscriptionRoutes);
@@ -19,6 +19,7 @@ router.use('/system-health', systemHealthRoutes);
 router.use('/security-logs', securityLogRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/announcements', announcementRoutes);
+router.use('/settings', settingRouter); // NEW: Settings module
 router.get('/test', (req, res) => {
   res.json({
     success: true,
