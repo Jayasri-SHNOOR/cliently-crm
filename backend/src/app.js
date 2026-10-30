@@ -8,6 +8,7 @@ const { ipShield, userLimiter } = require('./middleware/limiters')
 const { notFound, errorHandler } = require('./middleware/errorHandler')
 const authRoutes = require('./modules/auth/routes/authRoutes')
 const clientAdminRoutes = require('./modules/client-admin')
+const superAdminRoutes = require('./modules/super-admin')
 const app = express()
 
 app.use(cors({
@@ -34,6 +35,7 @@ app.use('/api', requireAuth)
 app.use('/api', userLimiter)
 
 app.use('/api', clientAdminRoutes)
+app.use('/api/super-admin', superAdminRoutes)
 
 app.use(notFound)
 app.use(errorHandler)

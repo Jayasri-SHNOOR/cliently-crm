@@ -16,6 +16,7 @@ const tenantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+tenantSchema.index({ createdAt: -1, _id: -1 });
 
 module.exports =
   mongoose.models.SuperAdminTenant ||
