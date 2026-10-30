@@ -20,7 +20,7 @@ const subscriptionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
+subscriptionSchema.index({ createdAt: -1, _id: -1 });
 module.exports =
   mongoose.models.SuperAdminSubscription ||
   mongoose.model("SuperAdminSubscription", subscriptionSchema, "superadmin_subscriptions");

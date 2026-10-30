@@ -2,17 +2,12 @@
 const mongoose = require("mongoose");
 const Integration = require("../integrationModel");
 
-// GET all integrations
 const getIntegrations = async (req, res) => {
   try {
-    console.log("========== INTEGRATIONS DEBUG ==========");
-    console.log("Connected database:", mongoose.connection.name);
-    console.log("Integration collection:", Integration.collection.name);
-
-    const data = await Integration.find().sort({ name: 1 });
-
-    console.log("Integrations found:", data.length);
-    console.log("========================================");
+    const data = await Integration.find()
+      .select("name description enabled createdAt updatedAt")
+      .sort({ name: 1, _id: 1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
@@ -25,7 +20,6 @@ const getIntegrations = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch integrations",
-      error: error.message,
     });
   }
 };
