@@ -1,57 +1,55 @@
-import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
-import { auth } from "../config/firebase";
-import { apiFetch } from "../../../lib/api";
-import { setSession } from "../../../lib/session";
+const MAX_ATTEMPTS = 5;
+const LOCK_SECONDS = 60;
+const STORAGE_KEY = "cliently_login_attempts";
 
-const ROLE_MAP = {
-    "SUPER-ADMIN": "SUPER_ADMIN",
-    "CLIENT-ADMIN": "CLIENT_ADMIN",
-    "CLIENT-USER": "SALES_USER",
-};
+function keyFor(email) {
+    return email.trim().toLowerCase();
+}
 
-const FIREBASE_ERRORS = {
-    "auth/invalid-credential": "Incorrect email or password.",
-    "auth/invalid-email": "Please enter a valid email address.",
-    "auth/missing-email": "Please enter your work email.",
-    "auth/user-disabled": "This account has been disabled.",
-    "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
-    "auth/network-request-failed": "Network error. Check your internet connection.",
-};
-
-export async function login(email, password, selectedRoleId) {
-    let credential;
+function readAll() {
     try {
-        credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-    } catch (err) {
-        throw new Error(FIREBASE_ERRORS[err.code] || "Sign in failed. Please try again.", { cause: err });
-    }
-
-    try {
-        const firebaseToken = await credential.user.getIdToken();
-        const data = await apiFetch("/api/auth/login", {
-            method: "POST",
-            auth: false,
-            token: firebaseToken,
-            body: { selectedRole: ROLE_MAP[selectedRoleId] },
-        });
-        setSession(data);
-        return data.user;
-    } finally {
-        await signOut(auth).catch(() => null);
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch {
+        return {};
     }
 }
 
-export async function requestPasswordReset(email) {
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
-        throw new Error("Enter your work email above, then click Forgot password.");
+function writeAll(all) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    } catch {
+        return undefined;
+    }
+    return undefined;
+}
+
+export function getLockSeconds(email) {
+    const entry = readAll()[keyFor(email)];
+    if (!entry || !entry.lockedUntil) {
+        return 0;
+    }
+    return Math.max(0, Math.ceil((entry.lockedUntil - Date.now()) / 1000));
+}
+
+export function recordFailure(email) {
+    const all = readAll();
+    const key = keyFor(email);
+    const entry = all[key] || { count: 0, lockedUntil: 0 };
+
+    entry.count += 1;
+    if (entry.count >= MAX_ATTEMPTS) {
+        all[key] = { count: 0, lockedUntil: Date.now() + LOCK_SECONDS * 1000 };
+        writeAll(all);
+        return { lockSeconds: LOCK_SECONDS, attemptsLeft: 0 };
     }
 
-    try {
-        await sendPasswordResetEmail(auth, cleanEmail, {
-            url: `${window.location.origin}/`,
-        });
-    } catch (err) {
-        throw new Error(FIREBASE_ERRORS[err.code] || "Could not send the reset email. Please try again.", { cause: err });
-    }
+    all[key] = entry;
+    writeAll(all);
+    return { lockSeconds: 0, attemptsLeft: MAX_ATTEMPTS - entry.count };
+}
+
+export function clearAttempts(email) {
+    const all = readAll();
+    delete all[keyFor(email)];
+    writeAll(all);
 }

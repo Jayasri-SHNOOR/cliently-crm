@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiFetch } from '../../lib/api'
+import { clearSession } from '../../lib/session'
 import './clientadmin.css'
 
 import Sidebar from './components/Sidebar'
@@ -30,12 +32,15 @@ function ClientAdmin() {
       setCurrentPage(page)
     }
   }
-  const handleLogout = () => {
+
+  const handleLogout = async () => {
     setLoggedOut(true)
+    await apiFetch('/api/auth/logout', { method: 'POST', auth: false }).catch(() => null)
   }
 
   const handleBackToLogin = () => {
-    navigate('/login')
+    clearSession()
+    navigate('/login', { replace: true })
   }
 
   if (loggedOut) {

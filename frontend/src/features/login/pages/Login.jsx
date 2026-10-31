@@ -1,13 +1,30 @@
 import { useState, useEffect } from "react";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import RoleSelector from "../components/RoleSelector";
 import { login, requestPasswordReset } from "../services/authService";
 import { getLockSeconds, recordFailure, clearAttempts } from "../services/loginAttempts";
+import { useCurrentUser } from "../../../lib/useSession";
+import { homeFor } from "../../../lib/roles";
 import "../styles/login.css";
+
+const REASON_MESSAGES = {
+    SESSION_IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
+    IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
+    SESSION_EXPIRED: "Your session has expired. Please sign in again.",
+    SESSION_REVOKED: "Your session has ended. Please sign in again.",
+    NO_SESSION: "Please sign in to continue.",
+    NO_TOKEN: "Please sign in to continue.",
+    INVALID_TOKEN: "Please sign in to continue.",
+    USER_INACTIVE: "Your account is inactive. Contact your administrator.",
+    TENANT_INACTIVE: "Your company account is not active. Contact NexaSoft support.",
+};
+
 function formatCountdown(totalSeconds){
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = String(totalSeconds % 60).padStart(2, "0");
     return `${minutes}:${seconds}`;
 }
+
 function Login(){
     const [selectedRole, setSelectedRole] = useState("SUPER-ADMIN");
     const [email, setEmail] = useState("");
@@ -16,8 +33,13 @@ function Login(){
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
-    const [loggedInUser, setLoggedInUser] = useState(null);
     const [cooldown, setCooldown] = useState(0);
+
+    const currentUser = useCurrentUser();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const reasonMessage = REASON_MESSAGES[searchParams.get("reason")] || "";
+
     useEffect(() => {
         if (cooldown <= 0) {
             return undefined;
@@ -28,10 +50,14 @@ function Login(){
         return () => clearTimeout(timer);
     }, [cooldown]);
 
+    const home = homeFor(currentUser);
+    if (home) {
+        return <Navigate to={location.state?.from || home} replace />;
+    }
+
     const clearMessages = () => {
         setError("");
         setNotice("");
-        setLoggedInUser(null);
     };
 
     const handleRoleChange = (roleId) => {
@@ -65,9 +91,8 @@ function Login(){
         setLoading(true);
 
         try{
-            const user = await login(email, password, selectedRole);
+            await login(email, password, selectedRole);
             clearAttempts(email);
-            setLoggedInUser(user);
             setPassword("");
         } catch (err) {
             if (err.status === 429 && err.retryAfter > 0) {
@@ -81,6 +106,7 @@ function Login(){
             setLoading(false);
         }
     };
+
     const handleForgotPassword = async () => {
         clearMessages();
         setLoading(true);
@@ -130,6 +156,11 @@ function Login(){
                         />
                     </div>
 
+                    {reasonMessage && !error && !currentUser && (
+                        <div className="login-alert login-error" role="alert">
+                            {reasonMessage}
+                        </div>
+                    )}
                     {error && (
                         <div className="login-alert login-error" role="alert">
                             {error}
@@ -146,11 +177,10 @@ function Login(){
                             {notice}
                         </div>
                     )}
-
-                    {loggedInUser && (
+                    {currentUser && (
                         <div className="login-alert login-success" role="status">
-                            Signed in as <strong>{loggedInUser.name}</strong> ({loggedInUser.role})
-                            {loggedInUser.company && <> · {loggedInUser.company.name}</>}
+                            Signed in as <strong>{currentUser.name}</strong> ({currentUser.role})
+                            {currentUser.company && <> · {currentUser.company.name}</>}
                         </div>
                     )}
 
@@ -229,7 +259,7 @@ function Login(){
                             disabled={loading || cooldown > 0}
                         >
                             <span>
-                                {loading ? "Signing in..." 
+                                {loading ? "Signing in..."
                                 : cooldown > 0 ? `Try Again in ${formatCountdown(cooldown)}`:"Sign In"}
                             </span>
                             {!loading && cooldown===0 && (

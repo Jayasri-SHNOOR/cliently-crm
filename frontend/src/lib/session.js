@@ -2,33 +2,33 @@ let accessToken = null;
 let currentUser = null;
 const listeners = new Set();
 
-function notify(){
+function notify() {
     listeners.forEach((listener) => listener(currentUser));
 }
 
-export function getAccessToken(){
+export function getAccessToken() {
     return accessToken;
 }
 
-export function getCurrentUser(){
+export function getCurrentUser() {
     return currentUser;
 }
 
-export function setSession({accessToken: token, user}){
+export function setSession({ accessToken: token, user }) {
     accessToken = token;
-    if(user){
+    if (user) {
         currentUser = user;
     }
     notify();
 }
 
-export function clearSession(){
+export function clearSession() {
     accessToken = null;
     currentUser = null;
     notify();
 }
 
-export function subscribe(listener){
+export function subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);
 }
