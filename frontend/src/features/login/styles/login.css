@@ -137,15 +137,15 @@
     letter-spacing: 0.3px;
 }
 
-.login-form {
+.login-page .login-form {
     width: 100%;
 }
 
-.form-group {
+.login-page .form-group {
     margin-bottom: 20px;
 }
 
-.form-group label {
+.login-page .form-group label {
     display: block;
     margin-bottom: 8px;
     color: #183735;
@@ -153,17 +153,17 @@
     font-weight: 650;
 }
 
-.password-header {
+.login-page .password-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.password-header label {
+.login-page .password-header label {
     margin-bottom: 8px;
 }
 
-.forgot-button {
+.login-page .forgot-button {
     padding: 0;
     margin-bottom: 8px;
     border: 0;
@@ -174,16 +174,16 @@
     cursor: pointer;
 }
 
-.forgot-button:hover {
+.login-page .forgot-button:hover {
     color: #123C3A;
 }
 
-.input-wrapper {
+.login-page .input-wrapper {
     position: relative;
     width: 100%;
 }
 
-.input-wrapper input {
+.login-page .input-wrapper input {
     width: 100%;
     height: 48px;
     padding:
@@ -201,18 +201,18 @@
         box-shadow 0.2s ease;
 }
 
-.input-wrapper input::placeholder {
+.login-page .input-wrapper input::placeholder {
     color: #9AAEAA;
 }
 
-.input-wrapper input:focus {
+.login-page .input-wrapper input:focus {
     outline: none;
     border-color: #55B9A8;
     box-shadow:
         0 0 0 3px rgba(117, 213, 197, 0.18);
 }
 
-.input-icon {
+.login-page .input-icon {
     position: absolute;
     left: 15px;
     top: 50%;
@@ -223,7 +223,7 @@
     pointer-events: none;
 }
 
-.password-toggle {
+.login-page .password-toggle {
     position: absolute;
     right: 12px;
     top: 50%;

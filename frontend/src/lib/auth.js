@@ -1,4 +1,4 @@
-import {apiFetch, refreshSession} from "./api";
+import { apiFetch, refreshSession } from "./api";
 import { clearSession, getCurrentUser } from "./session";
 
 export async function restoreSession() {

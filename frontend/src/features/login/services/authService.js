@@ -1,6 +1,7 @@
 import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
-import { api } from "./api";
+import { apiFetch } from "../../../lib/api";
+import { setSession } from "../../../lib/session";
 
 const ROLE_MAP = {
     "SUPER-ADMIN": "SUPER_ADMIN",
@@ -26,16 +27,17 @@ export async function login(email, password, selectedRoleId) {
     }
 
     try {
-        const token = await credential.user.getIdToken();
-        const data = await api("/api/auth/login", {
+        const firebaseToken = await credential.user.getIdToken();
+        const data = await apiFetch("/api/auth/login", {
             method: "POST",
-            token,
+            auth: false,
+            token: firebaseToken,
             body: { selectedRole: ROLE_MAP[selectedRoleId] },
         });
+        setSession(data);
         return data.user;
-    } catch (err) {
-        await signOut(auth);
-        throw err;
+    } finally {
+        await signOut(auth).catch(() => null);
     }
 }
 
