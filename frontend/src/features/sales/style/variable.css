@@ -1,0 +1,20 @@
+:root {
+  --deep-teal: #123C3A;
+  --mint-accent: #75D5C5;
+  --soft-background: #F4FAF8;
+  --light-mint: #EAF6F3;
+  --soft-border: #CFE4DF;
+  --dark-text: #183735;
+  --muted-text: #637875;
+  --pale-mint: #DDF6F1;
+  --teal-accent: #55B9A8;
+
+  --white: #FFFFFF;
+
+  --sidebar-width: 250px;
+  --topbar-height: 70px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
