@@ -4,11 +4,8 @@ import api from "../services/api";
 import {
   Search,
   Package,
-  Laptop,
-  Headphones,
-  Smartphone,
-  Monitor,
   SlidersHorizontal,
+  Laptop,
 } from "lucide-react";
 
 function Products() {
@@ -20,31 +17,20 @@ function Products() {
 
   useEffect(() => {
     api
-      .get("/products")
+      .get("/sales/products")
       .then((response) => {
         const items = response.products || [];
 
         setProducts(
-          items.map((item) => {
-            const stock = Number(item.stockQuantity ?? 0);
-            const status =
-              stock === 0
-                ? "Out of Stock"
-                : stock <= 5
-                  ? "Low Stock"
-                  : "In Stock";
-
-            return {
-              id: item._id,
-              name: item.productName || "Unnamed Product",
-              category: item.categoryName || "Uncategorized",
-              sku: item.sku || item._id,
-              price: Number(item.price ?? 0),
-              stock,
-              icon: Laptop,
-              status,
-            };
-          })
+          items.map((item) => ({
+            id: item._id,
+            name: item.name || "Unnamed Product",
+            code: item.code || item._id,
+            category: item.category || "Uncategorized",
+            type: item.type || "Product",
+            price: Number(item.price ?? 0),
+            status: item.status || "Inactive",
+          }))
         );
       })
       .catch((err) => {
@@ -61,7 +47,7 @@ function Products() {
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      `${product.name} ${product.sku} ${product.category}`
+      `${product.name} ${product.code} ${product.category}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
@@ -72,6 +58,14 @@ function Products() {
     return matchesSearch && matchesCategory;
   });
 
+  const activeProducts = products.filter(
+    (product) => product.status === "Active"
+  ).length;
+
+  const inactiveProducts = products.filter(
+    (product) => product.status === "Inactive"
+  ).length;
+
   const formatPrice = (price) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -79,20 +73,12 @@ function Products() {
       maximumFractionDigits: 0,
     }).format(price);
 
-  const lowStock = products.filter(
-    (product) => product.stock > 0 && product.stock <= 5
-  ).length;
-
-  const outOfStock = products.filter(
-    (product) => product.stock === 0
-  ).length;
-
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
           <h1>Products</h1>
-          <p>View products, categories, pricing and stock availability.</p>
+          <p>View products, categories, pricing and availability.</p>
         </div>
       </div>
 
@@ -110,22 +96,22 @@ function Products() {
         </div>
 
         <div className="product-summary-card">
-          <span>Low Stock</span>
-          <h2>{lowStock}</h2>
-          <span className="product-summary-note">Needs attention</span>
+          <span>Active Products</span>
+          <h2>{activeProducts}</h2>
+          <span className="product-summary-note">Available products</span>
         </div>
 
         <div className="product-summary-card">
-          <span>Out of Stock</span>
-          <h2>{outOfStock}</h2>
-          <span className="product-summary-note">Unavailable items</span>
+          <span>Inactive Products</span>
+          <h2>{inactiveProducts}</h2>
+          <span className="product-summary-note">Currently unavailable</span>
         </div>
       </div>
 
       <div className="leads-card products-card">
         <div className="products-toolbar">
           <div>
-            <h2>Product Inventory</h2>
+            <h2>Product Catalogue</h2>
             <p className="section-description">
               Browse the available product catalogue.
             </p>
@@ -166,10 +152,10 @@ function Products() {
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>SKU / ID</th>
+                  <th>Product Code</th>
                   <th>Category</th>
+                  <th>Type</th>
                   <th>Price</th>
-                  <th>Stock</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -182,39 +168,35 @@ function Products() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((product) => {
-                    const Icon = product.icon;
-
-                    return (
-                      <tr key={product.id}>
-                        <td>
-                          <div className="product-name-cell">
-                            <div className="product-icon">
-                              <Icon size={20} />
-                            </div>
-                            <strong>{product.name}</strong>
+                  filteredProducts.map((product) => (
+                    <tr key={product.id}>
+                      <td>
+                        <div className="product-name-cell">
+                          <div className="product-icon">
+                            <Laptop size={20} />
                           </div>
-                        </td>
-                        <td>{product.sku}</td>
-                        <td>{product.category}</td>
-                        <td>{formatPrice(product.price)}</td>
-                        <td>{product.stock}</td>
-                        <td>
-                          <span
-                            className={`product-status ${
-                              product.status === "In Stock"
-                                ? "in-stock"
-                                : product.status === "Low Stock"
-                                  ? "low-stock"
-                                  : "out-of-stock"
-                            }`}
-                          >
-                            {product.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
+                          <strong>{product.name}</strong>
+                        </div>
+                      </td>
+
+                      <td>{product.code}</td>
+                      <td>{product.category}</td>
+                      <td>{product.type}</td>
+                      <td>{formatPrice(product.price)}</td>
+
+                      <td>
+                        <span
+                          className={`product-status ${
+                            product.status === "Active"
+                              ? "active"
+                              : "inactive"
+                          }`}
+                        >
+                          {product.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

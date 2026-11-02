@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/profile";
+const API_URL = "http://localhost:5000/api/sales/profile";
 
 const defaultProfile = {
   name: "",

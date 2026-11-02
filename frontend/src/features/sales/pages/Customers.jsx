@@ -32,7 +32,7 @@ function Customers() {
 
   useEffect(() => {
     api
-      .get("/customers")
+      .get("/sales/customers")
       .then((response) => {
         setCustomers(response.customers || []);
       })
