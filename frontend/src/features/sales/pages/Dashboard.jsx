@@ -20,7 +20,7 @@ function Dashboard() {
 
 useEffect(() => {
   api
-    .get("/dashboard")
+    .get("/sales/dashboard")
     .then((response) => {
       if (response.success) {
         setStats(response.stats);

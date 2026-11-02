@@ -15,57 +15,17 @@ import { NavLink } from "react-router-dom";
 
 export default function Sidebar() {
   const menuItems = [
-    {
-      label: "Dashboard",
-      path: "/",
-      icon: LayoutDashboard,
-    },
-    {
-      label: "Leads",
-      path: "/leads",
-      icon: Users,
-    },
-    {
-      label: "Customers",
-      path: "/customers",
-      icon: UserRound,
-    },
-    {
-      label: "Tasks",
-      path: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      label: "Calendar",
-      path: "/calendar",
-      icon: CalendarDays,
-    },
-    {
-      label: "Notes",
-      path: "/notes",
-      icon: NotebookPen,
-    },
-    {
-      label: "Products",
-      path: "/products",
-      icon: Package,
-    },
-    {
-      label: "Notifications",
-      path: "/notifications",
-      icon: Bell,
-    },
-    {
-      label: "Profile",
-      path: "/profile",
-      icon: UserCircle,
-    },
-    {
-      label: "Help",
-      path: "/help",
-      icon: CircleHelp,
-    },
-  ];
+  { label: "Dashboard", path: "/SalesExecutive", icon: LayoutDashboard },
+  { label: "Leads", path: "/SalesExecutive/leads", icon: Users },
+  { label: "Customers", path: "/SalesExecutive/customers", icon: UserRound },
+  { label: "Tasks", path: "/SalesExecutive/tasks", icon: CheckSquare },
+  { label: "Calendar", path: "/SalesExecutive/calendar", icon: CalendarDays },
+  { label: "Notes", path: "/SalesExecutive/notes", icon: NotebookPen },
+  { label: "Products", path: "/SalesExecutive/products", icon: Package },
+  { label: "Notifications", path: "/SalesExecutive/notifications", icon: Bell },
+  { label: "Profile", path: "/SalesExecutive/profile", icon: UserCircle },
+  { label: "Help", path: "/SalesExecutive/help", icon: CircleHelp },
+];
 
   return (
     <aside className="sidebar">
@@ -85,6 +45,7 @@ export default function Sidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.path === "/sales"}
               className={({ isActive }) =>
                 `sidebar-link ${isActive ? "active" : ""}`
               }

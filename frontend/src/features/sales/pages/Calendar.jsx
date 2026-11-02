@@ -35,7 +35,7 @@ function Calendar() {
         setLoading(true);
         setError("");
 
-        const response = await api.get("/tasks");
+        const response = await api.get("/sales/tasks");
         setTasks(response.tasks || []);
       } catch (err) {
         console.error("Calendar tasks API error:", err);

@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/notifications";
+const API_URL = "http://localhost:5000/api/sales/notifications";
 
 const typeIcons = {
   Calendar: CalendarDays,

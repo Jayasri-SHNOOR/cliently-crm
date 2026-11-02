@@ -1,41 +1,22 @@
-
-const API_BASE_URL = "http://localhost:5000/api";
-
-async function apiRequest(endpoint, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    ...options,
-  });
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "API request failed");
-  }
-
-  return result;
-}
+import { apiFetch } from "../../../lib/api";
 
 const api = {
-  get: (endpoint) => apiRequest(endpoint),
+  get: (endpoint) => apiFetch(endpoint),
 
   post: (endpoint, data) =>
-    apiRequest(endpoint, {
+    apiFetch(endpoint, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data,
     }),
 
   put: (endpoint, data) =>
-    apiRequest(endpoint, {
+    apiFetch(endpoint, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: data,
     }),
 
   delete: (endpoint) =>
-    apiRequest(endpoint, {
+    apiFetch(endpoint, {
       method: "DELETE",
     }),
 };

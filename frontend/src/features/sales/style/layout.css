@@ -1358,17 +1358,12 @@ a {
   white-space: nowrap;
 }
 
-.product-status.in-stock {
+.product-status.active {
   background: #DDF6E8;
   color: #18794E;
 }
 
-.product-status.low-stock {
-  background: #FFF0D5;
-  color: #9A6700;
-}
-
-.product-status.out-of-stock {
+.product-status.inactive {
   background: #FCE7E7;
   color: #B42318;
 }
