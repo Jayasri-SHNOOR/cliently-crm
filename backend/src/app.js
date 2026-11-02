@@ -44,11 +44,10 @@ app.get('/api/health', (req, res) => {
 })
 app.use('/api', ipShield)
 app.use('/api/auth', authRoutes)
+app.use('/api/super-admin', superAdminRoutes);
 app.use('/api', requireSession)
 app.use('/api', userLimiter)
 app.use('/api', clientAdminRoutes);
-
-app.use('/api/super-admin', superAdminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
