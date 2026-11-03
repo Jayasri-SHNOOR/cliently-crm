@@ -189,7 +189,7 @@ function Dashboard({ onNavigate }) {
           </div>
 
           <div className="recent-leads-list">
-            {recentLeads.slice(0, 5).map((lead) => (
+            {recentLeads.slice(0, 8).map((lead) => (
               <div className="lead-card" key={lead._id || lead.id}>
                 <div className="lead-avatar">{getInitials(lead.name)}</div>
 
