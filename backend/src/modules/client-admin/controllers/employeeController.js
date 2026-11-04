@@ -1,21 +1,26 @@
-
 const mongoose = require('mongoose')
 const Employee = require('../../../models/Employee')
+const { attachEmployeeStats } = require('../../../utils/employeeStats')
+
 const getEmployees = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId
 
     const employees = await Employee.find({ tenantId })
       .sort({ createdAt: -1 })
+      .lean()
+
+    const withStats = await attachEmployeeStats(employees, tenantId)
 
     res.status(200).json({
-      count: employees.length,
-      employees
+      count: withStats.length,
+      employees: withStats
     })
   } catch (error) {
     next(error)
   }
 }
+
 const getEmployeeById = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId
@@ -30,7 +35,7 @@ const getEmployeeById = async (req, res, next) => {
     const employee = await Employee.findOne({
       _id: id,
       tenantId
-    })
+    }).lean()
 
     if (!employee) {
       return res.status(404).json({
@@ -38,15 +43,18 @@ const getEmployeeById = async (req, res, next) => {
       })
     }
 
-    res.status(200).json(employee)
+    const [withStats] = await attachEmployeeStats([employee], tenantId)
+
+    res.status(200).json(withStats)
   } catch (error) {
     next(error)
   }
 }
+
 const createEmployee = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId
-    const { name, email, role, department, phone, status } = req.body
+    const { name, email, department, phone, status } = req.body
 
     if (!name || !email) {
       return res.status(400).json({
@@ -58,7 +66,7 @@ const createEmployee = async (req, res, next) => {
       tenantId,
       name,
       email,
-      role,
+      role: 'Sales Executive', 
       department,
       phone,
       status
@@ -72,6 +80,7 @@ const createEmployee = async (req, res, next) => {
     next(error)
   }
 }
+
 const updateEmployee = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId
@@ -86,7 +95,6 @@ const updateEmployee = async (req, res, next) => {
     const allowedFields = [
       'name',
       'email',
-      'role',
       'department',
       'phone',
       'status'
@@ -126,6 +134,7 @@ const updateEmployee = async (req, res, next) => {
     next(error)
   }
 }
+
 const deleteEmployee = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId

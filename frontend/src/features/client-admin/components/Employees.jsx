@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 import './Employees.css'
@@ -12,22 +11,30 @@ const emptyForm = {
   status: 'Active'
 }
 
+const formatMoney = (amount = 0) =>
+  amount >= 100000
+    ? `₹${(amount / 100000).toFixed(1)}L`
+    : `₹${Math.round(amount).toLocaleString('en-IN')}`
+
 const normalizeEmployee = (employee) => ({
   ...employee,
   id: employee._id || employee.id,
+  name: employee.name || '',
+  email: employee.email || '',
   deals: employee.deals ?? 0,
   won: employee.won ?? 0,
-  revenue: employee.revenue ?? 0,
-  tasks: employee.tasks ?? 0,
+  lost: employee.lost ?? 0,
+  inProgress: employee.inProgress ?? 0,
   activeDeals: employee.activeDeals ?? 0,
+  revenue: employee.revenue ?? 0,
+  revenueMonth: employee.revenueMonth ?? 0,
+  revenueQuarter: employee.revenueQuarter ?? 0,
   leadsAssigned: employee.leadsAssigned ?? 0,
   qualified: employee.qualified ?? 0,
   calls: employee.calls ?? 0,
   meetings: employee.meetings ?? 0,
   demos: employee.demos ?? 0,
   followUps: employee.followUps ?? 0,
-  lost: employee.lost ?? 0,
-  inProgress: employee.inProgress ?? 0,
   status: employee.status || 'Active'
 })
 
@@ -44,30 +51,47 @@ function Employees() {
   const [saving, setSaving] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [seats, setSeats] = useState(null)
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true)
-        setPageError('')
+  const [editingId, setEditingId] = useState(null)
 
-        const response = await api.get('/employees')
-        const employeeList = Array.isArray(response.data)
-          ? response.data
-          : response.data.employees || []
+  const loadEmployees = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true)
 
-        setEmployees(employeeList.map(normalizeEmployee))
-      } catch (error) {
+      const response = await api.get('/employees')
+      const employeeList = Array.isArray(response.data)
+        ? response.data
+        : response.data.employees || []
+
+      setEmployees(employeeList.map(normalizeEmployee))
+      setPageError('')
+    } catch (error) {
+      if (!silent) {
         setPageError(
           error.response?.data?.message ||
           'Unable to load employees. Please try again.'
         )
-      } finally {
-        setLoading(false)
       }
+    } finally {
+      if (!silent) setLoading(false)
     }
-
-    fetchEmployees()
   }, [])
+
+  useEffect(() => {
+    loadEmployees()
+
+    const timer = setInterval(() => {
+      if (!document.hidden) loadEmployees(true)
+    }, 30000)
+
+    return () => clearInterval(timer)
+  }, [loadEmployees])
+  useEffect(() => {
+    setSelectedEmployee((current) =>
+      current
+        ? employees.find((employee) => employee.id === current.id) || null
+        : null
+    )
+  }, [employees])
 
   const loadSeats = useCallback(async () => {
     try {
@@ -100,8 +124,24 @@ function Employees() {
   ).length
 
   const openAddForm = () => {
+    setEditingId(null)
     setFormData(emptyForm)
     setFormError('')
+    setShowForm(true)
+  }
+
+  const openEditForm = (employee) => {
+    setEditingId(employee.id)
+    setFormData({
+      name: employee.name,
+      email: employee.email,
+      role: 'Sales Executive',
+      department: employee.department || 'Sales',
+      phone: employee.phone || '',
+      status: employee.status
+    })
+    setFormError('')
+    setSelectedEmployee(null)
     setShowForm(true)
   }
 
@@ -120,14 +160,16 @@ function Employees() {
     }))
   }
 
-  const handleAddEmployee = async (event) => {
+  const handleSaveEmployee = async (event) => {
     event.preventDefault()
     setFormError('')
 
     const normalizedEmail = formData.email.trim().toLowerCase()
 
     const emailExists = employees.some(
-      (employee) => employee.email.toLowerCase() === normalizedEmail
+      (employee) =>
+        employee.id !== editingId &&
+        employee.email.toLowerCase() === normalizedEmail
     )
 
     if (emailExists) {
@@ -138,37 +180,64 @@ function Employees() {
     const payload = {
       name: formData.name.trim(),
       email: normalizedEmail,
-      role: formData.role,
       department: formData.department.trim() || 'Sales',
-      phone: formData.phone.trim(),
-      status: formData.status
+      phone: formData.phone.trim()
     }
 
     try {
       setSaving(true)
 
-      const response = await api.post('/employees', payload)
+      if (editingId) {
+        const response = await api.put(`/employees/${editingId}`, payload)
 
-      const createdEmployee = normalizeEmployee(
-        response.data.employee || response.data
-      )
+        const existing = employees.find((item) => item.id === editingId) || {}
+        const updatedEmployee = normalizeEmployee({
+          ...existing,
+          ...(response.data.employee || response.data),
+          id: editingId
+        })
 
-      setEmployees((previous) => [...previous, createdEmployee])
-      setSelectedEmployee(createdEmployee)
-      setSearchTerm('')
-      setStatusFilter('All')
-      setFormData(emptyForm)
-      setShowForm(false)
-      loadSeats()
+        setEmployees((previous) =>
+          previous.map((item) =>
+            item.id === editingId ? updatedEmployee : item
+          )
+        )
+        setSelectedEmployee(updatedEmployee)
+        setEditingId(null)
+        setFormData(emptyForm)
+        setShowForm(false)
+        loadEmployees(true) 
+      } else {
+        const response = await api.post('/employees', {
+          ...payload,
+          role: 'Sales Executive',
+          status: formData.status
+        })
+
+        const createdEmployee = normalizeEmployee(
+          response.data.employee || response.data
+        )
+
+        setEmployees((previous) => [...previous, createdEmployee])
+        setSelectedEmployee(createdEmployee)
+        setSearchTerm('')
+        setStatusFilter('All')
+        setFormData(emptyForm)
+        setShowForm(false)
+        loadSeats()
+      }
     } catch (error) {
       setFormError(
         error.response?.data?.message ||
-        'Unable to add employee. Please try again.'
+        (editingId
+          ? 'Unable to update employee. Please try again.'
+          : 'Unable to add employee. Please try again.')
       )
     } finally {
       setSaving(false)
     }
   }
+
   const handleDeactivate = async (employee) => {
     const newStatus =
       employee.status === 'Active' ? 'Inactive' : 'Active'
@@ -208,9 +277,6 @@ function Employees() {
     }
   }
 
-  const formatRevenue = (revenue) =>
-    `₹${(revenue / 100000).toFixed(1)}L`
-
   const getInitials = (name = '') =>
     name
       .split(' ')
@@ -224,6 +290,9 @@ function Employees() {
     employee.deals
       ? ((employee.won / employee.deals) * 100).toFixed(1)
       : '0.0'
+
+  const getPercent = (part, total) =>
+    total ? (part / total) * 100 : 0
 
   return (
     <main className="employees-page">
@@ -300,7 +369,6 @@ function Employees() {
                 <th>DEALS</th>
                 <th>WON</th>
                 <th>REVENUE</th>
-                <th>TASKS</th>
                 <th>STATUS</th>
               </tr>
             </thead>
@@ -308,7 +376,7 @@ function Employees() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7">Loading employees...</td>
+                  <td colSpan="6">Loading employees...</td>
                 </tr>
               ) : (
                 filteredEmployees.map((employee) => (
@@ -339,10 +407,8 @@ function Employees() {
                     <td>{employee.won}</td>
 
                     <td className="employee-revenue">
-                      {formatRevenue(employee.revenue)}
+                      {formatMoney(employee.revenue)}
                     </td>
-
-                    <td>{employee.tasks}</td>
 
                     <td>
                       <span
@@ -371,12 +437,16 @@ function Employees() {
           <form
             className="employee-modal"
             onClick={(event) => event.stopPropagation()}
-            onSubmit={handleAddEmployee}
+            onSubmit={handleSaveEmployee}
           >
             <div className="employee-form-header">
               <div>
-                <h2>Add Employee</h2>
-                <p>Enter the new employee's details.</p>
+                <h2>{editingId ? 'Edit Employee' : 'Add Employee'}</h2>
+                <p>
+                  {editingId
+                    ? 'Update the employee details.'
+                    : "Enter the new employee's details."}
+                </p>
               </div>
 
               <button
@@ -412,19 +482,6 @@ function Employees() {
               required
             />
 
-            <label htmlFor="employee-role">Role *</label>
-            <select
-              id="employee-role"
-              name="role"
-              value={formData.role}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="Sales Executive">Sales Executive</option>
-              <option value="Sales Manager">Sales Manager</option>
-              <option value="Admin">Admin</option>
-            </select>
-
             <label htmlFor="employee-department">Department</label>
             <input
               id="employee-department"
@@ -445,16 +502,20 @@ function Employees() {
               onChange={handleInputChange}
             />
 
-            <label htmlFor="employee-status">Status</label>
-            <select
-              id="employee-status"
-              name="status"
-              value={formData.status}
-              onChange={handleInputChange}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+            {!editingId && (
+              <>
+              <label htmlFor="employee-status">Status</label>
+              <select
+                id="employee-status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              </>
+            )}
 
             {formError && (
               <p className="employee-form-error" role="alert">
@@ -477,7 +538,11 @@ function Employees() {
                 className="employee-submit-button"
                 disabled={saving}
               >
-                {saving ? 'Adding...' : 'Add Employee'}
+                {saving
+                  ? 'Saving...'
+                  : editingId
+                    ? 'Save Changes'
+                    : 'Add Employee'}
               </button>
             </div>
           </form>
@@ -524,6 +589,13 @@ function Employees() {
             <div className="employee-panel-actions">
               <button
                 type="button"
+                onClick={() => openEditForm(selectedEmployee)}
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleDeactivate(selectedEmployee)}
                 disabled={updatingStatus}
               >
@@ -549,7 +621,7 @@ function Employees() {
                 </div>
                 <div>
                   <span>Revenue</span>
-                  <strong>{formatRevenue(selectedEmployee.revenue)}</strong>
+                  <strong>{formatMoney(selectedEmployee.revenue)}</strong>
                 </div>
                 <div>
                   <span>Win Rate</span>
@@ -558,10 +630,6 @@ function Employees() {
                 <div>
                   <span>Active Deals</span>
                   <strong>{selectedEmployee.activeDeals}</strong>
-                </div>
-                <div>
-                  <span>Tasks Done</span>
-                  <strong>{selectedEmployee.tasks}</strong>
                 </div>
               </div>
             </section>
@@ -576,11 +644,7 @@ function Employees() {
               <div className="performance-bar">
                 <span
                   style={{
-                    width: `${
-                      selectedEmployee.deals
-                        ? (selectedEmployee.won / selectedEmployee.deals) * 100
-                        : 0
-                    }%`
+                    width: `${getPercent(selectedEmployee.won, selectedEmployee.deals)}%`
                   }}
                 />
               </div>
@@ -592,11 +656,7 @@ function Employees() {
               <div className="performance-bar lost-bar">
                 <span
                   style={{
-                    width: `${
-                      selectedEmployee.deals
-                        ? (selectedEmployee.lost / selectedEmployee.deals) * 100
-                        : 0
-                    }%`
+                    width: `${getPercent(selectedEmployee.lost, selectedEmployee.deals)}%`
                   }}
                 />
               </div>
@@ -608,11 +668,7 @@ function Employees() {
               <div className="performance-bar progress-bar">
                 <span
                   style={{
-                    width: `${
-                      selectedEmployee.deals
-                        ? (selectedEmployee.inProgress / selectedEmployee.deals) * 100
-                        : 0
-                    }%`
+                    width: `${getPercent(selectedEmployee.inProgress, selectedEmployee.deals)}%`
                   }}
                 />
               </div>
@@ -622,15 +678,15 @@ function Employees() {
               <h3>Revenue Performance</h3>
               <div className="revenue-row">
                 <span>This Month</span>
-                <strong>{formatRevenue(selectedEmployee.revenue)}</strong>
+                <strong>{formatMoney(selectedEmployee.revenueMonth)}</strong>
               </div>
               <div className="revenue-row">
                 <span>This Quarter</span>
-                <strong>{formatRevenue(selectedEmployee.revenue)}</strong>
+                <strong>{formatMoney(selectedEmployee.revenueQuarter)}</strong>
               </div>
               <div className="revenue-row">
                 <span>Total</span>
-                <strong>{formatRevenue(selectedEmployee.revenue)}</strong>
+                <strong>{formatMoney(selectedEmployee.revenue)}</strong>
               </div>
             </section>
 
@@ -677,10 +733,6 @@ function Employees() {
                 <div>
                   <span>Follow-ups</span>
                   <strong>{selectedEmployee.followUps}</strong>
-                </div>
-                <div>
-                  <span>Tasks Completed</span>
-                  <strong>{selectedEmployee.tasks}</strong>
                 </div>
               </div>
             </section>

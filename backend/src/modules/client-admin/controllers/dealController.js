@@ -1,3 +1,4 @@
+const mongoose = require('mongoose')
 const Deal = require('../../../models/Deal')
 const {CLOSED_STATUSES} = require('../../../models/Deal')
 const AppError = require('../../../utils/AppError')
@@ -20,8 +21,9 @@ function formatDeal(deal) {
 }
 
 async function getSummary(tenantId) {
+  // aggregate() does not auto-cast strings to ObjectId like find() does
   const result = await Deal.aggregate([
-    { $match:{ tenantId } },
+    { $match:{ tenantId: new mongoose.Types.ObjectId(tenantId) } },
     {
       $group:{
         _id: null,

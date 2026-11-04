@@ -11,6 +11,11 @@ const getInitials = (name = '') =>
     .slice(0, 2)
     .toUpperCase()
 
+const formatMoney = (amount = 0) =>
+  amount >= 100000
+    ? `₹${(amount / 100000).toFixed(1)}L`
+    : `₹${Math.round(amount).toLocaleString('en-IN')}`
+
 function Leads() {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +24,7 @@ function Leads() {
   useEffect(() => {
     let active = true
 
-    const fetchLeads = async () => {
+    const fetchLeads = async (silent = false) => {
       try {
         const response = await api.get('/leads')
         if (!active) return
@@ -29,21 +34,27 @@ function Leads() {
           : response.data.leads || []
 
         setLeads(list.map((lead) => ({ ...lead, id: lead._id || lead.id })))
+        setError('')
       } catch (err) {
-        if (!active) return
+        if (!active || silent) return
         setError(
           err.response?.data?.message ||
           'Unable to load leads. Please try again.'
         )
       } finally {
-        if (active) setLoading(false)
+        if (active && !silent) setLoading(false)
       }
     }
 
+    // load once, then refresh quietly every 20 seconds
     fetchLeads()
+    const timer = setInterval(() => {
+      if (!document.hidden) fetchLeads(true)
+    }, 20000)
 
     return () => {
       active = false
+      clearInterval(timer)
     }
   }, [])
 
@@ -140,9 +151,7 @@ function Leads() {
                       {lead.status}
                     </span>
                   </td>
-                  <td className="lead-page-value">
-                    ₹{((lead.value || 0) / 100000).toFixed(1)}L
-                  </td>
+                  <td className="lead-page-value">{formatMoney(lead.value)}</td>
                   <td>{lead.productInterested}</td>
                   <td>
                     <div className="executive-cell">
