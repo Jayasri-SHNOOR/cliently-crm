@@ -5,15 +5,21 @@ import ClientAdmin from "./features/client-admin/clientadmin";
 import SalesExecutive from "./features/sales/SalesExecutive";
 import SessionGate from "./components/SessionGate";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { logout } from "./lib/auth";
+
+async function handleLogout() {
+    await logout();
+    window.location.replace("/login?reason=SIGNED_OUT");
+}
 
 function App() {
     return (
         <BrowserRouter>
             <SessionGate>
                 <Routes>
-                <Route path="/super-admin/*" element={<SuperAdminDashboard />} />
                     <Route path="/login" element={<Login />} />
-                    <Route path="/SalesExecutive/*" element={<SalesExecutive />} />
+                    <Route path="/super-admin/*" element={<SuperAdminDashboard onLogout={handleLogout} />} />
+                    <Route path="/salesExecutive/*" element={ <SalesExecutive onLogout={handleLogout} />}   />
                     <Route
                         path="/client-admin/*"
                         element={
@@ -21,7 +27,9 @@ function App() {
                                 <ClientAdmin />
                             </ProtectedRoute>
                         }
+                        onLogout={handleLogout}
                     />
+
                     <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
             </SessionGate>

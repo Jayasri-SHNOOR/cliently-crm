@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
-// import RoleSelector from "../components/RoleSelector";
 import { login, requestPasswordReset } from "../services/authService";
 import { getLockSeconds, recordFailure, clearAttempts } from "../services/loginAttempts";
 import { useCurrentUser } from "../../../lib/useSession";
@@ -8,6 +7,7 @@ import { homeFor } from "../../../lib/roles";
 import "../styles/login.css";
 
 const REASON_MESSAGES = {
+    SIGNED_OUT: "You have been signed out.",
     SESSION_IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
     IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
     SESSION_EXPIRED: "Your session has expired. Please sign in again.",
@@ -26,7 +26,6 @@ function formatCountdown(totalSeconds){
 }
 
 function Login(){
-    const [selectedRole, setSelectedRole] = useState("SUPER-ADMIN");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -60,11 +59,6 @@ function Login(){
         setNotice("");
     };
 
-    // const handleRoleChange = (roleId) => {
-    //     setSelectedRole(roleId);
-    //     clearMessages();
-    // };
-
     const handleWrongPassword = (message) => {
         const result = recordFailure(email);
         if (result.lockSeconds > 0) {
@@ -91,7 +85,7 @@ function Login(){
         setLoading(true);
 
         try{
-            await login(email, password, selectedRole);
+            await login(email, password,);
             clearAttempts(email);
             setPassword("");
         } catch (err) {
@@ -147,14 +141,12 @@ function Login(){
                             Sign in to access your workspace.
                         </p>
                     </div>
-                    {/* <div className="role-section">
-                        <label className="section-label">
-                            Sign in as
-                        </label>
-                    </div> */}
 
                     {reasonMessage && !error && !currentUser && (
-                        <div className="login-alert login-error" role="alert">
+                        <div
+                            className={`login-alert ${searchParams.get("reason") === "SIGNED_OUT" ? "login-success" : "login-error"}`}
+                            role="status"
+                        >
                             {reasonMessage}
                         </div>
                     )}
