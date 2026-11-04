@@ -112,7 +112,7 @@ async function getStatus(req, res, next) {
       { name: 'Cliently CRM', status: 'Operational' },
       { name: 'API Services', status: 'Operational', uptimeSeconds: Math.round(process.uptime()) },
       { name: 'Database', status: database.status, responseTimeMs: database.responseTimeMs },
-      { name: 'Notifications', status: 'Operatinoal' }
+      { name: 'Notifications', status: 'Operational' }
     ]
 
     const statuses = services.map((service) => service.status)

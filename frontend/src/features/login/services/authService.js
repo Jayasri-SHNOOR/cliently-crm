@@ -3,11 +3,11 @@ import { auth } from "../config/firebase";
 import { apiFetch } from "../../../lib/api";
 import { setSession } from "../../../lib/session";
 
-const ROLE_MAP = {
-    "SUPER-ADMIN": "SUPER_ADMIN",
-    "CLIENT-ADMIN": "CLIENT_ADMIN",
-    "CLIENT-USER": "SALES_USER",
-};
+// const ROLE_MAP = {
+//     "SUPER-ADMIN": "SUPER_ADMIN",
+//     "CLIENT-ADMIN": "CLIENT_ADMIN",
+//     "CLIENT-USER": "SALES_USER",
+// };
 
 const FIREBASE_ERRORS = {
     "auth/invalid-credential": "Incorrect email or password.",
@@ -32,7 +32,7 @@ export async function login(email, password, selectedRoleId) {
             method: "POST",
             auth: false,
             token: firebaseToken,
-            body: { selectedRole: ROLE_MAP[selectedRoleId] },
+            // body: { selectedRole: ROLE_MAP[selectedRoleId] },
         });
         setSession(data);
         return data.user;

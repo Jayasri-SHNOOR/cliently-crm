@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
-import RoleSelector from "../components/RoleSelector";
+// import RoleSelector from "../components/RoleSelector";
 import { login, requestPasswordReset } from "../services/authService";
 import { getLockSeconds, recordFailure, clearAttempts } from "../services/loginAttempts";
 import { useCurrentUser } from "../../../lib/useSession";
@@ -60,10 +60,10 @@ function Login(){
         setNotice("");
     };
 
-    const handleRoleChange = (roleId) => {
-        setSelectedRole(roleId);
-        clearMessages();
-    };
+    // const handleRoleChange = (roleId) => {
+    //     setSelectedRole(roleId);
+    //     clearMessages();
+    // };
 
     const handleWrongPassword = (message) => {
         const result = recordFailure(email);
@@ -140,21 +140,18 @@ function Login(){
                     </div>
                     <div className="login-heading">
                         <h1>
-                            Welcome back!
+                            Welcome!
                         </h1>
+                        <h2>Your Business, Connected.</h2>
                         <p>
                             Sign in to access your workspace.
                         </p>
                     </div>
-                    <div className="role-section">
+                    {/* <div className="role-section">
                         <label className="section-label">
                             Sign in as
                         </label>
-                        <RoleSelector
-                            selectedRole={selectedRole}
-                            onRoleChange={handleRoleChange}
-                        />
-                    </div>
+                    </div> */}
 
                     {reasonMessage && !error && !currentUser && (
                         <div className="login-alert login-error" role="alert">

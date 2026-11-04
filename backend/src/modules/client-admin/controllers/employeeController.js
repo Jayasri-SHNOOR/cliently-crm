@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 const Employee = require('../../../models/Employee')
-const { attachEmployeeStats } = require('../../../utils/employeeStats')
+const { assertSeatAvailable } = require('../../../utils/seats')
 
 const getEmployees = async (req, res, next) => {
   try {
@@ -8,13 +8,10 @@ const getEmployees = async (req, res, next) => {
 
     const employees = await Employee.find({ tenantId })
       .sort({ createdAt: -1 })
-      .lean()
-
-    const withStats = await attachEmployeeStats(employees, tenantId)
 
     res.status(200).json({
-      count: withStats.length,
-      employees: withStats
+      count: employees.length,
+      employees
     })
   } catch (error) {
     next(error)
@@ -35,7 +32,7 @@ const getEmployeeById = async (req, res, next) => {
     const employee = await Employee.findOne({
       _id: id,
       tenantId
-    }).lean()
+    })
 
     if (!employee) {
       return res.status(404).json({
@@ -43,9 +40,7 @@ const getEmployeeById = async (req, res, next) => {
       })
     }
 
-    const [withStats] = await attachEmployeeStats([employee], tenantId)
-
-    res.status(200).json(withStats)
+    res.status(200).json(employee)
   } catch (error) {
     next(error)
   }
@@ -54,7 +49,7 @@ const getEmployeeById = async (req, res, next) => {
 const createEmployee = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId
-    const { name, email, department, phone, status } = req.body
+    const { name, email, role, department, phone, status } = req.body
 
     if (!name || !email) {
       return res.status(400).json({
@@ -62,11 +57,15 @@ const createEmployee = async (req, res, next) => {
       })
     }
 
+    if (status === undefined || status === 'Active') {
+      await assertSeatAvailable(tenantId)
+    }
+
     const employee = await Employee.create({
       tenantId,
       name,
       email,
-      role: 'Sales Executive', 
+      role,
       department,
       phone,
       status
@@ -95,6 +94,7 @@ const updateEmployee = async (req, res, next) => {
     const allowedFields = [
       'name',
       'email',
+      'role',
       'department',
       'phone',
       'status'
@@ -112,6 +112,20 @@ const updateEmployee = async (req, res, next) => {
       return res.status(400).json({
         message: 'Provide at least one field to update'
       })
+    }
+
+    if (updates.status === 'Active') {
+      const current = await Employee.findOne({ _id: id, tenantId }).select('status').lean()
+
+      if (!current) {
+        return res.status(404).json({
+          message: 'Employee not found'
+        })
+      }
+
+      if (current.status !== 'Active') {
+        await assertSeatAvailable(tenantId)
+      }
     }
 
     const employee = await Employee.findOneAndUpdate(

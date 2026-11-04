@@ -1,18 +1,17 @@
+const mongoose = require('mongoose')
 const Product = require('../../../models/Product')
-const Tenant = require('../../../models/Tenant')
-async function getTenantId(req) {
-  const tenant = await Tenant.findOne({ slug: 'cliently' })
 
-  if (!tenant) {
-    throw new Error('Tenant not found')
-  }
+const PROTECTED_FIELDS = ['_id', 'tenantId', 'createdAt', 'updatedAt', '__v']
 
-  return tenant._id
+function productData(body) {
+  const data = { ...body }
+  PROTECTED_FIELDS.forEach((field) => delete data[field])
+  return data
 }
+
 exports.getProducts = async (req, res) => {
   try {
-    const tenantId = await getTenantId(req)
-    const products = await Product.find({ tenantId }).sort({ createdAt: -1 })
+    const products = await Product.find({ tenantId: req.user.tenantId }).sort({ createdAt: -1 })
 
     res.status(200).json(products)
   } catch (error) {
@@ -22,10 +21,9 @@ exports.getProducts = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
   try {
-    const tenantId = await getTenantId(req)
     const product = await Product.create({
-      ...req.body,
-      tenantId
+      ...productData(req.body),
+      tenantId: req.user.tenantId
     })
 
     res.status(201).json(product)
@@ -36,11 +34,13 @@ exports.createProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   try {
-    const tenantId = await getTenantId(req)
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid product ID' })
+    }
 
     const product = await Product.findOneAndUpdate(
-      { _id: req.params.id, tenantId },
-      req.body,
+      { _id: req.params.id, tenantId: req.user.tenantId },
+      { $set: productData(req.body) },
       { new: true, runValidators: true }
     )
 
@@ -56,11 +56,13 @@ exports.updateProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
   try {
-    const tenantId = await getTenantId(req)
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid product ID' })
+    }
 
     const product = await Product.findOneAndDelete({
       _id: req.params.id,
-      tenantId
+      tenantId: req.user.tenantId
     })
 
     if (!product) {
