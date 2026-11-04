@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
-// import RoleSelector from "../components/RoleSelector";
 import { login, requestPasswordReset } from "../services/authService";
 import { getLockSeconds, recordFailure, clearAttempts } from "../services/loginAttempts";
 import { useCurrentUser } from "../../../lib/useSession";
@@ -26,7 +25,6 @@ function formatCountdown(totalSeconds){
 }
 
 function Login(){
-    const [selectedRole, setSelectedRole] = useState("SUPER-ADMIN");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +89,7 @@ function Login(){
         setLoading(true);
 
         try{
-            await login(email, password, selectedRole);
+            await login(email, password,);
             clearAttempts(email);
             setPassword("");
         } catch (err) {
@@ -147,11 +145,6 @@ function Login(){
                             Sign in to access your workspace.
                         </p>
                     </div>
-                    {/* <div className="role-section">
-                        <label className="section-label">
-                            Sign in as
-                        </label>
-                    </div> */}
 
                     {reasonMessage && !error && !currentUser && (
                         <div className="login-alert login-error" role="alert">

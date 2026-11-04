@@ -1,64 +1,73 @@
 const mongoose = require('mongoose')
 const Product = require('../../../models/Product')
+const AppError = require('../../../utils/AppError')
 
 const PROTECTED_FIELDS = ['_id', 'tenantId', 'createdAt', 'updatedAt', '__v']
 
 function productData(body) {
   const data = { ...body }
   PROTECTED_FIELDS.forEach((field) => delete data[field])
+  if (typeof data.code === 'string' && data.code.trim() === '') {
+    delete data.code
+  }
   return data
 }
 
-exports.getProducts = async (req, res) => {
-  try {
-    const products = await Product.find({ tenantId: req.user.tenantId }).sort({ createdAt: -1 })
-
-    res.status(200).json(products)
-  } catch (error) {
-    res.status(500).json({ message: error.message })
+function assertValidId(id) {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError('Invalid product ID', 400)
   }
 }
 
-exports.createProduct = async (req, res) => {
+exports.getProducts = async (req, res, next) => {
+  try {
+    const products = await Product.find({ tenantId: req.user.tenantId }).sort({ createdAt: -1 })
+    res.status(200).json(products)
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.createProduct = async (req, res, next) => {
   try {
     const product = await Product.create({
       ...productData(req.body),
       tenantId: req.user.tenantId
     })
-
     res.status(201).json(product)
   } catch (error) {
-    res.status(400).json({ message: error.message })
+    next(error)
   }
 }
 
-exports.updateProduct = async (req, res) => {
+exports.updateProduct = async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid product ID' })
+    assertValidId(req.params.id)
+
+    const update = { $set: productData(req.body) }
+    if (req.body.code === '') {
+      update.$unset = { code: 1 }
     }
 
     const product = await Product.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.user.tenantId },
-      { $set: productData(req.body) },
-      { new: true, runValidators: true }
+      update,
+      { returnDocument: 'after', runValidators: true }
     )
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
+      throw new AppError('Product not found', 404)
     }
 
     res.status(200).json(product)
   } catch (error) {
-    res.status(400).json({ message: error.message })
+    next(error)
   }
 }
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid product ID' })
-    }
+    assertValidId(req.params.id)
 
     const product = await Product.findOneAndDelete({
       _id: req.params.id,
@@ -66,11 +75,11 @@ exports.deleteProduct = async (req, res) => {
     })
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
+      throw new AppError('Product not found', 404)
     }
 
     res.status(200).json({ message: 'Product deleted successfully' })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    next(error)
   }
 }

@@ -1,20 +1,32 @@
-
 function notFound(req, res) {
   res.status(404).json({
     message: `Route not found: ${req.method} ${req.originalUrl}`
   });
 }
 
-function errorHandler(err, req, res, next) {
+function logError(err, req) {
   console.error('\n--- API ERROR ---');
   console.error('Route:', req.method, req.originalUrl);
   console.error('Name:', err.name);
   console.error('Message:', err.message);
   console.error('Stack:', err.stack);
   console.error('-----------------\n');
+}
+
+function errorHandler(err, req, res, next) {
+  if (res.headersSent) {
+    return next(err);
+  }
 
   if (err.statusCode) {
-    return res.status(err.statusCode).json({ message: err.message });
+    if (err.statusCode >= 500) {
+      logError(err, req);
+    }
+    const body = { message: err.message };
+    if (err.code) {
+      body.code = err.code;
+    }
+    return res.status(err.statusCode).json(body);
   }
 
   if (err.name === 'ValidationError') {
@@ -47,6 +59,7 @@ function errorHandler(err, req, res, next) {
     });
   }
 
+  logError(err, req);
   res.status(500).json({ message: 'Internal server error' });
 }
 

@@ -51,8 +51,10 @@ const employeeSchema = new mongoose.Schema(
   }
 )
 employeeSchema.index(
-  { tenantId: 1, email: 1 },
-  { unique: true }
+  {tenantId: 1, email: 1},
+  {unique: true}
 )
+employeeSchema.index({tenantId: 1, createdAt: -1})
+employeeSchema.index({tenantId: 1, name: 1})
 
 module.exports = mongoose.model('Employee', employeeSchema)

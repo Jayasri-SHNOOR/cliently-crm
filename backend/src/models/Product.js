@@ -51,5 +51,9 @@ const productSchema = new mongoose.Schema(
     collection: 'products'
   }
 )
-productSchema.index({ tenantId: 1, code: 1 }, { unique: true, sparse: true })
+productSchema.index(
+  { tenantId: 1, code: 1 },
+  { unique: true, partialFilterExpression: { code: { $type: 'string' } } }
+)
+productSchema.index({ tenantId: 1, createdAt: -1 })
 module.exports = mongoose.model('Product', productSchema)

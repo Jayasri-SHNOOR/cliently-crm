@@ -3,11 +3,7 @@ import { auth } from "../config/firebase";
 import { apiFetch } from "../../../lib/api";
 import { setSession } from "../../../lib/session";
 
-// const ROLE_MAP = {
-//     "SUPER-ADMIN": "SUPER_ADMIN",
-//     "CLIENT-ADMIN": "CLIENT_ADMIN",
-//     "CLIENT-USER": "SALES_USER",
-// };
+
 
 const FIREBASE_ERRORS = {
     "auth/invalid-credential": "Incorrect email or password.",
@@ -18,7 +14,7 @@ const FIREBASE_ERRORS = {
     "auth/network-request-failed": "Network error. Check your internet connection.",
 };
 
-export async function login(email, password, selectedRoleId) {
+export async function login(email, password,) {
     let credential;
     try {
         credential = await signInWithEmailAndPassword(auth, email.trim(), password);
