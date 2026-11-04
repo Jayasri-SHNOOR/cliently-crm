@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Search, ChevronDown, LogOut } from "lucide-react";
-
+import { logout } from "../../../../lib/auth";
 function TopBar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -24,17 +22,16 @@ function TopBar() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setProfileOpen(false);
 
-    // Clear common session data.
-    // Adjust these keys if your authentication uses different names.
     localStorage.removeItem("token");
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
     sessionStorage.clear();
 
-    navigate("/login?reason=SIGNED_OUT", { replace: true });
+    await logout();
+    window.location.replace("/login?reason=SIGNED_OUT");
   };
 
   return (
