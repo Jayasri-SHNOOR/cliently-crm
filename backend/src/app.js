@@ -8,7 +8,7 @@ const { ipShield, userLimiter } = require('./middleware/limiters')
 const { notFound, errorHandler } = require('./middleware/errorHandler')
 const authRoutes = require('./modules/auth/routes/authRoutes')
 const clientAdminRoutes = require('./modules/client-admin')
-
+const salesRoutes = require('./modules/sales');
 const superAdminRoutes = require('./modules/super-admin/index.js');
 
 const app = express();
@@ -33,6 +33,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.get('/api/health', (req, res) => {
+  
   res.json({
     status: 'ok',
     database: mongoose.connection.readyState === 1
@@ -47,8 +48,9 @@ app.use('/api/auth', authRoutes)
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api', requireSession)
 app.use('/api', userLimiter)
-app.use('/api', clientAdminRoutes);
 
+app.use('/api', clientAdminRoutes);
+app.use('/api/sales', salesRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

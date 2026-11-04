@@ -3,20 +3,19 @@ const Employee = require('../../../models/Employee')
 const { assertSeatAvailable } = require('../../../utils/seats')
 
 const getEmployees = async (req, res, next) => {
-  try {
+  try{
     const tenantId = req.user.tenantId
     const employees = await Employee.find({tenantId})
       .sort({createdAt: -1})
 
     res.status(200).json({
-      count: employees.length,
-      employees
+      count: withStats.length,
+      employees: withStats
     })
   }catch(error){
     next(error)
   }
 }
-
 const getEmployeeById = async (req, res, next) => {
   try{
     const tenantId = req.user.tenantId
@@ -31,7 +30,7 @@ const getEmployeeById = async (req, res, next) => {
     const employee = await Employee.findOne({
       _id: id,
       tenantId
-    })
+    }).lean()
 
     if(!employee){
       return res.status(404).json({
@@ -44,6 +43,7 @@ const getEmployeeById = async (req, res, next) => {
     next(error)
   }
 }
+
 
 const createEmployee = async (req, res, next) => {
   try{
@@ -64,7 +64,7 @@ const createEmployee = async (req, res, next) => {
       tenantId,
       name,
       email,
-      role,
+      role: 'Sales Executive', 
       department,
       phone,
       status
@@ -78,6 +78,7 @@ const createEmployee = async (req, res, next) => {
     next(error)
   }
 }
+
 
 const updateEmployee = async (req, res, next) => {
   try{
@@ -93,7 +94,6 @@ const updateEmployee = async (req, res, next) => {
     const allowedFields = [
       'name',
       'email',
-      'role',
       'department',
       'phone',
       'status'
@@ -147,6 +147,7 @@ const updateEmployee = async (req, res, next) => {
     next(error)
   }
 }
+
 
 const deleteEmployee = async (req, res, next) => {
   try{

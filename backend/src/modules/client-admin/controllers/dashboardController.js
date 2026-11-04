@@ -20,7 +20,7 @@ async function getDashboard(req, res, next) {
         ]),
         Lead.find({ tenantId })
           .sort({ createdAt: -1 })
-          .limit(5)
+          .limit(8)
           .select('name email status value')
           .lean(),
         Lead.aggregate([

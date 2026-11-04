@@ -1,18 +1,9 @@
 
-import { auth } from "../login/config/firebase";
+import { apiFetch } from "../../lib/api";
 
 // Supports:
 // http://localhost:5000
 // http://localhost:5000/api
-const RAW_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-const API_ORIGIN = RAW_BASE
-  .trim()
-  .replace(/\/+$/, "")
-  .replace(/\/api$/i, "");
-
-const SETTINGS_URL = `${API_ORIGIN}/api/super-admin/settings`;
 
 export const SETTINGS_DAYS = [
   "Monday",
@@ -237,94 +228,15 @@ export function normalizeSettings(data = {}) {
   return result;
 }
 
-function failure(message, status) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
-
-async function waitForFirebaseUser() {
-  if (!auth) {
-    throw failure(
-      "Firebase authentication is unavailable.",
-      401
-    );
-  }
-
-  try {
-    if (typeof auth.authStateReady === "function") {
-      await auth.authStateReady();
-    } else {
-      for (
-        let attempt = 0;
-        attempt < 30 && !auth.currentUser;
-        attempt++
-      ) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 100)
-        );
-      }
-    }
-  } catch (error) {
-    throw failure(
-      error.message || "Unable to check Firebase login status.",
-      401
-    );
-  }
-
-  return auth.currentUser;
-}
-
+// CRM session-based Settings API
 async function request(method, body) {
-  const user = await waitForFirebaseUser();
-
-  if (!user) {
-    throw failure(
-      "You are not logged in. Please log in again.",
-      401
-    );
-  }
-
-  let token;
-
-  try {
-    token = await user.getIdToken();
-  } catch {
-    throw failure(
-      "Unable to verify your login session. Please log in again.",
-      401
-    );
-  }
-
-  let response;
-
-  try {
-    response = await fetch(SETTINGS_URL, {
+  const result = await apiFetch(
+    "/api/super-admin/settings",
+    {
       method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(body
-          ? { "Content-Type": "application/json" }
-          : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw failure(
-      "Cannot reach the server. Check that the backend is running.",
-      0
-    );
-  }
-
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok || result.success === false) {
-    throw failure(
-      result.message ||
-        `Settings request failed (${response.status})`,
-      response.status
-    );
-  }
+      ...(body !== undefined ? { body } : {}),
+    }
+  );
 
   return result.data ?? result.settings ?? result;
 }
@@ -337,3 +249,4 @@ export const patchSettings = (changes) =>
 // Compatibility with SuperAdminDashboard.jsx
 export const getSettings = fetchSettings;
 export const updateSettings = patchSettings;
+

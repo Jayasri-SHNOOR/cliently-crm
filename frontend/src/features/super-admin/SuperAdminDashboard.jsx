@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import {
   getSettings,
   updateSettings,
-  DEFAULT_SETTINGS,
-  normalizeSettings,
 } from "./settingsApi";
 
 import "./SuperAdminDashboard.css";
@@ -91,6 +89,125 @@ function scrollToSection(id) {
     block: "start",
   });
 }
+
+function ProfileDialog({ onClose, onOpenSettings }) {
+  const [tab, setTab] = useState("profile");
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [profile, setProfile] = useState({
+    name: "Super Admin",
+    email: "Not connected",
+    phone: "Not provided",
+    department: "Platform Administration",
+  });
+  const [draft, setDraft] = useState(profile);
+
+  const tabs = [
+    { id: "profile", label: "Profile", icon: "◉" },
+    { id: "security", label: "Security", icon: "⬡" },
+    { id: "access", label: "Access & Roles", icon: "▱" },
+    { id: "preferences", label: "Preferences", icon: "☷" },
+    { id: "sessions", label: "Sessions", icon: "▣" },
+    { id: "activity", label: "Activity", icon: "◷" },
+  ];
+
+  const updateDraft = (field, value) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+  };
+
+  const cancelEdit = () => {
+    setDraft(profile);
+    setEditing(false);
+    setSaved(false);
+  };
+
+  const saveProfilePreview = () => {
+    // This updates the current UI only. Connect this action to a profile API
+    // before treating profile changes as persisted account data.
+    setProfile(draft);
+    setEditing(false);
+    setSaved(true);
+  };
+
+  return (
+    <div className="cliently-profile-overlay" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <style>{`
+        .cliently-profile-overlay{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:22px;background:rgba(18,60,58,.62);backdrop-filter:blur(16px)}
+        .cliently-profile-shell{width:min(1180px,100%);max-height:94vh;overflow:auto;background:#f4faf8;color:#183735;border:1px solid rgba(207,228,223,.95);border-radius:25px;box-shadow:0 35px 110px rgba(0,0,0,.55);font-family:inherit}
+        .cliently-profile-top{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid rgba(255,255,255,.12);background:linear-gradient(110deg,#123c3a,#1b514d)}
+        .cliently-profile-brand{display:flex;align-items:center;gap:11px;font-weight:850;letter-spacing:.04em}.cliently-profile-brandmark{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#75d5c5,#55b9a8);color:#123c3a;font-weight:950;box-shadow:0 0 24px rgba(31,218,207,.25)}
+        .cliently-profile-close{width:36px;height:36px;border:1px solid rgba(181,205,235,.2);border-radius:11px;background:#eaf6f3;color:#183735;font-size:22px;cursor:pointer}
+        .cliently-profile-main{padding:24px 28px 28px;background:radial-gradient(ellipse at 82% 0%,rgba(117,213,197,.16),transparent 34%),radial-gradient(ellipse at 18% 18%,rgba(85,185,168,.10),transparent 32%),#f4faf8}
+        .cliently-profile-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}.cliently-profile-heading h2{margin:0;font-size:27px;letter-spacing:-.04em;color:#183735}.cliently-profile-heading p{margin:6px 0 0;color:#637875;font-size:13px}.cliently-profile-breadcrumb{font-size:11px;color:#637875;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase}
+        .cliently-profile-hero{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:22px 25px;border:1px solid rgba(66,203,210,.25);border-radius:20px;background:linear-gradient(105deg,#eaf6f3,#ddf6f1 55%,#f4faf8);box-shadow:inset 0 1px rgba(255,255,255,.06)}
+        .cliently-profile-hero:after{content:"";position:absolute;width:310px;height:170px;right:7%;top:-90px;border:1px solid rgba(43,224,216,.35);border-radius:50%;box-shadow:0 0 0 12px rgba(43,224,216,.035),0 0 0 28px rgba(43,224,216,.025),0 0 50px rgba(43,224,216,.12);transform:rotate(-18deg);pointer-events:none}
+        .cliently-profile-avatar{position:relative;z-index:1;display:grid;place-items:center;flex:0 0 76px;width:76px;height:76px;border-radius:23px;border:2px solid #55b9a8;background:linear-gradient(145deg,#ddf6f1,#eaf6f3);color:#123c3a;font-size:25px;font-weight:900;box-shadow:0 0 26px rgba(32,218,211,.18)}
+        .cliently-profile-hero-copy{position:relative;z-index:1;min-width:0}.cliently-profile-hero h3{margin:0 0 7px;font-size:23px;letter-spacing:-.03em}.cliently-profile-hero p{margin:0;color:#637875;font-size:12px}.cliently-profile-meta{display:flex;flex-wrap:wrap;gap:9px 18px;margin-top:12px;color:#35514e;font-size:12px}.cliently-profile-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border:1px solid rgba(42,220,193,.35);border-radius:99px;background:rgba(5,35,48,.42);color:#357f74;font-size:11px;font-weight:800}
+        .cliently-profile-tabs{display:flex;gap:6px;overflow:auto;margin:17px 0;padding:6px;border:1px solid rgba(130,163,205,.17);border-radius:16px;background:#eaf6f3}.cliently-profile-tab{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:max-content;padding:12px 14px;border:0;border-radius:11px;background:transparent;color:#637875;font:600 12px inherit;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}.cliently-profile-tab.active{background:#357f74;color:#ffffff;box-shadow:0 5px 20px rgba(0,193,190,.18)}.cliently-profile-tab span{font-size:16px}
+        .cliently-profile-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:16px}.cliently-profile-panel{min-width:0;padding:21px;border:1px solid rgba(129,164,210,.18);border-radius:19px;background:#ffffff;box-shadow:0 12px 35px rgba(0,0,0,.12)}.cliently-profile-panel h4{margin:0;color:#183735;font-size:16px}.cliently-profile-subtitle{margin:6px 0 18px;color:#637875;font-size:12px;line-height:1.55}.cliently-profile-fields{display:grid;gap:12px}.cliently-profile-field{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:center;gap:12px}.cliently-profile-field label{color:#637875;font-size:12px}.cliently-profile-field input{width:100%;min-width:0;box-sizing:border-box;padding:11px 12px;border:1px solid #cfe4df;border-radius:10px;outline:none;background:#ffffff;color:#183735;font:500 12px inherit}.cliently-profile-field input:focus{border-color:#55b9a8;box-shadow:0 0 0 3px rgba(36,201,197,.1)}.cliently-profile-readonly{padding:11px 12px;border:1px solid rgba(110,145,190,.13);border-radius:10px;background:rgba(7,18,34,.52);color:#35514e;font-size:12px;overflow-wrap:anywhere}
+        .cliently-profile-side{display:grid;gap:15px}.cliently-profile-identity{display:flex;align-items:center;justify-content:space-between;gap:14px;border-color:rgba(42,196,214,.32);background:#eaf6f3}.cliently-profile-identity strong{display:block;margin-top:5px;font-size:17px}.cliently-profile-identity small{color:#637875;font-size:11px}.cliently-profile-crown{display:grid;place-items:center;width:62px;height:62px;border:1px solid rgba(177,148,255,.32);border-radius:17px;background:rgba(132,93,205,.18);color:#357f74;font-size:27px}
+        .cliently-profile-statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cliently-profile-stat{padding:14px;border:1px solid rgba(124,157,199,.16);border-radius:14px;background:rgba(7,18,34,.45)}.cliently-profile-stat small{display:block;color:#8ea5c4;font-size:10px}.cliently-profile-stat strong{display:block;margin-top:8px;color:#183735;font-size:14px}.cliently-profile-stat em{display:block;margin-top:4px;color:#357f74;font-size:10px;font-style:normal}
+        .cliently-profile-list{display:grid;gap:10px}.cliently-profile-row{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid rgba(125,158,198,.15);border-radius:13px;background:rgba(7,18,34,.42)}.cliently-profile-row-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:rgba(36,191,194,.13);color:#357f74}.cliently-profile-row strong{display:block;color:#183735;font-size:12px}.cliently-profile-row span{display:block;margin-top:4px;color:#637875;font-size:11px;line-height:1.5}.cliently-profile-note{padding:13px;border:1px solid rgba(62,178,190,.2);border-radius:13px;background:rgba(10,73,86,.18);color:#637875;font-size:11px;line-height:1.6}
+        .cliently-profile-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:17px}.cliently-profile-actions small{color:#637875;font-size:10px}.cliently-profile-action{padding:10px 15px;border:1px solid transparent;border-radius:10px;background:linear-gradient(110deg,#75d5c5,#357f74);color:#123c3a;font-size:12px;font-weight:850;cursor:pointer}.cliently-profile-action.secondary{border-color:#cfe4df;background:#eaf6f3;color:#35514e}.cliently-profile-action:disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:760px){.cliently-profile-overlay{padding:8px}.cliently-profile-shell{max-height:97vh;border-radius:18px}.cliently-profile-main{padding:18px 14px}.cliently-profile-top{padding:0 16px}.cliently-profile-heading{align-items:flex-start;flex-direction:column}.cliently-profile-hero{padding:17px;align-items:flex-start}.cliently-profile-avatar{width:60px;height:60px;flex-basis:60px;border-radius:18px}.cliently-profile-layout{grid-template-columns:1fr}.cliently-profile-tabs{justify-content:flex-start}.cliently-profile-tab{flex:0 0 auto}.cliently-profile-field{grid-template-columns:1fr;gap:6px}.cliently-profile-actions{align-items:flex-start;flex-direction:column}}
+      `}</style>
+
+      <section className="cliently-profile-shell" role="dialog" aria-modal="true" aria-labelledby="cliently-profile-title">
+        <header className="cliently-profile-top">
+          <div className="cliently-profile-brand"><span className="cliently-profile-brandmark">C</span><span>CLIENTLY CRM <small style={{display:"block",fontSize:9,opacity:.65,fontWeight:600,letterSpacing:".15em"}}>PLATFORM CONTROL</small></span></div>
+          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>×</button>
+        </header>
+
+        <main className="cliently-profile-main">
+          <div className="cliently-profile-heading">
+            <div><div className="cliently-profile-breadcrumb">Account centre&nbsp; / &nbsp;Administrator identity</div><h2 id="cliently-profile-title">My Profile</h2><p>Manage your identity, security preferences and platform access.</p></div>
+            <span className="cliently-profile-pill">●&nbsp; SUPER ADMIN</span>
+          </div>
+
+          <section className="cliently-profile-hero">
+            <div className="cliently-profile-avatar">SA</div>
+            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator · Cliently Platform</p><div className="cliently-profile-meta"><span>✉ {profile.email}</span><span>◈ Platform-wide access</span><span className="cliently-profile-pill">● Active workspace</span></div></div>
+          </section>
+
+          <nav className="cliently-profile-tabs" aria-label="Profile sections">
+            {tabs.map((item) => <button key={item.id} type="button" className={`cliently-profile-tab ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}><span>{item.icon}</span>{item.label}</button>)}
+          </nav>
+
+          {tab === "profile" && <div className="cliently-profile-layout">
+            <section className="cliently-profile-panel">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : "✎ Edit profile"}</button></div>
+              <p className="cliently-profile-subtitle">Your administrator identity and contact details.</p>
+              <div className="cliently-profile-fields">
+                {[["name","Full name"],["email","Email address"],["phone","Phone number"],["department","Department"]].map(([field,label]) => <div className="cliently-profile-field" key={field}><label htmlFor={`cliently-profile-${field}`}>{label}</label>{editing ? <input id={`cliently-profile-${field}`} value={draft[field]} onChange={(event) => updateDraft(field,event.target.value)} /> : <div className="cliently-profile-readonly">{profile[field]}</div>}</div>)}
+              </div>
+              <div className="cliently-profile-actions"><small>{saved ? "Preview updated in this dialog. Backend profile persistence is not connected yet." : "Changes are a local preview until a profile API is connected."}</small><div style={{display:"flex",gap:8}}>{editing && <><button type="button" className="cliently-profile-action secondary" onClick={cancelEdit}>Cancel</button><button type="button" className="cliently-profile-action" onClick={saveProfilePreview}>Apply preview</button></>}</div></div>
+            </section>
+            <aside className="cliently-profile-side">
+              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">♛</div></section>
+              <section className="cliently-profile-panel"><h4>Account overview</h4><p className="cliently-profile-subtitle">Account details currently available in this dashboard.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Access scope</small><strong>Platform-wide</strong><em>Administrator</em></div><div className="cliently-profile-stat"><small>Account status</small><strong>Active</strong><em>Current UI role</em></div><div className="cliently-profile-stat"><small>Email</small><strong style={{fontSize:11}}>{profile.email}</strong></div><div className="cliently-profile-stat"><small>Department</small><strong style={{fontSize:11}}>{profile.department}</strong></div></div></section>
+            </aside>
+          </div>}
+
+          {tab === "security" && <section className="cliently-profile-panel"><h4>Security centre</h4><p className="cliently-profile-subtitle">Security controls for the administrator account.</p><div className="cliently-profile-list"><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⌑</div><div><strong>Authentication</strong><span>Login is managed by the existing Firebase and CRM session authentication flow.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◇</div><div><strong>Multi-factor authentication</strong><span>Status is not currently exposed by the profile API. No security status is assumed.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⛨</div><div><strong>Session protection</strong><span>Refresh and access-token handling remain controlled by the backend session service.</span></div></div></div></section>}
+
+          {tab === "access" && <section className="cliently-profile-panel"><h4>Access & roles</h4><p className="cliently-profile-subtitle">Platform role overview. Actual permissions are enforced by backend authorization.</p><div className="cliently-profile-list">{[["Platform administration","Global platform configuration and oversight"],["Tenant management","Manage tenant lifecycle and status"],["Subscriptions & plans","Review subscriptions, billing cycles and plan configuration"],["Integrations & operations","Manage integrations and monitor system health"],["Security & audit","Review security events and platform audit information"]].map(([title,desc]) => <div className="cliently-profile-row" key={title}><div className="cliently-profile-row-icon">✓</div><div><strong>{title}</strong><span>{desc}</span></div></div>)}</div><p className="cliently-profile-note" style={{marginTop:14}}>This screen is informational. It does not grant permissions or change backend roles.</p></section>}
+
+          {tab === "preferences" && <section className="cliently-profile-panel"><h4>Workspace preferences</h4><p className="cliently-profile-subtitle">Personal display options can be connected to a user-preferences endpoint.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Interface theme</small><strong>Dark · Cliently</strong><em>Current workspace style</em></div><div className="cliently-profile-stat"><small>Language</small><strong>English</strong><em>Displayed interface language</em></div><div className="cliently-profile-stat"><small>Timezone</small><strong>Asia/Kolkata</strong><em>Suggested local setting</em></div><div className="cliently-profile-stat"><small>Notifications</small><strong>Platform defaults</strong><em>Managed in Settings</em></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Preference controls are not wired to persistent storage yet. Platform-wide defaults remain in the existing Settings module.</p></section>}
+
+          {tab === "sessions" && <section className="cliently-profile-panel"><h4>Active sessions</h4><p className="cliently-profile-subtitle">Signed-in devices and session controls.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">▣</div><div><strong>Session information unavailable</strong><span>The current backend does not provide a session-list endpoint to this profile view. No device count or login time is fabricated.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Connect this panel to the session-management API before enabling device revocation.</p></section>}
+
+          {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◷</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
+
+          <footer className="cliently-profile-actions"><small>CLIENTLY CRM · PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ↗</button></div></footer>
+        </main>
+      </section>
+    </div>
+  );
+}
+
 export default function SuperAdminDashboard({ onLogout }) {
   const [tenants, setTenants] = useState([]);
   const [tenantError, setTenantError] = useState("");
@@ -569,20 +686,94 @@ export default function SuperAdminDashboard({ onLogout }) {
   };
 
   // Global Super Admin settings (not tenant-specific CRM preferences).
+  // The Settings API stores organization/regional/security/notifications/dataSharing.
+  // This adapter keeps the existing dashboard UI fields compatible with that API.
   const defaultSettings = {
-    general: { platformName: "Cliently", supportEmail: "support@cliently.com", supportUrl: "" },
-    regional: { timezone: "Asia/Kolkata", currency: "INR", dateFormat: "DD/MM/YYYY", timeFormat: "12-hour", language: "English" },
-    security: { sessionTimeoutMinutes: 30, passwordMinLength: 8, requireTwoFactor: false },
-    notifications: { adminEmail: true, systemAlerts: true, securityAlerts: true, billingAlerts: true },
-    data: { auditRetentionDays: 90, dataRetentionDays: 365, maintenanceMode: false },
+    general: {
+      platformName: "Cliently",
+      supportEmail: "",
+      supportUrl: "",
+    },
+    regional: {
+      timezone: "Asia/Kolkata",
+      currency: "INR",
+      dateFormat: "DD/MM/YYYY",
+      timeFormat: "24-hour",
+      language: "English",
+    },
+    security: {
+      sessionTimeoutMinutes: 30,
+      passwordMinLength: 8,
+      requireTwoFactor: false,
+    },
+    notifications: {
+      adminEmail: true,
+      systemAlerts: true,
+      securityAlerts: true,
+      billingAlerts: true,
+    },
+    data: {
+      auditRetentionDays: 365,
+      dataRetentionDays: 365,
+      maintenanceMode: false,
+    },
   };
 
-  const mergeSettings = (saved = {}) => ({
-    general: { ...defaultSettings.general, ...(saved.general || {}) },
-    regional: { ...defaultSettings.regional, ...(saved.regional || {}) },
-    security: { ...defaultSettings.security, ...(saved.security || {}) },
-    notifications: { ...defaultSettings.notifications, ...(saved.notifications || {}) },
-    data: { ...defaultSettings.data, ...(saved.data || {}) },
+  const normalizeDashboardSettings = (saved = {}) => {
+    const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
+    const organization = source.organization || {};
+    const regional = source.regional || {};
+    const security = source.security || {};
+    const notifications = source.notifications || {};
+    const dataSharing = source.dataSharing || {};
+
+    return {
+      general: {
+        ...defaultSettings.general,
+        ...(source.general || {}),
+        platformName: source.general?.platformName ?? organization.companyName ?? "Cliently",
+        supportEmail: source.general?.supportEmail ?? organization.supportEmail ?? "",
+        supportUrl: source.general?.supportUrl ?? organization.supportUrl ?? "",
+      },
+      regional: { ...defaultSettings.regional, ...regional },
+      security: {
+        ...defaultSettings.security,
+        ...security,
+        requireTwoFactor: security.requireTwoFactor ?? security.twoFactorRequired ?? false,
+      },
+      notifications: {
+        ...defaultSettings.notifications,
+        ...notifications,
+        adminEmail: notifications.adminEmail ?? notifications.emailEnabled ?? true,
+        systemAlerts: notifications.systemAlerts ?? notifications.systemAlertsEnabled ?? true,
+      },
+      data: {
+        ...defaultSettings.data,
+        ...(source.data || {}),
+        maintenanceMode: source.data?.maintenanceMode ?? false,
+      },
+    };
+  };
+
+  const toApiSettings = (value) => ({
+    organization: {
+      companyName: value.general.platformName,
+      supportEmail: value.general.supportEmail,
+      supportUrl: value.general.supportUrl,
+    },
+    regional: value.regional,
+    security: {
+      ...value.security,
+      twoFactorRequired: value.security.requireTwoFactor,
+    },
+    notifications: {
+      emailEnabled: value.notifications.adminEmail,
+      systemAlertsEnabled: value.notifications.systemAlerts,
+    },
+    dataSharing: {
+      allowDataExport: true,
+      allowExternalSharing: false,
+    },
   });
 
   const [settings, setSettings] = useState(defaultSettings);
@@ -593,21 +784,32 @@ export default function SuperAdminDashboard({ onLogout }) {
 
   useEffect(() => {
     if (activePage !== "settings") return;
+
     let cancelled = false;
+
     async function loadSettings() {
       setSettingsLoading(true);
       setSettingsError("");
       setSettingsMessage("");
+
       try {
         const saved = await getSettings();
-        if (!cancelled) setSettings(mergeSettings(saved));
+        if (!cancelled) setSettings(normalizeDashboardSettings(saved));
       } catch (error) {
         console.error("Error loading Super Admin settings:", error);
-        if (!cancelled) setSettingsError(error.message || "Unable to load settings.");
+
+        if (!cancelled) {
+          setSettingsError(
+            error.status === 401
+              ? `${error.message || "The Settings API rejected this request."} Check that the CRM session token is present and that the backend Settings route accepts it for the SUPER_ADMIN role.`
+              : error.message || "Unable to load settings."
+          );
+        }
       } finally {
         if (!cancelled) setSettingsLoading(false);
       }
     }
+
     loadSettings();
     return () => { cancelled = true; };
   }, [activePage]);
@@ -626,8 +828,8 @@ export default function SuperAdminDashboard({ onLogout }) {
     setSettingsError("");
     setSettingsMessage("");
     try {
-      const saved = await updateSettings(settings);
-      if (saved && typeof saved === "object") setSettings(mergeSettings(saved));
+      const saved = await updateSettings(toApiSettings(settings));
+      if (saved && typeof saved === "object") setSettings(normalizeDashboardSettings(saved));
       setSettingsMessage("Settings saved successfully.");
     } catch (error) {
       console.error("Error saving Super Admin settings:", error);
@@ -2235,7 +2437,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           {["General", "Regional Defaults", "Security", "Notifications", "Data & Audit"].map((item) => (
             <button type="button" key={item}
               className={`settings-menu-item ${activeSetting === item ? "active" : ""}`}
-              onClick={() => { setActiveSetting(item); setSettingsError(""); setSettingsMessage(""); }}>
+              onClick={() => { setActiveSetting(item); setSettingsMessage(""); }}>
               <span>{item === "General" ? "▣" : item === "Regional Defaults" ? "◷" : item === "Security" ? "⌾" : item === "Notifications" ? "♢" : "⇅"}</span>
               {item}
             </button>
@@ -2261,11 +2463,34 @@ export default function SuperAdminDashboard({ onLogout }) {
           </button>
         </div>
 
-        {settingsLoading && <p role="status">Loading settings from MongoDB...</p>}
-        {settingsError && <p role="alert" style={{ color: "#c0392b", marginBottom: 12 }}>{settingsError}</p>}
+        {settingsLoading && <p role="status">Loading saved settings from MongoDB. You can view the default settings while this request completes...</p>}
+        {settingsError && (
+          <div role="alert" style={{ color: "#c0392b", marginBottom: 12 }}>
+            <p>{settingsError}</p>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={async () => {
+                setSettingsLoading(true);
+                setSettingsError("");
+                try {
+                  const saved = await getSettings();
+                  setSettings(normalizeDashboardSettings(saved));
+                } catch (error) {
+                  setSettingsError(error.message || "Unable to load settings.");
+                } finally {
+                  setSettingsLoading(false);
+                }
+              }}
+              disabled={settingsLoading || settingsSaving}
+            >
+              {settingsLoading ? "Retrying..." : "Retry loading settings"}
+            </button>
+          </div>
+        )}
         {settingsMessage && <p role="status" style={{ color: "#218838", marginBottom: 12 }}>{settingsMessage}</p>}
 
-        {!settingsLoading && activeSetting === "General" && (
+        {activeSetting === "General" && (
           <div className="settings-card">
             <div className="settings-card-header"><div><h3>Platform Identity</h3><p>Global Cliently platform details, not individual tenant details.</p></div><span className="settings-card-status">Database</span></div>
             <div className="settings-form-grid">
@@ -2276,7 +2501,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {!settingsLoading && activeSetting === "Regional Defaults" && (
+        {activeSetting === "Regional Defaults" && (
           <div className="settings-card">
             <div className="settings-card-header"><div><h3>Regional Defaults</h3><p>Defaults for newly created tenant workspaces where applicable.</p></div></div>
             <div className="settings-form-grid">
@@ -2289,7 +2514,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {!settingsLoading && activeSetting === "Security" && (
+        {activeSetting === "Security" && (
           <div className="settings-card">
             <div className="settings-card-header"><div><h3>Security Defaults</h3><p>These preferences must also be enforced by the authentication provider/backend.</p></div></div>
             <div className="settings-form-grid">
@@ -2300,7 +2525,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {!settingsLoading && activeSetting === "Notifications" && (
+        {activeSetting === "Notifications" && (
           <div className="settings-card">
             <div className="settings-card-header"><div><h3>Platform Notifications</h3><p>Enable or disable platform-wide notification categories.</p></div></div>
             {[
@@ -2314,7 +2539,7 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {!settingsLoading && activeSetting === "Data & Audit" && (
+        {activeSetting === "Data & Audit" && (
           <div className="settings-card">
             <div className="settings-card-header"><div><h3>Data Retention & Operations</h3><p>Configure retention defaults and platform maintenance preference.</p></div></div>
             <div className="settings-form-grid">
@@ -2330,20 +2555,10 @@ export default function SuperAdminDashboard({ onLogout }) {
 )}
 </main>
       {profileDialogOpen && (
-        <div className="profile-dialog-overlay" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setProfileDialogOpen(false);
-        }}>
-          <section className="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
-            <button type="button" className="profile-dialog-close" aria-label="Close profile" onClick={() => setProfileDialogOpen(false)}>×</button>
-            <div className="profile-dialog-avatar">SA</div>
-            <p className="section-eyebrow">ACCOUNT</p>
-            <h2 id="profile-dialog-title">Super Admin Profile</h2>
-            <p className="profile-dialog-description">You are signed in with platform administrator access.</p>
-            <div className="profile-dialog-detail"><span>Role</span><strong>Super Admin</strong></div>
-            <div className="profile-dialog-detail"><span>Access</span><strong>Platform administration</strong></div>
-            <button type="button" className="primary-button" onClick={() => setProfileDialogOpen(false)}>Close</button>
-          </section>
-        </div>
+        <ProfileDialog
+          onClose={() => setProfileDialogOpen(false)}
+          onOpenSettings={() => { setProfileDialogOpen(false); setActivePage("settings"); }}
+        />
       )}
 </div>
   );

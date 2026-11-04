@@ -4,7 +4,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/leads";
+const API_URL = "http://localhost:5000/api/sales/leads";
 
 function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
