@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { apiFetch } from '../../lib/api'
-import { clearSession } from '../../lib/session'
+import {useState} from 'react'
+import {useNavigate} from 'react-router-dom'
+import {apiFetch} from '../../lib/api'
+import {clearSession} from '../../lib/session'
 import './clientadmin.css'
 
 import Sidebar from './components/Sidebar'
@@ -13,47 +13,32 @@ import Products from './components/Products'
 import Deals from './components/Deals'
 import Employees from './components/Employees'
 import HelpSupport from './components/HelpSupport'
-import Logout from './components/Logout'
 
-function ClientAdmin() {
+function ClientAdmin(){
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [settingsSection, setSettingsSection] = useState('company')
-  const [loggedOut, setLoggedOut] = useState(false)
 
   const handleNavigate = (page) => {
-    if (page === 'profile') {
+    if(page === 'profile'){
       setSettingsSection('profile')
       setCurrentPage('settings')
-    } else if (page === 'settings') {
+    }else if(page === 'settings'){
       setSettingsSection('company')
       setCurrentPage('settings')
-    } else {
+    }else{
       setCurrentPage(page)
     }
   }
 
   const handleLogout = async () => {
-    setLoggedOut(true)
     await apiFetch('/api/auth/logout', { method: 'POST', auth: false }).catch(() => null)
-  }
-
-  const handleBackToLogin = () => {
     clearSession()
-    navigate('/login', { replace: true })
+    navigate('/login?reason=SIGNED_OUT', { replace: true })
   }
 
-  if (loggedOut) {
-    return (
-      <div className="client-admin">
-        <Logout onBackToLogin={handleBackToLogin} />
-      </div>
-    )
-  }
-
-  return (
+  return(
     <div className="client-admin">
-
       <div className="app">
         <Sidebar
           onNavigate={handleNavigate}
@@ -67,7 +52,6 @@ function ClientAdmin() {
             currentPage={currentPage}
             settingsSection={settingsSection}
           />
-
           {currentPage === 'dashboard' && (
             <Dashboard onNavigate={handleNavigate} />
           )}

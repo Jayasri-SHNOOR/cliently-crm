@@ -34,7 +34,7 @@ function TopBar() {
     localStorage.removeItem("user");
     sessionStorage.clear();
 
-    navigate("/login");
+    navigate("/login?reason=SIGNED_OUT", { replace: true });
   };
 
   return (

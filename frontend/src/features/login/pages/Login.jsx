@@ -7,6 +7,7 @@ import { homeFor } from "../../../lib/roles";
 import "../styles/login.css";
 
 const REASON_MESSAGES = {
+    SIGNED_OUT: "You have been signed out.",
     SESSION_IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
     IDLE: "You were logged out after 30 minutes of inactivity. Please sign in again.",
     SESSION_EXPIRED: "Your session has expired. Please sign in again.",
@@ -57,11 +58,6 @@ function Login(){
         setError("");
         setNotice("");
     };
-
-    // const handleRoleChange = (roleId) => {
-    //     setSelectedRole(roleId);
-    //     clearMessages();
-    // };
 
     const handleWrongPassword = (message) => {
         const result = recordFailure(email);
@@ -147,7 +143,10 @@ function Login(){
                     </div>
 
                     {reasonMessage && !error && !currentUser && (
-                        <div className="login-alert login-error" role="alert">
+                        <div
+                            className={`login-alert ${searchParams.get("reason") === "SIGNED_OUT" ? "login-success" : "login-error"}`}
+                            role="status"
+                        >
                             {reasonMessage}
                         </div>
                     )}
