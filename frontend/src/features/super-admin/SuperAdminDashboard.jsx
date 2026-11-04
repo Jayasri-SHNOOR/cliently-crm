@@ -90,6 +90,13 @@ function scrollToSection(id) {
   });
 }
 
+function getTenantCreatedAt(tenant) {
+  const value = tenant?.createdAt || tenant?.date;
+  if (!value || value === "—") return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function ProfileDialog({ onClose, onOpenSettings }) {
   const [tab, setTab] = useState("profile");
   const [editing, setEditing] = useState(false);
@@ -213,6 +220,16 @@ export default function SuperAdminDashboard({ onLogout }) {
   const [tenantError, setTenantError] = useState("");
   const [tenantsLoading, setTenantsLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState(null);
+  const [tenantQuery, setTenantQuery] = useState("");
+  const [tenantStatusFilter, setTenantStatusFilter] = useState("All");
+  const [tenantPlanFilter, setTenantPlanFilter] = useState("All");
+  const [tenantFormOpen, setTenantFormOpen] = useState(false);
+  const [tenantFormMode, setTenantFormMode] = useState("create");
+  const tenantAdminNames = ["Jeya Karthiga", "Arun Balaji", "Priyanga", "Mounika"];
+  const [tenantDraft, setTenantDraft] = useState({ company: "", admin: "Mounika", email: "", plan: "Starter", environment: "Production", status: "Pending", date: new Date().toISOString().slice(0, 10) });
+  const [tenantSaving, setTenantSaving] = useState(false);
+  const [tenantActionError, setTenantActionError] = useState("");
+  const [tenantActionSuccess, setTenantActionSuccess] = useState("");
 
   // Tenant summary counts are calculated from the records returned by the backend API.
   const totalTenants = tenants.length;
@@ -226,197 +243,217 @@ export default function SuperAdminDashboard({ onLogout }) {
     (tenant) => String(tenant.status || "").toLowerCase() === "blocked"
   ).length;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadTenants() {
-      try {
-        const response = await fetch("http://localhost:5000/api/super-admin/tenants");
-        if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        }
-
-        const result = await response.json();
-        const records = Array.isArray(result.data)
-          ? result.data
-          : Array.isArray(result.tenants)
-            ? result.tenants
-            : [];
-
-        const formattedTenants = records.map((tenant) => ({
-          ...tenant,
-          company: tenant.company || tenant.organization || tenant.name || "Unnamed tenant",
-          admin: tenant.admin || tenant.ownerName || tenant.email || "—",
-          plan: tenant.plan || "Starter",
-          environment: tenant.environment || "Production",
-          status: tenant.status || "Active",
-          date: tenant.date
-            ? tenant.date
-            : tenant.createdAt
-              ? new Date(tenant.createdAt).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "—",
-        }));
-
-        if (!cancelled) {
-          setTenants(formattedTenants);
-          setTenantError("");
-        }
-      } catch (error) {
-        console.error("Error fetching tenants:", error);
-        if (!cancelled) {
-          setTenantError("Unable to load tenants. Check that the backend is running.");
-        }
-      } finally {
-        if (!cancelled) setTenantsLoading(false);
-      }
-    }
-
-    loadTenants();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const [notifications, setNotifications] = useState([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationError, setNotificationError] = useState("");
-  const [notificationFilter, setNotificationFilter] = useState("All");
-  const [notificationSort, setNotificationSort] = useState("latest");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadNotifications() {
-      setNotificationsLoading(true);
-      setNotificationError("");
-      try {
-        const response = await fetch("http://localhost:5000/api/super-admin/notifications");
-        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-        const result = await response.json();
-        if (result.success === false) {
-          throw new Error(result.message || "Unable to load notifications");
-        }
-
-        const records = Array.isArray(result.data)
-          ? result.data
-          : Array.isArray(result.notifications)
-            ? result.notifications
-            : [];
-
-        const formattedRecords = records.map((item) => ({
-          ...item,
-          title: item.title || item.subject || item.name || "Notification",
-          description: item.description || item.message || item.body || "No additional details.",
-          category: item.category || item.type || item.source || "System",
-          source: item.source || item.company || item.tenantName || "Platform",
-          unread: item.unread ?? !(item.isRead ?? item.read ?? false),
-          createdAt: item.createdAt || item.date || item.timestamp || null,
-        }));
-
-        if (!cancelled) setNotifications(formattedRecords);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-        if (!cancelled) {
-          setNotificationError(
-            "Unable to load notifications. Check the notifications API route and backend connection."
-          );
-        }
-      } finally {
-        if (!cancelled) setNotificationsLoading(false);
-      }
-    }
-
-    loadNotifications();
-    return () => { cancelled = true; };
-  }, []);
-
-  const markNotificationRead = async (notification) => {
-    const notificationId = notification._id || notification.id;
-    if (!notificationId) {
-      setNotificationError("This notification has no database ID, so its read status cannot be saved.");
-      return;
-    }
-
-    setNotificationError("");
+  async function refreshTenantData(showLoader = false) {
+    if (showLoader) setTenantsLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/super-admin/notifications/${notificationId}/read`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-      const result = await response.json();
+      const response = await fetch("http://localhost:5000/api/super-admin/tenants");
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || result.success === false) {
         throw new Error(result.message || `Request failed: ${response.status}`);
       }
-
-      setNotifications((current) =>
-        current.map((item) =>
-          String(item._id || item.id) === String(notificationId)
-            ? { ...item, unread: false, isRead: true, read: true }
-            : item
-        )
-      );
+      const records = Array.isArray(result.data) ? result.data : Array.isArray(result.tenants) ? result.tenants : [];
+      const formattedTenants = records.map((tenant) => ({
+        ...tenant,
+        company: tenant.company || tenant.organization || tenant.name || "Unnamed tenant",
+        admin: tenant.admin || tenant.ownerName || tenant.email || "—",
+        plan: tenant.plan || "Starter",
+        environment: tenant.environment || "Production",
+        status: tenant.status || "Pending",
+        date: tenant.date ? new Date(tenant.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+      }));
+      setTenants(formattedTenants);
+      setTenantError("");
     } catch (error) {
-      console.error("Error marking notification as read:", error);
-      setNotificationError(error.message || "Could not save notification read status.");
+      console.error("Error fetching tenants:", error);
+      setTenantError(error.message || "Unable to load tenants. Check that the backend is running.");
+    } finally {
+      setTenantsLoading(false);
     }
+  }
+
+  useEffect(() => {
+    refreshTenantData(true);
+    const refreshTimer = window.setInterval(() => refreshTenantData(false), 30000);
+    return () => window.clearInterval(refreshTimer);
+  }, []);
+
+  const filteredTenants = tenants.filter((tenant) => {
+    const query = tenantQuery.trim().toLowerCase();
+    const matchesQuery = !query || [tenant.company, tenant.admin, tenant.email].some((value) => String(value || "").toLowerCase().includes(query));
+    const matchesStatus = tenantStatusFilter === "All" || String(tenant.status).toLowerCase() === tenantStatusFilter.toLowerCase();
+    const matchesPlan = tenantPlanFilter === "All" || String(tenant.plan).toLowerCase() === tenantPlanFilter.toLowerCase();
+    return matchesQuery && matchesStatus && matchesPlan;
+  });
+
+  function openTenantForm(mode, tenant = null) {
+    setTenantFormMode(mode);
+    setTenantActionError("");
+    setTenantActionSuccess("");
+    setTenantDraft(tenant ? {
+      company: tenant.company || "", admin: tenant.admin || "", email: tenant.email || "",
+      plan: tenant.plan || "Starter", environment: tenant.environment || "Production",
+      status: tenant.status || "Pending",
+      date: tenant.date && tenant.date !== "—" ? new Date(tenant.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    } : { company: "", admin: "Mounika", email: "", plan: "Starter", environment: "Production", status: "Pending", date: new Date().toISOString().slice(0, 10) });
+    setSelectedTenant(mode === "edit" ? tenant : null);
+    setTenantFormOpen(true);
+  }
+
+  async function saveTenant(event) {
+    event.preventDefault();
+    setTenantSaving(true);
+    setTenantActionError("");
+    setTenantActionSuccess("");
+    try {
+      const editing = tenantFormMode === "edit" && selectedTenant?._id;
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants${editing ? `/${selectedTenant._id}` : ""}`, {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tenantDraft),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Unable to save tenant");
+      await refreshTenantData(false);
+      setTenantFormOpen(false);
+      setSelectedTenant(null);
+      setTenantActionSuccess(editing ? "Tenant updated successfully." : "Tenant created successfully.");
+    } catch (error) {
+      setTenantActionError(error.message || "Unable to save tenant.");
+    } finally {
+      setTenantSaving(false);
+    }
+  }
+
+  async function updateTenantStatus(tenant, status) {
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants/${tenant._id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Status update failed");
+      await refreshTenantData(false);
+      setSelectedTenant(result.data || tenant);
+      setTenantActionSuccess(`${tenant.company} status updated to ${status}.`);
+      setTenantActionError("");
+    } catch (error) { setTenantActionError(error.message); }
+  }
+
+  async function deleteTenantRecord(tenant) {
+    if (!window.confirm(`Delete ${tenant.company}? This action cannot be undone.`)) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants/${tenant._id}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Tenant deletion failed");
+      setSelectedTenant(null);
+      await refreshTenantData(false);
+      setTenantActionSuccess("Tenant deleted successfully.");
+      setTenantActionError("");
+    } catch (error) { setTenantActionError(error.message); }
+  }
+
+
+  // Keep activePage initialized before notification effects use it.
+  const [activePage, setActivePage] = useState("dashboard");
+
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationFilter, setNotificationFilter] = useState("All");
+  const [notificationSort, setNotificationSort] = useState("latest");
+  const [notificationQuery, setNotificationQuery] = useState("");
+  const [notificationDraft, setNotificationDraft] = useState({ title: "", message: "", type: "System", audience: "All" });
+  const [showNotificationForm, setShowNotificationForm] = useState(false);
+
+  const refreshNotifications = async () => {
+    setNotificationsLoading(true);
+    setNotificationError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/notifications");
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setNotifications(Array.isArray(result.data) ? result.data : []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotificationError(error.message || "Unable to load notifications from MongoDB.");
+    } finally { setNotificationsLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activePage === "notifications") refreshNotifications();
+  }, [activePage]);
+
+  const markNotificationRead = async (notification) => {
+    if (!notification?._id) return setNotificationError("Notification database ID is missing.");
+    setNotificationError(""); setNotificationMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/notifications/${notification._id}/read`, { method: "PATCH" });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setNotifications((current) => current.map((item) => String(item._id) === String(notification._id) ? { ...item, ...(result.data || {}), isRead: true } : item));
+      setNotificationMessage("Notification marked as read and saved to MongoDB.");
+    } catch (error) { setNotificationError(error.message || "Could not update notification."); }
   };
 
   const markAllNotificationsRead = async () => {
-    const unreadNotifications = notifications.filter((item) => item.unread);
-    if (unreadNotifications.length === 0) return;
+    const unread = notifications.filter((item) => !item.isRead);
+    for (const item of unread) await markNotificationRead(item);
+  };
 
-    setNotificationError("");
-    for (const notification of unreadNotifications) {
-      const notificationId = notification._id || notification.id;
-      if (!notificationId) {
-        setNotificationError("One notification has no database ID, so its read status cannot be saved.");
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `http://localhost:5000/api/super-admin/notifications/${notificationId}/read`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-        const result = await response.json();
-        if (!response.ok || result.success === false) {
-          throw new Error(result.message || `Request failed: ${response.status}`);
-        }
-
-        setNotifications((current) =>
-          current.map((item) =>
-            String(item._id || item.id) === String(notificationId)
-              ? { ...item, unread: false, isRead: true, read: true }
-              : item
-          )
-        );
-      } catch (error) {
-        console.error("Error marking all notifications as read:", error);
-        setNotificationError(error.message || "Some notifications could not be marked as read.");
-        return;
-      }
-    }
+  const createNotification = async (event) => {
+    event.preventDefault();
+    if (!notificationDraft.title.trim() || !notificationDraft.message.trim()) return setNotificationError("Enter both a title and message.");
+    setNotificationSaving(true); setNotificationError(""); setNotificationMessage("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/notifications", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...notificationDraft, title: notificationDraft.title.trim(), message: notificationDraft.message.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      if (result.data) setNotifications((current) => [result.data, ...current]); else await refreshNotifications();
+      setNotificationDraft({ title: "", message: "", type: "System", audience: "All" });
+      setShowNotificationForm(false); setNotificationMessage("Notification created and saved to MongoDB.");
+    } catch (error) { setNotificationError(error.message || "Unable to create notification."); }
+    finally { setNotificationSaving(false); }
   };
 
   const [announcements, setAnnouncements] = useState([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementError, setAnnouncementError] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementFilter, setAnnouncementFilter] = useState("All");
+  const [announcementTypeFilter, setAnnouncementTypeFilter] = useState("All");
+  const [announcementQuery, setAnnouncementQuery] = useState("");
   const [announcementSort, setAnnouncementSort] = useState("latest");
-  const [activePage, setActivePage] = useState("dashboard");
+  const [announcementFormOpen, setAnnouncementFormOpen] = useState(false);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState({
+    title: "", message: "", type: "General", status: "Draft",
+  });
+  const [publishingAnnouncementId, setPublishingAnnouncementId] = useState("");
+  const [overviewRange, setOverviewRange] = useState(6);
 
-  // Load announcements when the user opens this module. This also retries the
-  // request after the backend has started, instead of failing only on first mount.
+  const refreshAnnouncements = async () => {
+    setAnnouncementsLoading(true);
+    setAnnouncementError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/announcements");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Announcements API returned HTTP ${response.status}`);
+      }
+      const records = Array.isArray(result.data) ? result.data : [];
+      setAnnouncements(records);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activePage !== "announcements") return;
     let cancelled = false;
@@ -426,23 +463,14 @@ export default function SuperAdminDashboard({ onLogout }) {
       try {
         const response = await fetch("http://localhost:5000/api/super-admin/announcements");
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
+        if (!response.ok || result.success === false) {
           throw new Error(result.message || `Announcements API returned HTTP ${response.status}`);
         }
-        if (result.success === false) {
-          throw new Error(result.message || "Announcements API reported a failure");
-        }
-        const records = Array.isArray(result.data)
-          ? result.data
-          : Array.isArray(result.announcements)
-            ? result.announcements
-            : [];
+        const records = Array.isArray(result.data) ? result.data : [];
         if (!cancelled) setAnnouncements(records);
       } catch (error) {
         console.error("Error fetching announcements:", error);
-        if (!cancelled) {
-          setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
-        }
+        if (!cancelled) setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
       } finally {
         if (!cancelled) setAnnouncementsLoading(false);
       }
@@ -450,6 +478,76 @@ export default function SuperAdminDashboard({ onLogout }) {
     loadAnnouncements();
     return () => { cancelled = true; };
   }, [activePage]);
+
+  const createAnnouncement = async (event) => {
+    event.preventDefault();
+    const payload = {
+      title: announcementDraft.title.trim(),
+      message: announcementDraft.message.trim(),
+      type: announcementDraft.type,
+      status: announcementDraft.status,
+    };
+    if (!payload.title || !payload.message) {
+      setAnnouncementError("Enter both a title and message.");
+      return;
+    }
+    setAnnouncementSaving(true);
+    setAnnouncementError("");
+    setAnnouncementMessage("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      if (result.data) setAnnouncements((current) => [result.data, ...current]);
+      else await refreshAnnouncements();
+      setAnnouncementDraft({ title: "", message: "", type: "General", status: "Draft" });
+      setAnnouncementFormOpen(false);
+      setAnnouncementMessage("Announcement saved to the database.");
+    } catch (error) {
+      setAnnouncementError(error.message || "Unable to save announcement.");
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  };
+
+  const publishAnnouncement = async (item) => {
+    if (!item?._id) {
+      setAnnouncementError("This announcement has no database ID and cannot be published.");
+      return;
+    }
+    if (!window.confirm(`Publish "${item.title}" now?`)) return;
+    setPublishingAnnouncementId(String(item._id));
+    setAnnouncementError("");
+    setAnnouncementMessage("");
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/super-admin/announcements/${item._id}/publish`,
+        { method: "PATCH" }
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      if (result.data) {
+        setAnnouncements((current) => current.map((entry) =>
+          String(entry._id) === String(item._id) ? result.data : entry
+        ));
+      } else {
+        await refreshAnnouncements();
+      }
+      setAnnouncementMessage("Announcement published successfully.");
+    } catch (error) {
+      setAnnouncementError(error.message || "Unable to publish announcement.");
+    } finally {
+      setPublishingAnnouncementId("");
+    }
+  };
 
   const [activeSetting, setActiveSetting] = useState("General");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -470,16 +568,27 @@ export default function SuperAdminDashboard({ onLogout }) {
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [subscriptionsError, setSubscriptionsError] = useState("");
+  const [subscriptionQuery, setSubscriptionQuery] = useState("");
+  const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState("All");
+  const [subscriptionPlanFilter, setSubscriptionPlanFilter] = useState("All");
+  const [subscriptionCycleFilter, setSubscriptionCycleFilter] = useState("All");
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [subscriptionDialogMode, setSubscriptionDialogMode] = useState("create");
+  const [subscriptionDraft, setSubscriptionDraft] = useState({ company: "", plan: "Starter", status: "Active", billingCycle: "Monthly", amount: "", startDate: new Date().toISOString().slice(0, 10), endDate: "" });
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [subscriptionActionMessage, setSubscriptionActionMessage] = useState("");
+  const [subscriptionActionError, setSubscriptionActionError] = useState("");
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
 
   useEffect(() => {
-    if (activePage !== "billing") return;
+    if (!["dashboard", "billing"].includes(activePage)) return;
     let cancelled = false;
 
     async function loadSubscriptions() {
       setSubscriptionsLoading(true);
       setSubscriptionsError("");
       try {
-        const response = await fetch("http://localhost:5000/api/super-admin/subscriptions");
+        const response = await fetch("http://localhost:5000/api/super-admin/subscriptions?limit=100");
         const result = await response.json();
         if (!response.ok || result.success === false) {
           throw new Error(result.message || `Request failed: ${response.status}`);
@@ -506,7 +615,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     setSubscriptionsLoading(true);
     setSubscriptionsError("");
     try {
-      const response = await fetch("http://localhost:5000/api/super-admin/subscriptions");
+      const response = await fetch("http://localhost:5000/api/super-admin/subscriptions?limit=100");
       const result = await response.json();
       if (!response.ok || result.success === false) {
         throw new Error(result.message || `Request failed: ${response.status}`);
@@ -530,17 +639,17 @@ export default function SuperAdminDashboard({ onLogout }) {
   }).format(Number(value) || 0);
 
   const activeSubscriptions = subscriptions.filter((item) => String(item.status || "Pending").toLowerCase() === "active");
-  const attentionSubscriptions = subscriptions.filter((item) => ["pending", "expired"].includes(String(item.status || "").toLowerCase()));
+  const attentionSubscriptions = subscriptions.filter((item) => ["trial", "past due"].includes(String(item.status || "").toLowerCase()));
   const monthlyRecurringRevenue = activeSubscriptions.reduce((total, item) => {
     const amount = Number(item.amount) || 0;
-    return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+    return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
   }, 0);
   const billingPlanSummary = ["Starter", "Pro", "Enterprise"]
     .map((planName) => {
       const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
       const monthlyRevenue = matching.reduce((total, item) => {
         const amount = Number(item.amount) || 0;
-        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
       }, 0);
       const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
       const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly")
@@ -552,12 +661,99 @@ export default function SuperAdminDashboard({ onLogout }) {
       const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
       const monthlyRevenue = matching.reduce((total, item) => {
         const amount = Number(item.amount) || 0;
-        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : amount);
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
       }, 0);
       const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
       const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly") ? "Yearly" : "Monthly";
       return { name: planName, subscribers: matching.length, monthlyRevenue, averageAmount: matching.length ? totalAmount / matching.length : 0, cycle };
     }));
+
+
+  const filteredSubscriptions = subscriptions.filter((item) => {
+    const query = subscriptionQuery.trim().toLowerCase();
+    const matchesQuery = !query || [item.company, item.plan, item.status, item.billingCycle].some((value) => String(value || "").toLowerCase().includes(query));
+    const matchesStatus = subscriptionStatusFilter === "All" || String(item.status || "Active") === subscriptionStatusFilter;
+    const matchesPlan = subscriptionPlanFilter === "All" || String(item.plan || "") === subscriptionPlanFilter;
+    const matchesCycle = subscriptionCycleFilter === "All" || String(item.billingCycle || "Monthly") === subscriptionCycleFilter;
+    return matchesQuery && matchesStatus && matchesPlan && matchesCycle;
+  });
+
+  const openSubscriptionForm = (mode, item = null) => {
+    setSubscriptionDialogMode(mode);
+    setSubscriptionActionError("");
+    setSubscriptionActionMessage("");
+    setSubscriptionDraft(item ? {
+      company: item.company || "", plan: item.plan || "Starter", status: item.status || "Active",
+      billingCycle: item.billingCycle || "Monthly", amount: String(item.amount ?? ""),
+      startDate: item.startDate ? new Date(item.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      endDate: item.endDate ? new Date(item.endDate).toISOString().slice(0, 10) : "",
+    } : { company: "", plan: "Starter", status: "Active", billingCycle: "Monthly", amount: "", startDate: new Date().toISOString().slice(0, 10), endDate: "" });
+    setSubscriptionDialogOpen(true);
+  };
+
+  const saveSubscription = async (event) => {
+    event.preventDefault();
+    setSubscriptionSaving(true);
+    setSubscriptionActionError("");
+    setSubscriptionActionMessage("");
+    try {
+      const payload = { ...subscriptionDraft, company: subscriptionDraft.company.trim(), amount: Number(subscriptionDraft.amount), startDate: subscriptionDraft.startDate || undefined, endDate: subscriptionDraft.endDate || undefined };
+      if (!payload.company || !Number.isFinite(payload.amount) || payload.amount < 0) throw new Error("Enter a company name and a valid non-negative amount.");
+      const editingId = subscriptionDialogMode === "edit" ? selectedSubscription?._id : null;
+      if (subscriptionDialogMode === "edit" && !editingId) throw new Error("The subscription ID is missing. Refresh the list and try again.");
+      const response = await fetch(editingId ? `http://localhost:5000/api/super-admin/subscriptions/${editingId}` : "http://localhost:5000/api/super-admin/subscriptions", {
+        method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setSubscriptionDialogOpen(false);
+      setSelectedSubscription(null);
+      setSubscriptionActionMessage(editingId ? "Subscription updated successfully." : "Subscription created successfully.");
+      await refreshSubscriptions();
+    } catch (error) {
+      setSubscriptionActionError(error.message || "Unable to save subscription.");
+    } finally { setSubscriptionSaving(false); }
+  };
+
+  const cancelSubscription = async (item) => {
+    if (!item?._id) { setSubscriptionActionError("Subscription ID is missing."); return; }
+    if (!window.confirm(`Cancel the subscription for ${item.company || "this company"}?`)) return;
+    setSubscriptionActionError(""); setSubscriptionActionMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/subscriptions/${item._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "Cancelled" }) });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setSelectedSubscription(null);
+      setSubscriptionActionMessage("Subscription cancelled successfully.");
+      await refreshSubscriptions();
+    } catch (error) { setSubscriptionActionError(error.message || "Unable to cancel subscription."); }
+  };
+
+  // Overview analytics are derived only from records returned by the existing APIs.
+  const overviewMonthlyRegistrations = Array.from({ length: overviewRange }, (_, index) => {
+    const month = new Date();
+    month.setDate(1);
+    month.setHours(0, 0, 0, 0);
+    month.setMonth(month.getMonth() - (overviewRange - 1 - index));
+
+    const count = tenants.filter((tenant) => {
+      const createdAt = getTenantCreatedAt(tenant);
+      return createdAt &&
+        createdAt.getFullYear() === month.getFullYear() &&
+        createdAt.getMonth() === month.getMonth();
+    }).length;
+
+    return {
+      key: `${month.getFullYear()}-${month.getMonth()}`,
+      label: month.toLocaleDateString("en-IN", { month: "short" }),
+      count,
+    };
+  });
+
+  const latestOverviewTenants = [...tenants]
+    .filter((tenant) => getTenantCreatedAt(tenant))
+    .sort((a, b) => getTenantCreatedAt(b) - getTenantCreatedAt(a))
+    .slice(0, 5);
 
   // Plans & Feature Flags — uses the existing plans API.
   const [plans, setPlans] = useState([]);
@@ -605,41 +801,73 @@ export default function SuperAdminDashboard({ onLogout }) {
   }, [activePage]);
 
   const openPlanEditor = (plan) => {
-    setEditingPlan(plan);
+    setEditingPlan(plan || {});
     setPlanDraft({
-      name: plan.name || "",
-      price: plan.price == null ? "" : String(plan.price),
-      billingCycle: plan.billingCycle || "Monthly",
-      description: plan.description || "",
-      isActive: plan.isActive !== false,
+      name: plan?.name || "",
+      price: plan?.price == null ? "" : String(plan.price),
+      billingCycle: plan?.billingCycle || "Monthly",
+      description: plan?.description || "",
+      isActive: plan?.isActive !== false,
     });
     setPlansError("");
     setPlansMessage("");
   };
 
   const savePlan = async () => {
-    if (!editingPlan?._id) {
-      setPlansError("This plan has no database ID and cannot be updated.");
+    if (!planDraft.name.trim()) {
+      setPlansError("Enter a plan name.");
+      return;
+    }
+    if (planDraft.price === "" || !Number.isFinite(Number(planDraft.price)) || Number(planDraft.price) < 0) {
+      setPlansError("Enter a valid non-negative plan price.");
       return;
     }
     setPlansSaving(true);
     setPlansError("");
     setPlansMessage("");
     try {
-      const response = await fetch(`http://localhost:5000/api/super-admin/plans/${editingPlan._id}`, {
-        method: "PATCH",
+      const isEdit = Boolean(editingPlan?._id);
+      const response = await fetch(isEdit ? `http://localhost:5000/api/super-admin/plans/${editingPlan._id}` : "http://localhost:5000/api/super-admin/plans", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...planDraft, price: planDraft.price === "" ? 0 : Number(planDraft.price) }),
+        body: JSON.stringify({ ...planDraft, name: planDraft.name.trim(), price: Number(planDraft.price) }),
       });
       const result = await response.json();
       if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
-      const updated = result.data || result.plan || { ...editingPlan, ...planDraft, price: Number(planDraft.price) };
-      setPlans((current) => current.map((plan) => String(plan._id) === String(editingPlan._id) ? { ...plan, ...updated } : plan));
+      const saved = result.data || result.plan;
+      if (isEdit) {
+        const updated = saved || { ...editingPlan, ...planDraft, price: Number(planDraft.price) };
+        setPlans((current) => current.map((plan) => String(plan._id) === String(editingPlan._id) ? { ...plan, ...updated } : plan));
+      } else if (saved) {
+        setPlans((current) => [...current, saved].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)));
+        setFeatureDrafts((current) => ({ ...current, [String(saved._id || saved.name)]: Array.isArray(saved.features) ? saved.features : [] }));
+      }
       setEditingPlan(null);
-      setPlansMessage("Plan updated successfully.");
+      setPlansMessage(isEdit ? "Plan updated successfully." : "Plan created successfully.");
     } catch (error) {
       console.error("Error saving plan:", error);
       setPlansError(error.message || "Unable to save plan changes.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  const deletePlan = async (plan) => {
+    if (!plan?._id) return setPlansError("This plan has no database ID and cannot be deleted.");
+    if (!window.confirm(`Delete the ${plan.name} plan? This cannot be undone.`)) return;
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/plans/${plan._id}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setPlans((current) => current.filter((item) => String(item._id) !== String(plan._id)));
+      setFeatureDrafts((current) => { const next = { ...current }; delete next[String(plan._id)]; return next; });
+      if (String(editingPlan?._id) === String(plan._id)) setEditingPlan(null);
+      setPlansMessage(`${plan.name} plan deleted successfully.`);
+    } catch (error) {
+      setPlansError(error.message || "Unable to delete plan.");
     } finally {
       setPlansSaving(false);
     }
@@ -685,96 +913,23 @@ export default function SuperAdminDashboard({ onLogout }) {
     }
   };
 
-  // Global Super Admin settings (not tenant-specific CRM preferences).
-  // The Settings API stores organization/regional/security/notifications/dataSharing.
-  // This adapter keeps the existing dashboard UI fields compatible with that API.
+  // Super Admin settings mapped directly to the PlatformSettings MongoDB schema.
   const defaultSettings = {
-    general: {
-      platformName: "Cliently",
-      supportEmail: "",
-      supportUrl: "",
-    },
-    regional: {
-      timezone: "Asia/Kolkata",
-      currency: "INR",
-      dateFormat: "DD/MM/YYYY",
-      timeFormat: "24-hour",
-      language: "English",
-    },
-    security: {
-      sessionTimeoutMinutes: 30,
-      passwordMinLength: 8,
-      requireTwoFactor: false,
-    },
-    notifications: {
-      adminEmail: true,
-      systemAlerts: true,
-      securityAlerts: true,
-      billingAlerts: true,
-    },
-    data: {
-      auditRetentionDays: 365,
-      dataRetentionDays: 365,
-      maintenanceMode: false,
-    },
+    organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
+    regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
+    security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
+    notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
   };
 
   const normalizeDashboardSettings = (saved = {}) => {
     const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
-    const organization = source.organization || {};
-    const regional = source.regional || {};
-    const security = source.security || {};
-    const notifications = source.notifications || {};
-    const dataSharing = source.dataSharing || {};
-
     return {
-      general: {
-        ...defaultSettings.general,
-        ...(source.general || {}),
-        platformName: source.general?.platformName ?? organization.companyName ?? "Cliently",
-        supportEmail: source.general?.supportEmail ?? organization.supportEmail ?? "",
-        supportUrl: source.general?.supportUrl ?? organization.supportUrl ?? "",
-      },
-      regional: { ...defaultSettings.regional, ...regional },
-      security: {
-        ...defaultSettings.security,
-        ...security,
-        requireTwoFactor: security.requireTwoFactor ?? security.twoFactorRequired ?? false,
-      },
-      notifications: {
-        ...defaultSettings.notifications,
-        ...notifications,
-        adminEmail: notifications.adminEmail ?? notifications.emailEnabled ?? true,
-        systemAlerts: notifications.systemAlerts ?? notifications.systemAlertsEnabled ?? true,
-      },
-      data: {
-        ...defaultSettings.data,
-        ...(source.data || {}),
-        maintenanceMode: source.data?.maintenanceMode ?? false,
-      },
+      organization: { ...defaultSettings.organization, ...(source.organization || {}) },
+      regional: { ...defaultSettings.regional, ...(source.regional || {}) },
+      security: { ...defaultSettings.security, ...(source.security || {}) },
+      notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
     };
   };
-
-  const toApiSettings = (value) => ({
-    organization: {
-      companyName: value.general.platformName,
-      supportEmail: value.general.supportEmail,
-      supportUrl: value.general.supportUrl,
-    },
-    regional: value.regional,
-    security: {
-      ...value.security,
-      twoFactorRequired: value.security.requireTwoFactor,
-    },
-    notifications: {
-      emailEnabled: value.notifications.adminEmail,
-      systemAlertsEnabled: value.notifications.systemAlerts,
-    },
-    dataSharing: {
-      allowDataExport: true,
-      allowExternalSharing: false,
-    },
-  });
 
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -784,41 +939,27 @@ export default function SuperAdminDashboard({ onLogout }) {
 
   useEffect(() => {
     if (activePage !== "settings") return;
-
     let cancelled = false;
-
     async function loadSettings() {
       setSettingsLoading(true);
       setSettingsError("");
       setSettingsMessage("");
-
       try {
         const saved = await getSettings();
         if (!cancelled) setSettings(normalizeDashboardSettings(saved));
       } catch (error) {
         console.error("Error loading Super Admin settings:", error);
-
-        if (!cancelled) {
-          setSettingsError(
-            error.status === 401
-              ? `${error.message || "The Settings API rejected this request."} Check that the CRM session token is present and that the backend Settings route accepts it for the SUPER_ADMIN role.`
-              : error.message || "Unable to load settings."
-          );
-        }
+        if (!cancelled) setSettingsError(error.message || "Unable to load settings.");
       } finally {
         if (!cancelled) setSettingsLoading(false);
       }
     }
-
     loadSettings();
     return () => { cancelled = true; };
   }, [activePage]);
 
   const updateSettingsSection = (section, field, value) => {
-    setSettings((current) => ({
-      ...current,
-      [section]: { ...current[section], [field]: value },
-    }));
+    setSettings((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
     setSettingsError("");
     setSettingsMessage("");
   };
@@ -828,7 +969,7 @@ export default function SuperAdminDashboard({ onLogout }) {
     setSettingsError("");
     setSettingsMessage("");
     try {
-      const saved = await updateSettings(toApiSettings(settings));
+      const saved = await updateSettings(settings);
       if (saved && typeof saved === "object") setSettings(normalizeDashboardSettings(saved));
       setSettingsMessage("Settings saved successfully.");
     } catch (error) {
@@ -841,6 +982,7 @@ export default function SuperAdminDashboard({ onLogout }) {
 
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [integrationRecords, setIntegrationRecords] = useState([]);
+  const [integrationQuery, setIntegrationQuery] = useState("");
   const [integrationsLoading, setIntegrationsLoading] = useState(false);
   const [integrationError, setIntegrationError] = useState("");
   const [integrationMessage, setIntegrationMessage] = useState("");
@@ -943,11 +1085,12 @@ export default function SuperAdminDashboard({ onLogout }) {
     }
   };
 
-  // System Health: load live values only from the existing backend APIs.
+  // System Health: read genuine server and MongoDB metrics from the backend.
   const [systemHealth, setSystemHealth] = useState(null);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
   const [systemHealthError, setSystemHealthError] = useState("");
   const [systemHealthCheckedAt, setSystemHealthCheckedAt] = useState(null);
+  const [healthRefreshKey, setHealthRefreshKey] = useState(0);
   const [securityLogs, setSecurityLogs] = useState([]);
   const [securityLogsError, setSecurityLogsError] = useState("");
 
@@ -955,49 +1098,52 @@ export default function SuperAdminDashboard({ onLogout }) {
     if (activePage !== "health") return;
     let cancelled = false;
 
-    async function loadSystemHealth() {
-      setSystemHealthLoading(true);
+    async function loadSystemHealth(showLoader = true) {
+      if (showLoader) setSystemHealthLoading(true);
       setSystemHealthError("");
-      setSecurityLogsError("");
-      const healthStartedAt = Date.now();
 
       try {
-        const response = await fetch("http://localhost:5000/api/super-admin/system-health");
-        const elapsedMs = Date.now() - healthStartedAt;
-        const result = await response.json();
-        if (!response.ok || result.success === false) {
-          throw new Error(result.message || `System health request failed: ${response.status}`);
-        }
+        const response = await fetch("http://localhost:5000/api/super-admin/system-health", {
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+        const healthData = result.data || result.health || result.systemHealth || null;
 
-        // Support either a direct data object or common response wrappers.
-        const rawHealth = result.data || result.health || result.systemHealth || result;
-        const isPlaceholder = !rawHealth || (rawHealth.message &&
-          !rawHealth.status && !rawHealth.services && !rawHealth.metrics &&
-          rawHealth.uptime === undefined && rawHealth.storage === undefined);
-        const healthData = isPlaceholder
-          ? { apiAvailable: true, apiResponseMs: elapsedMs }
-          : { ...rawHealth, apiAvailable: true, apiResponseMs: elapsedMs };
-
-        if (!cancelled) {
-          setSystemHealth(healthData);
-          setSystemHealthCheckedAt(new Date());
+        // The API intentionally returns HTTP 503 with its real metrics when MongoDB
+        // is disconnected. Keep and display those metrics instead of discarding them.
+        if (healthData) {
+          if (!cancelled) {
+            setSystemHealth(healthData);
+            setSystemHealthCheckedAt(
+              healthData.checkedAt ? new Date(healthData.checkedAt) : new Date()
+            );
+            setSystemHealthError("");
+          }
+        } else if (!response.ok || result.success === false) {
+          throw new Error(result.message || `System Health request failed: ${response.status}`);
+        } else {
+          throw new Error("The System Health API returned no health data.");
         }
       } catch (error) {
         console.error("Error fetching system health:", error);
         if (!cancelled) {
-          setSystemHealth(null);
           setSystemHealthError(error.message || "Unable to load system health.");
           setSystemHealthCheckedAt(new Date());
         }
       } finally {
-        if (!cancelled) setSystemHealthLoading(false);
+        if (!cancelled && showLoader) setSystemHealthLoading(false);
       }
+    }
 
+    async function loadSecurityLogs() {
+      setSecurityLogsError("");
       try {
-        const response = await fetch("http://localhost:5000/api/super-admin/security-logs");
-        const result = await response.json();
+        const response = await fetch("http://localhost:5000/api/super-admin/security-logs", {
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
         if (!response.ok || result.success === false) {
-          throw new Error(result.message || `Security logs request failed: ${response.status}`);
+          throw new Error(result.message || `Security Logs request failed: ${response.status}`);
         }
         const records = Array.isArray(result.data)
           ? result.data
@@ -1016,14 +1162,17 @@ export default function SuperAdminDashboard({ onLogout }) {
       }
     }
 
-    loadSystemHealth();
-    return () => { cancelled = true; };
-  }, [activePage]);
+    loadSystemHealth(true);
+    loadSecurityLogs();
+    const timer = window.setInterval(() => loadSystemHealth(false), 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activePage, healthRefreshKey]);
 
   const refreshSystemHealth = () => {
-    // Changing away and back to this page triggers a fresh read without changing other modules.
-    setActivePage("dashboard");
-    window.setTimeout(() => setActivePage("health"), 0);
+    setHealthRefreshKey((current) => current + 1);
   };
 
   const readHealthValue = (...values) => {
@@ -1249,348 +1398,267 @@ export default function SuperAdminDashboard({ onLogout }) {
           </div>
 </header>
 
-        {/* OVERVIEW */}
-       <section
-  className={`dashboard-section ${
-    activePage === "dashboard" ? "page-active" : ""
-  }`}
-  id="overview"
->
-          <div className="section-heading">
-            <div>
-              <p className="section-eyebrow">OVERVIEW</p>
-             <h2>Platform Overview</h2>
-            </div>
-          </div>
+        {/* OVERVIEW — isolated from the other dashboard modules */}
+        {activePage === "dashboard" && (
+          <section className="dashboard-section page-active" id="overview">
+            <style>{`
+              .sa-overview-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+              .sa-overview-live{display:inline-flex;align-items:center;gap:7px;color:var(--muted-text);font-size:11px}
+              .sa-overview-live:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--mint-dark);box-shadow:0 0 0 4px var(--pale-mint)}
+              .sa-overview-kpi{width:100%;text-align:left;font:inherit;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
+              .sa-overview-kpi:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(18,60,58,.11)}
+              .sa-overview-kpi:focus-visible,.sa-overview-link:focus-visible{outline:2px solid var(--mint-dark);outline-offset:3px}
+              .sa-overview-panel{margin-top:18px;padding:21px}
+              .sa-overview-panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+              .sa-overview-panel-head h3{margin:0;color:var(--deep-teal);font-size:15px}
+              .sa-overview-panel-head p{margin:5px 0 0;color:var(--muted-text);font-size:11px}
+              .sa-overview-range{display:flex;gap:4px;padding:4px;background:var(--soft-bg);border-radius:9px}
+              .sa-overview-range button{border:0;border-radius:6px;padding:8px 12px;background:transparent;color:var(--muted-text);font-size:11px;cursor:pointer}
+              .sa-overview-range button.active{background:var(--deep-teal);color:#fff}
+              .sa-overview-chart{height:190px;display:grid;gap:10px;align-items:end}
+              .sa-overview-bar-col{height:100%;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:7px}
+              .sa-overview-bar-col strong{font-size:10px;color:var(--deep-teal)}
+              .sa-overview-bar-track{height:135px;width:min(30px,75%);display:flex;align-items:flex-end;overflow:hidden;border-radius:7px;background:var(--soft-bg)}
+              .sa-overview-bar{width:100%;min-height:3px;border-radius:7px;background:linear-gradient(180deg,var(--mint),var(--deep-teal));transition:height .25s ease}
+              .sa-overview-bar-col small{font-size:10px;color:var(--muted-text)}
+              .sa-overview-note,.sa-overview-empty{font-size:11px;color:var(--muted-text)}
+              .sa-overview-lower{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+              .sa-overview-plan{margin:15px 0}
+              .sa-overview-plan-label{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:11px}
+              .sa-overview-plan-label strong{color:var(--deep-teal)}.sa-overview-plan-label span{color:var(--muted-text)}
+              .sa-overview-plan-track{height:8px;border-radius:10px;background:var(--soft-bg);overflow:hidden}
+              .sa-overview-plan-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--mint),var(--deep-teal))}
+              .sa-overview-recent{display:flex;align-items:center;gap:11px;width:100%;padding:10px 0;border:0;border-bottom:1px solid var(--border);background:transparent;text-align:left;cursor:pointer}
+              .sa-overview-avatar{width:35px;height:35px;flex:0 0 35px;display:grid;place-items:center;border-radius:10px;background:var(--pale-mint);color:var(--deep-teal);font-weight:800}
+              .sa-overview-recent-copy{display:grid;gap:4px;min-width:0;flex:1}.sa-overview-recent-copy strong{font-size:11px;color:var(--dark-text)}.sa-overview-recent-copy small{font-size:10px;color:var(--muted-text)}
+              .sa-overview-error{color:#b54747;font-size:12px}
+              @media(max-width:760px){.sa-overview-lower{grid-template-columns:1fr}.sa-overview-panel{padding:16px}.sa-overview-chart{gap:5px}}
+            `}</style>
 
-          <div className="overview-grid">
-            <div className="overview-card">
-              <div className="overview-card-top">
-                <span>Total Tenants</span>
-                <span className="metric-icon">▣</span>
-              </div>
-              <strong>116</strong>
-              <small>All subscribed companies</small>
-            </div>
-
-            <div className="overview-card">
-              <div className="overview-card-top">
-                <span>Active Subscriptions</span>
-                <span className="metric-icon">✓</span>
-              </div>
-              <strong>116</strong>
-              <small>Currently active plans</small>
-            </div>
-
-            <div className="overview-card">
-              <div className="overview-card-top">
-                <span>Monthly Recurring Revenue</span>
-                <span className="metric-icon">$</span>
-              </div>
-              <strong>$42.8K</strong>
-              <small>Current MRR</small>
-            </div>
-
-            <div className="overview-card">
-              <div className="overview-card-top">
-                <span>Platform Uptime</span>
-                <span className="metric-icon">◉</span>
-              </div>
-              <strong>99.9%</strong>
-              <small>Last 30 days</small>
-            </div>
-          </div>
-        </section>
-
-        {/* TENANTS */}
-        <section
-  className={`dashboard-section ${
-    activePage === "tenants" ? "page-active" : ""
-  }`}
-  id="tenants"
->
-          <div className="section-heading section-heading-row">
-            <div>
-              <p className="section-eyebrow">PLATFORM MANAGEMENT</p>
-              <h2>Tenant Management</h2>
-              <p>Manage subscribed companies and their environments.</p>
-            </div>
-
-            <button className="secondary-button">View All Tenants</button>
-          </div>
-
-          <div className="tenant-summary-grid">
-            <div>
-              <span>Total Tenants</span>
-              <strong>{tenantsLoading ? "…" : totalTenants}</strong>
-            </div>
-            <div>
-              <span>Active</span>
-              <strong>{tenantsLoading ? "…" : activeTenants}</strong>
-            </div>
-            <div>
-              <span>Pending</span>
-              <strong>{tenantsLoading ? "…" : pendingTenants}</strong>
-            </div>
-            <div>
-              <span>Blocked</span>
-              <strong>{tenantsLoading ? "…" : blockedTenants}</strong>
-            </div>
-          </div>
-
-          <div className="dashboard-card table-card">
-            <div className="table-header">
-              <div>
-                <h3>Recent Tenants</h3>
-                <p>Latest tenant environments created on the platform.</p>
-              </div>
-              <button className="text-button">Export</button>
-            </div>
-
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th>Plan</th>
-                    <th>Environment</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th></th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {tenantsLoading ? (
-                    <tr><td colSpan={6}>Loading tenants...</td></tr>
-                  ) : tenantError ? (
-                    <tr><td colSpan={6}>{tenantError}</td></tr>
-                  ) : tenants.length === 0 ? (
-                    <tr><td colSpan={6}>No tenants found.</td></tr>
-                  ) : (
-                    tenants.map((tenant) => (
-                    <tr key={tenant._id || tenant.company}>
-                      <td>
-                        <div className="company-cell">
-                          <div className="company-avatar">
-                            {tenant.company.charAt(0)}
-                          </div>
-
-                          <div>
-                            <strong>{tenant.company}</strong>
-                            <span>{tenant.admin}</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`plan-badge ${tenant.plan.toLowerCase()}`}>
-                          {tenant.plan}
-                        </span>
-                      </td>
-
-                      <td>{tenant.environment}</td>
-
-                      <td>
-                        <span
-                          className={`status-badge ${tenant.status.toLowerCase()}`}
-                        >
-                          <span></span>
-                          {tenant.status}
-                        </span>
-                      </td>
-
-                      <td>{tenant.date}</td>
-
-                      <td>
-                        <button
-                          type="button"
-                          className="table-action"
-                          onClick={() => setSelectedTenant(tenant)}
-                        >
-                          Manage
-                        </button>
-                      </td>
-                    </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        {selectedTenant && (
-          <div
-            role="presentation"
-            onClick={() => setSelectedTenant(null)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 2000,
-              background: "rgba(15, 23, 42, 0.55)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "20px",
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="tenant-details-title"
-              onClick={(event) => event.stopPropagation()}
-              style={{
-                width: "100%",
-                maxWidth: "480px",
-                background: "var(--card-bg, #ffffff)",
-                color: "var(--text-color, #172033)",
-                borderRadius: "14px",
-                padding: "24px",
-                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.25)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "18px" }}>
-                <h2 id="tenant-details-title" style={{ margin: 0 }}>Tenant Details</h2>
-                <button type="button" className="table-action" onClick={() => setSelectedTenant(null)} aria-label="Close tenant details">Close</button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(110px, 1fr) 2fr", gap: "12px 16px", overflowWrap: "anywhere" }}>
-                <strong>Company</strong><span>{selectedTenant.company || "—"}</span>
-                <strong>Administrator</strong><span>{selectedTenant.admin || "—"}</span>
-                <strong>Email</strong><span>{selectedTenant.email || "—"}</span>
-                <strong>Plan</strong><span>{selectedTenant.plan || "—"}</span>
-                <strong>Environment</strong><span>{selectedTenant.environment || "—"}</span>
-                <strong>Status</strong><span>{selectedTenant.status || "—"}</span>
-                <strong>Created</strong><span>{selectedTenant.date || "—"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
-                <button type="button" className="secondary-button" onClick={() => setSelectedTenant(null)}>Done</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* BILLING — subscription counts and revenue are calculated from MongoDB records */}
-        {activePage === "billing" && (
-          <section className="dashboard-card" id="billing">
             <div className="section-heading section-heading-row">
               <div>
-                <p className="section-eyebrow">FINANCIAL OVERVIEW</p>
-                <h2>Subscription &amp; Billing Control</h2>
-                <p>Monitor subscription records, recurring revenue and billing status.</p>
+                <p className="section-eyebrow">PLATFORM ANALYTICS</p>
+                <h2>Platform Overview</h2>
+                <p>Live insights calculated from your Cliently platform records.</p>
               </div>
-              <button type="button" className="secondary-button" onClick={refreshSubscriptions} disabled={subscriptionsLoading}>
-                {subscriptionsLoading ? "Refreshing..." : "Refresh Subscriptions"}
+              <div className="sa-overview-toolbar">
+                <span className="sa-overview-live">Live API data</span>
+                <button type="button" className="secondary-button" onClick={() => { refreshSubscriptions(); }} disabled={subscriptionsLoading}>
+                  {subscriptionsLoading ? "Refreshing…" : "↻ Refresh billing"}
+                </button>
+              </div>
+            </div>
+
+            {(tenantError || subscriptionsError) && (
+              <p role="alert" className="sa-overview-error">
+                {tenantError || subscriptionsError}
+              </p>
+            )}
+
+            <div className="overview-grid">
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("tenants")}>
+                <div className="overview-card-top"><span>Total Tenants</span><span className="metric-icon">▣</span></div>
+                <strong>{tenantsLoading ? "…" : tenantError ? "—" : totalTenants}</strong>
+                <small>Registered companies · View tenants ↗</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("tenants")}>
+                <div className="overview-card-top"><span>Active Tenants</span><span className="metric-icon">✓</span></div>
+                <strong>{tenantsLoading ? "…" : tenantError ? "—" : activeTenants}</strong>
+                <small>Currently active companies</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("billing")}>
+                <div className="overview-card-top"><span>Active Subscriptions</span><span className="metric-icon">◇</span></div>
+                <strong>{subscriptionsLoading ? "…" : subscriptionsError ? "—" : activeSubscriptions.length}</strong>
+                <small>Currently active plans · View billing ↗</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("billing")}>
+                <div className="overview-card-top"><span>Monthly Recurring Revenue</span><span className="metric-icon">₹</span></div>
+                <strong>{subscriptionsLoading ? "…" : subscriptionsError ? "—" : formatINR(monthlyRecurringRevenue)}</strong>
+                <small>Calculated from active subscriptions</small>
               </button>
             </div>
 
-            {subscriptionsError && <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{subscriptionsError}</p>}
-
-            <div className="billing-summary-grid">
-              {billingPlanSummary.slice(0, 3).map((plan) => (
-                <div className="billing-summary-card" key={plan.name}>
-                  <span>{plan.name}</span>
-                  <strong>{subscriptionsLoading ? "…" : plan.subscribers}</strong>
-                  <small>Active subscriptions</small>
+            <div className="dashboard-card sa-overview-panel">
+              <div className="sa-overview-panel-head">
+                <div><h3>Tenant Registration Trends</h3><p>Monthly registrations based on recorded tenant creation dates.</p></div>
+                <div className="sa-overview-range" aria-label="Tenant growth chart range">
+                  {[6, 12].map((range) => (
+                    <button key={range} type="button" className={overviewRange === range ? "active" : ""} onClick={() => setOverviewRange(range)} aria-pressed={overviewRange === range}>{range} months</button>
+                  ))}
                 </div>
-              ))}
-              <div className="billing-summary-card highlight">
-                <span>Monthly Recurring Revenue</span>
-                <strong>{subscriptionsLoading ? "…" : formatINR(monthlyRecurringRevenue)}</strong>
-                <small>Calculated from active subscriptions</small>
               </div>
-            </div>
-
-            <div className="billing-alert">
-              <div className="billing-alert-indicator">!</div>
-              <div>
-                <strong>Subscriptions needing attention</strong>
-                <p>{subscriptionsLoading ? "Checking subscription statuses..." : `${attentionSubscriptions.length} subscription(s) have Pending or Expired status.`}</p>
-              </div>
-            </div>
-
-            <div className="dashboard-card">
-              <div className="table-header">
-                <div>
-                  <h3>Subscription Plans</h3>
-                  <p>Distribution and revenue calculated from saved subscription records.</p>
+              {tenantsLoading ? <p className="sa-overview-empty">Loading tenant records…</p> : tenantError ? <p className="sa-overview-empty">Tenant growth is unavailable until the tenant API responds.</p> : (
+                <div className="sa-overview-chart" style={{ gridTemplateColumns: `repeat(${overviewRange}, minmax(0, 1fr))` }}>
+                  {overviewMonthlyRegistrations.map((month) => {
+                    const maxCount = Math.max(1, ...overviewMonthlyRegistrations.map((item) => item.count));
+                    return (
+                      <div className="sa-overview-bar-col" key={month.key}>
+                        <strong>{month.count}</strong>
+                        <div className="sa-overview-bar-track"><div className="sa-overview-bar" style={{ height: `${Math.max(3, (month.count / maxCount) * 100)}%` }} title={`${month.label}: ${month.count} registrations`} /></div>
+                        <small>{month.label}</small>
+                      </div>
+                    );
+                  })}
                 </div>
-                <span className="integration-count">{subscriptions.length} record{subscriptions.length === 1 ? "" : "s"}</span>
-              </div>
-
-              <div className="table-wrapper">
-                <table className="billing-table">
-                  <thead>
-                    <tr>
-                      <th>Plan</th>
-                      <th>Active Subscribers</th>
-                      <th>Average Price</th>
-                      <th>Monthly Revenue</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptionsLoading ? (
-                      <tr><td colSpan={5}>Loading subscriptions from MongoDB...</td></tr>
-                    ) : subscriptionsError ? (
-                      <tr><td colSpan={5}>Subscriptions could not be loaded. Check the backend API.</td></tr>
-                    ) : billingPlanSummary.length === 0 || subscriptions.length === 0 ? (
-                      <tr><td colSpan={5}>No subscription records found in the database yet.</td></tr>
-                    ) : billingPlanSummary.map((plan) => (
-                      <tr key={plan.name}>
-                        <td><strong>{plan.name}</strong></td>
-                        <td>{plan.subscribers}</td>
-                        <td>{plan.subscribers ? `${formatINR(plan.averageAmount)} / ${plan.cycle.toLowerCase()}` : "—"}</td>
-                        <td>{formatINR(plan.monthlyRevenue)}</td>
-                        <td><span className="billing-status">{plan.subscribers ? "Active" : "No active subscriptions"}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              )}
+              <p className="sa-overview-note">Only tenant records with valid creation dates are included. No historical data is generated.</p>
             </div>
 
-            <div className="billing-revenue-grid">
-              <div className="revenue-card">
-                <span>Annual Recurring Revenue</span>
-                <strong>{subscriptionsLoading ? "…" : formatINR(monthlyRecurringRevenue * 12)}</strong>
-                <small>Monthly recurring revenue × 12</small>
-              </div>
-              <div className="revenue-card">
-                <span>Total Subscriptions</span>
-                <strong>{subscriptionsLoading ? "…" : subscriptions.length}</strong>
-                <small>{activeSubscriptions.length} active · {subscriptions.length - activeSubscriptions.length} non-active</small>
-              </div>
-            </div>
-
-            {!subscriptionsLoading && !subscriptionsError && subscriptions.length > 0 && (
-              <div className="dashboard-card" style={{ marginTop: "20px" }}>
-                <div className="table-header">
-                  <div>
-                    <h3>Subscription Records</h3>
-                    <p>Individual records returned by the subscriptions API.</p>
+            <div className="sa-overview-lower">
+              <div className="dashboard-card sa-overview-panel">
+                <div className="sa-overview-panel-head"><div><h3>Subscription Plan Distribution</h3><p>Active subscriptions grouped by plan.</p></div></div>
+                {subscriptionsLoading ? <p className="sa-overview-empty">Loading subscriptions…</p> : subscriptionsError ? <p className="sa-overview-empty">Subscription data unavailable.</p> : activeSubscriptions.length === 0 ? <p className="sa-overview-empty">No active subscriptions found.</p> : billingPlanSummary.filter((plan) => plan.subscribers > 0).map((plan) => (
+                  <div className="sa-overview-plan" key={plan.name}>
+                    <div className="sa-overview-plan-label"><strong>{plan.name}</strong><span>{plan.subscribers} subscriptions</span></div>
+                    <div className="sa-overview-plan-track"><div className="sa-overview-plan-fill" style={{ width: `${(plan.subscribers / activeSubscriptions.length) * 100}%` }} /></div>
                   </div>
-                </div>
-                <div className="table-wrapper">
-                  <table className="billing-table">
-                    <thead><tr><th>Company</th><th>Plan</th><th>Billing Cycle</th><th>Amount</th><th>Status</th><th>Start Date</th><th>End Date</th></tr></thead>
-                    <tbody>
-                      {subscriptions.map((item, index) => (
-                        <tr key={item._id || `${item.company}-${index}`}>
-                          <td><strong>{item.company || "Unnamed company"}</strong></td>
-                          <td>{item.plan || "—"}</td>
-                          <td>{item.billingCycle || "Monthly"}</td>
-                          <td>{formatINR(item.amount)}</td>
-                          <td><span className="billing-status">{item.status || "Pending"}</span></td>
-                          <td>{item.startDate ? new Date(item.startDate).toLocaleDateString("en-IN") : "—"}</td>
-                          <td>{item.endDate ? new Date(item.endDate).toLocaleDateString("en-IN") : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                ))}
+                <button type="button" className="text-button sa-overview-link" onClick={() => setActivePage("billing")}>View subscription details →</button>
               </div>
-            )}
+
+              <div className="dashboard-card sa-overview-panel">
+                <div className="sa-overview-panel-head"><div><h3>Latest Tenants</h3><p>Recently registered companies.</p></div><button type="button" className="text-button" onClick={() => setActivePage("tenants")}>View all →</button></div>
+                {tenantsLoading ? <p className="sa-overview-empty">Loading tenants…</p> : tenantError ? <p className="sa-overview-empty">Tenant records unavailable.</p> : latestOverviewTenants.length === 0 ? <p className="sa-overview-empty">No tenant records with valid creation dates.</p> : latestOverviewTenants.map((tenant) => (
+                  <button type="button" className="sa-overview-recent" key={tenant._id || tenant.company} onClick={() => { setSelectedTenant(tenant); setActivePage("tenants"); }}>
+                    <span className="sa-overview-avatar">{tenant.company?.charAt(0)?.toUpperCase() || "T"}</span>
+                    <span className="sa-overview-recent-copy"><strong>{tenant.company}</strong><small>{tenant.plan} · {tenant.status}</small></span>
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TENANTS */}
+        <section className={`dashboard-section ${activePage === "tenants" ? "page-active" : ""}`} id="tenants">
+          <style>{`
+            .sa-tenant-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:18px 0;padding:16px;background:var(--card-bg,#fff);border:1px solid var(--border,#cfe4df);border-radius:16px}
+            .sa-tenant-toolbar input,.sa-tenant-toolbar select,.sa-tenant-form input,.sa-tenant-form select{border:1px solid var(--border,#cfe4df);background:var(--soft-bg,#f4faf8);color:var(--dark-text,#183735);border-radius:10px;padding:11px 12px;min-height:42px;outline:none}
+            .sa-tenant-toolbar input{flex:1;min-width:210px}.sa-tenant-toolbar select{min-width:140px}
+            .sa-tenant-primary{border:0;border-radius:10px;background:var(--deep-teal,#123c3a);color:white;padding:11px 16px;font-weight:700;cursor:pointer}
+            .sa-tenant-secondary{border:1px solid var(--border,#cfe4df);border-radius:10px;background:var(--pale-mint,#ddf6f1);color:var(--deep-teal,#123c3a);padding:10px 14px;font-weight:650;cursor:pointer}
+            .sa-tenant-table-wrap{overflow:auto}.sa-tenant-table{width:100%;border-collapse:collapse;min-width:850px}.sa-tenant-table th,.sa-tenant-table td{padding:14px 13px;text-align:left;border-bottom:1px solid var(--border,#e5eeeb);font-size:13px}.sa-tenant-table th{color:var(--muted-text,#637875);font-size:11px;text-transform:uppercase;letter-spacing:.06em}.sa-tenant-table tbody tr:hover{background:var(--soft-bg,#f4faf8)}
+            .sa-tenant-pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:750;background:#eaf6f3;color:#23685e}.sa-tenant-pill.pending{background:#fff5df;color:#946200}.sa-tenant-pill.blocked{background:#fdeaea;color:#a43b3b}
+            .sa-tenant-overlay{position:fixed;inset:0;z-index:3000;background:rgba(10,28,27,.55);display:flex;align-items:center;justify-content:center;padding:18px}.sa-tenant-dialog{width:min(620px,100%);max-height:90vh;overflow:auto;background:var(--card-bg,#fff);color:var(--dark-text,#183735);border-radius:18px;padding:22px;box-shadow:0 24px 70px #0003}.sa-tenant-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.sa-tenant-form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted-text,#637875)}.sa-tenant-form input,.sa-tenant-form select{width:100%;box-sizing:border-box}.sa-tenant-form .full{grid-column:1/-1}.sa-tenant-feedback{padding:10px 12px;border-radius:10px;margin:10px 0;font-size:13px;background:#fff5df;color:#815b00}.sa-tenant-feedback.success{background:#e8f7ef;color:#236348}
+            @media(max-width:650px){.sa-tenant-form{grid-template-columns:1fr}.sa-tenant-form .full{grid-column:auto}}
+          `}</style>
+          <div className="section-heading section-heading-row">
+            <div><p className="section-eyebrow">PLATFORM MANAGEMENT</p><h2>Tenant Management</h2><p>Monitor tenant accounts, manage subscriptions, and coordinate your platform team.</p></div>
+            <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+              <button type="button" className="sa-tenant-secondary" onClick={() => refreshTenantData(true)} disabled={tenantsLoading}>{tenantsLoading ? "Refreshing…" : "↻ Refresh"}</button>
+              <button type="button" className="sa-tenant-primary" onClick={() => openTenantForm("create")}>＋ Add Tenant</button>
+            </div>
+          </div>
+          <div className="tenant-summary-grid">
+            <div><span>Total Tenants</span><strong>{tenantsLoading ? "…" : totalTenants}</strong><small>All registered workspaces</small></div>
+            <div><span>Active</span><strong>{tenantsLoading ? "…" : activeTenants}</strong><small>Currently enabled</small></div>
+            <div><span>Pending</span><strong>{tenantsLoading ? "…" : pendingTenants}</strong><small>Awaiting activation</small></div>
+            <div><span>Blocked</span><strong>{tenantsLoading ? "…" : blockedTenants}</strong><small>Access restricted</small></div>
+          </div>
+          {tenantActionError && <div className="sa-tenant-feedback" role="alert">{tenantActionError}</div>}
+          {tenantActionSuccess && <div className="sa-tenant-feedback success" role="status">{tenantActionSuccess}</div>}
+          <div className="sa-tenant-toolbar">
+            <input aria-label="Search tenants" placeholder="Search company, administrator or email…" value={tenantQuery} onChange={(e) => setTenantQuery(e.target.value)} />
+            <select aria-label="Filter by status" value={tenantStatusFilter} onChange={(e) => setTenantStatusFilter(e.target.value)}><option>All</option><option>Active</option><option>Pending</option><option>Blocked</option></select>
+            <select aria-label="Filter by plan" value={tenantPlanFilter} onChange={(e) => setTenantPlanFilter(e.target.value)}><option>All</option><option>Starter</option><option>Pro</option><option>Enterprise</option></select>
+            <span style={{fontSize:12,color:"var(--muted-text,#637875)"}}>{filteredTenants.length} of {tenants.length} tenants</span>
+          </div>
+          <div className="dashboard-card table-card">
+            <div className="table-header"><div><h3>Tenant Directory</h3><p>Live records from the Super Admin tenant API · refreshes every 30 seconds</p></div><button type="button" className="text-button" onClick={() => { const csv = ["Company,Administrator,Email,Plan,Environment,Status,Created", ...filteredTenants.map(t => [t.company,t.admin,t.email,t.plan,t.environment,t.status,t.date].map(v => `"${String(v || "").replaceAll('"','""')}"`).join(","))].join("\n"); const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=url; a.download="cliently-tenants.csv"; a.click(); URL.revokeObjectURL(url); }}>Export CSV ↓</button></div>
+            <div className="sa-tenant-table-wrap"><table className="sa-tenant-table"><thead><tr><th>Company / Admin</th><th>Plan</th><th>Environment</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>
+              {tenantsLoading ? <tr><td colSpan={6}>Loading tenant records…</td></tr> : tenantError ? <tr><td colSpan={6}>{tenantError} <button type="button" className="text-button" onClick={() => refreshTenantData(true)}>Try again</button></td></tr> : filteredTenants.length === 0 ? <tr><td colSpan={6}>No matching tenants. Try changing your filters or add a tenant.</td></tr> : filteredTenants.map((tenant) => <tr key={tenant._id || tenant.company}>
+                <td><div className="company-cell"><div className="company-avatar">{tenant.company?.charAt(0)?.toUpperCase() || "T"}</div><div><strong>{tenant.company}</strong><span>{tenant.admin}{tenant.email ? ` · ${tenant.email}` : ""}</span></div></div></td>
+                <td><span className={`plan-badge ${String(tenant.plan).toLowerCase()}`}>{tenant.plan}</span></td><td>{tenant.environment}</td><td><span className={`sa-tenant-pill ${String(tenant.status).toLowerCase()}`}>{tenant.status}</span></td><td>{tenant.date}</td>
+                <td><div style={{display:"flex",gap:7,alignItems:"center"}}><button type="button" className="table-action" onClick={() => setSelectedTenant(tenant)}>View</button><button type="button" className="table-action" onClick={() => openTenantForm("edit",tenant)}>Edit</button></div></td>
+              </tr>)}
+            </tbody></table></div>
+          </div>
+
+        </section>
+
+        {tenantFormOpen && <div className="sa-tenant-overlay" role="presentation" onMouseDown={(e) => { if(e.target===e.currentTarget) setTenantFormOpen(false); }}><section className="sa-tenant-dialog" role="dialog" aria-modal="true" aria-labelledby="tenant-form-title"><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:16}}><div><p className="section-eyebrow">TENANT WORKSPACE</p><h2 id="tenant-form-title" style={{margin:0}}>{tenantFormMode === "edit" ? "Edit tenant" : "Create tenant"}</h2></div><button type="button" className="sa-tenant-secondary" onClick={() => setTenantFormOpen(false)}>Close</button></div>
+          <form className="sa-tenant-form" onSubmit={saveTenant}>
+            {[{key:"company",label:"Company name",required:true},{key:"email",label:"Admin email"},{key:"environment",label:"Environment",required:true}].map(field=><label key={field.key} className={field.key === "email" ? "full" : ""}>{field.label}<input required={field.required} type={field.key === "email" ? "email" : "text"} value={tenantDraft[field.key] || ""} onChange={e=>setTenantDraft(d=>({...d,[field.key]:e.target.value}))} placeholder={field.label}/></label>)}
+            <label>Company administrator<select required value={tenantDraft.admin} onChange={e=>setTenantDraft(d=>({...d,admin:e.target.value}))}>{!tenantAdminNames.includes(tenantDraft.admin) && tenantDraft.admin && <option>{tenantDraft.admin}</option>}{tenantAdminNames.map(name=><option key={name} value={name}>{name}</option>)}</select></label>
+            <label>Subscription plan<select value={tenantDraft.plan} onChange={e=>setTenantDraft(d=>({...d,plan:e.target.value}))}><option>Starter</option><option>Pro</option><option>Enterprise</option></select></label>
+            <label>Account status<select value={tenantDraft.status} onChange={e=>setTenantDraft(d=>({...d,status:e.target.value}))}><option>Active</option><option>Pending</option><option>Blocked</option></select></label>
+            <label>Created date<input type="date" value={tenantDraft.date} onChange={e=>setTenantDraft(d=>({...d,date:e.target.value}))}/></label>
+            {tenantActionError && <div className="sa-tenant-feedback full">{tenantActionError}</div>}
+            <div className="full" style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:8}}><button type="button" className="sa-tenant-secondary" onClick={()=>setTenantFormOpen(false)}>Cancel</button><button className="sa-tenant-primary" type="submit" disabled={tenantSaving}>{tenantSaving ? "Saving…" : tenantFormMode === "edit" ? "Save changes" : "Create tenant"}</button></div>
+          </form></section></div>}
+
+
+        {selectedTenant && !tenantFormOpen && (
+          <div className="sa-tenant-overlay" role="presentation" onMouseDown={(e) => { if(e.target===e.currentTarget) setSelectedTenant(null); }}>
+            <section className="sa-tenant-dialog" role="dialog" aria-modal="true" aria-labelledby="tenant-details-title">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:18}}><div><p className="section-eyebrow">WORKSPACE PROFILE</p><h2 id="tenant-details-title" style={{margin:0}}>{selectedTenant.company}</h2></div><button type="button" className="sa-tenant-secondary" onClick={()=>setSelectedTenant(null)}>Close</button></div>
+              <div style={{display:"grid",gridTemplateColumns:"minmax(110px,1fr) 2fr",gap:"12px 16px",overflowWrap:"anywhere",fontSize:14}}><strong>Administrator</strong><span>{selectedTenant.admin || "—"}</span><strong>Email</strong><span>{selectedTenant.email || "—"}</span><strong>Plan</strong><span>{selectedTenant.plan || "—"}</span><strong>Environment</strong><span>{selectedTenant.environment || "—"}</span><strong>Status</strong><span><span className={`sa-tenant-pill ${String(selectedTenant.status).toLowerCase()}`}>{selectedTenant.status}</span></span><strong>Created</strong><span>{selectedTenant.date || "—"}</span><strong>Tenant ID</strong><span>{selectedTenant._id || "—"}</span></div>
+              <div style={{marginTop:22,paddingTop:16,borderTop:"1px solid var(--border,#cfe4df)"}}><strong style={{fontSize:13}}>Quick status update</strong><div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>{["Active","Pending","Blocked"].map(status=><button key={status} type="button" className="sa-tenant-secondary" disabled={String(selectedTenant.status).toLowerCase()===status.toLowerCase()} onClick={()=>updateTenantStatus(selectedTenant,status)}>{status}</button>)}</div></div>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginTop:22}}><button type="button" className="sa-tenant-secondary" onClick={()=>deleteTenantRecord(selectedTenant)}>Delete tenant</button><div style={{display:"flex",gap:8}}><button type="button" className="sa-tenant-secondary" onClick={()=>openTenantForm("edit",selectedTenant)}>Edit tenant</button><button type="button" className="sa-tenant-primary" onClick={()=>setSelectedTenant(null)}>Done</button></div></div>
+            </section>
+          </div>
+        )}
+
+        {/* SUBSCRIPTION & BILLING — live CRUD using the existing subscriptions API */}
+        {activePage === "billing" && (
+          <section className="dashboard-section sa-billing-page" id="billing">
+            <style>{`
+              .sa-billing-page .sa-billing-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0}
+              .sa-billing-page .sa-billing-kpi{background:var(--card-bg,#fff);border:1px solid var(--border,#cfe4df);border-radius:15px;padding:18px;min-width:0}
+              .sa-billing-page .sa-billing-kpi span{display:block;color:var(--muted-text,#637875);font-size:12px;font-weight:650}
+              .sa-billing-page .sa-billing-kpi strong{display:block;color:var(--deep-teal,#123c3a);font-size:25px;margin:8px 0 4px;overflow-wrap:anywhere}
+              .sa-billing-page .sa-billing-kpi small{color:var(--muted-text,#637875);font-size:11px}
+              .sa-billing-page .sa-billing-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:15px;margin:18px 0;background:var(--card-bg,#fff);border:1px solid var(--border,#cfe4df);border-radius:14px}
+              .sa-billing-page .sa-billing-toolbar input,.sa-billing-page .sa-billing-toolbar select,.sa-billing-page .sa-billing-form input,.sa-billing-page .sa-billing-form select{min-height:41px;border:1px solid var(--border,#cfe4df);border-radius:9px;padding:9px 11px;background:var(--soft-bg,#f4faf8);color:var(--dark-text,#183735)}
+              .sa-billing-page .sa-billing-toolbar input{flex:1;min-width:200px}.sa-billing-page .sa-billing-toolbar select{min-width:130px}
+              .sa-billing-page .sa-billing-table{width:100%;min-width:950px;border-collapse:collapse}.sa-billing-page .sa-billing-table th,.sa-billing-page .sa-billing-table td{padding:13px 12px;border-bottom:1px solid var(--border,#cfe4df);text-align:left;font-size:13px}.sa-billing-page .sa-billing-table th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-text,#637875)}
+              .sa-billing-page .sa-billing-status{display:inline-flex;border-radius:20px;padding:5px 9px;background:#e8f7ef;color:#236348;font-size:11px;font-weight:750}.sa-billing-page .sa-billing-status.trial{background:#eaf2ff;color:#315c9b}.sa-billing-page .sa-billing-status.past-due{background:#fff2dc;color:#8a5a00}.sa-billing-page .sa-billing-status.cancelled{background:#fdeaea;color:#a43b3b}
+              .sa-billing-page .sa-billing-action{border:1px solid var(--border,#cfe4df);border-radius:8px;padding:7px 9px;background:var(--pale-mint,#ddf6f1);color:var(--deep-teal,#123c3a);font-weight:650;cursor:pointer}
+              .sa-billing-page .sa-billing-overlay{position:fixed;inset:0;z-index:3100;background:rgba(10,28,27,.55);display:flex;align-items:center;justify-content:center;padding:18px}.sa-billing-page .sa-billing-dialog{width:min(650px,100%);max-height:90vh;overflow:auto;background:var(--card-bg,#fff);color:var(--dark-text,#183735);border-radius:18px;padding:22px;box-shadow:0 24px 70px #0003}
+              .sa-billing-page .sa-billing-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.sa-billing-page .sa-billing-form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--muted-text,#637875)}.sa-billing-page .sa-billing-form input,.sa-billing-page .sa-billing-form select{width:100%;box-sizing:border-box}.sa-billing-page .sa-billing-form .full{grid-column:1/-1}
+              @media(max-width:850px){.sa-billing-page .sa-billing-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.sa-billing-page .sa-billing-kpis{grid-template-columns:1fr 1fr}.sa-billing-page .sa-billing-form{grid-template-columns:1fr}.sa-billing-page .sa-billing-form .full{grid-column:auto}}
+            `}</style>
+            <div className="section-heading section-heading-row">
+              <div><p className="section-eyebrow">FINANCIAL MANAGEMENT</p><h2>Subscription &amp; Billing</h2><p>Manage company subscriptions, billing cycles and account status.</p></div>
+              <div style={{display:"flex",gap:9,flexWrap:"wrap"}}><button type="button" className="secondary-button" onClick={refreshSubscriptions} disabled={subscriptionsLoading}>{subscriptionsLoading ? "Refreshing…" : "↻ Refresh"}</button><button type="button" className="primary-button" onClick={() => openSubscriptionForm("create")}>＋ Add Subscription</button></div>
+            </div>
+            {subscriptionsError && <p role="alert" style={{color:"#b42318",margin:"12px 0"}}>{subscriptionsError}</p>}
+            {subscriptionActionError && <p role="alert" style={{color:"#b42318",margin:"12px 0"}}>{subscriptionActionError}</p>}
+            {subscriptionActionMessage && <p role="status" style={{color:"#236348",margin:"12px 0"}}>{subscriptionActionMessage}</p>}
+            <div className="sa-billing-kpis">
+              <div className="sa-billing-kpi"><span>Total Subscriptions</span><strong>{subscriptionsLoading ? "…" : subscriptions.length}</strong><small>All saved records</small></div>
+              <div className="sa-billing-kpi"><span>Active Subscriptions</span><strong>{subscriptionsLoading ? "…" : activeSubscriptions.length}</strong><small>Currently active</small></div>
+              <div className="sa-billing-kpi"><span>Monthly Recurring Revenue</span><strong>{subscriptionsLoading ? "…" : formatINR(monthlyRecurringRevenue)}</strong><small>Quarterly / 3 · Yearly / 12</small></div>
+              <div className="sa-billing-kpi"><span>Needs Attention</span><strong>{subscriptionsLoading ? "…" : attentionSubscriptions.length}</strong><small>Trial or past-due records</small></div>
+            </div>
+            <div className="billing-alert"><div className="billing-alert-indicator">!</div><div><strong>Subscription status overview</strong><p>{subscriptionsLoading ? "Checking subscription statuses…" : `${subscriptions.filter(x => String(x.status).toLowerCase() === "trial").length} trial · ${subscriptions.filter(x => String(x.status).toLowerCase() === "past due").length} past due · ${subscriptions.filter(x => String(x.status).toLowerCase() === "cancelled").length} cancelled`}</p></div></div>
+            <div className="dashboard-card" style={{marginTop:18}}>
+              <div className="table-header"><div><h3>Subscription Directory</h3><p>Records loaded from MongoDB · showing up to 100 latest records</p></div><span className="integration-count">{filteredSubscriptions.length} shown / {subscriptions.length} loaded</span></div>
+              <div className="sa-billing-toolbar">
+                <input aria-label="Search subscriptions" placeholder="Search company or plan…" value={subscriptionQuery} onChange={e=>setSubscriptionQuery(e.target.value)}/>
+                <select aria-label="Filter subscription status" value={subscriptionStatusFilter} onChange={e=>setSubscriptionStatusFilter(e.target.value)}><option>All</option><option>Active</option><option>Trial</option><option>Past Due</option><option>Cancelled</option></select>
+                <select aria-label="Filter subscription plan" value={subscriptionPlanFilter} onChange={e=>setSubscriptionPlanFilter(e.target.value)}><option>All</option>{[...new Set(subscriptions.map(x=>x.plan).filter(Boolean))].map(plan=><option key={plan}>{plan}</option>)}</select>
+                <select aria-label="Filter billing cycle" value={subscriptionCycleFilter} onChange={e=>setSubscriptionCycleFilter(e.target.value)}><option>All</option><option>Monthly</option><option>Quarterly</option><option>Yearly</option></select>
+              </div>
+              <div className="table-wrapper"><table className="sa-billing-table"><thead><tr><th>Company</th><th>Plan</th><th>Cycle</th><th>Amount</th><th>Status</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead><tbody>
+                {subscriptionsLoading ? <tr><td colSpan={8}>Loading subscriptions from MongoDB…</td></tr> : subscriptionsError ? <tr><td colSpan={8}>Could not load subscription records.</td></tr> : filteredSubscriptions.length === 0 ? <tr><td colSpan={8}>No matching subscriptions. Change filters or add a subscription.</td></tr> : filteredSubscriptions.map((item,index)=><tr key={item._id || `${item.company}-${index}`}><td><strong>{item.company || "Unnamed company"}</strong></td><td>{item.plan || "—"}</td><td>{item.billingCycle || "Monthly"}</td><td>{formatINR(item.amount)}</td><td><span className={`sa-billing-status ${String(item.status || "Active").toLowerCase().replace(/\s+/g,"-")}`}>{item.status || "Active"}</span></td><td>{item.startDate ? new Date(item.startDate).toLocaleDateString("en-IN") : "—"}</td><td>{item.endDate ? new Date(item.endDate).toLocaleDateString("en-IN") : "—"}</td><td><div style={{display:"flex",gap:6}}><button type="button" className="sa-billing-action" onClick={()=>setSelectedSubscription(item)}>View</button><button type="button" className="sa-billing-action" onClick={()=>{setSelectedSubscription(item);openSubscriptionForm("edit",item);}}>Edit</button></div></td></tr>)}
+              </tbody></table></div>
+            </div>
+            
+            {subscriptionDialogOpen && <div className="sa-billing-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSubscriptionDialogOpen(false);}}><section className="sa-billing-dialog" role="dialog" aria-modal="true" aria-labelledby="subscription-form-title"><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:16}}><div><p className="section-eyebrow">SUBSCRIPTION RECORD</p><h2 id="subscription-form-title" style={{margin:0}}>{subscriptionDialogMode === "edit" ? "Edit Subscription" : "Create Subscription"}</h2></div><button type="button" className="secondary-button" onClick={()=>setSubscriptionDialogOpen(false)}>Close</button></div>
+              <form className="sa-billing-form" onSubmit={saveSubscription}>
+                <label className="full">Company name<input required maxLength={150} value={subscriptionDraft.company} onChange={e=>setSubscriptionDraft(d=>({...d,company:e.target.value}))} placeholder="Enter company name"/></label>
+                <label>Plan<input required maxLength={100} value={subscriptionDraft.plan} onChange={e=>setSubscriptionDraft(d=>({...d,plan:e.target.value}))} placeholder="Enter plan name"/></label>
+                <label>Amount (INR)<input required type="number" min="0" step="0.01" value={subscriptionDraft.amount} onChange={e=>setSubscriptionDraft(d=>({...d,amount:e.target.value}))} placeholder="0.00"/></label>
+                <label>Status<select value={subscriptionDraft.status} onChange={e=>setSubscriptionDraft(d=>({...d,status:e.target.value}))}><option>Active</option><option>Trial</option><option>Past Due</option><option>Cancelled</option></select></label>
+                <label>Billing cycle<select value={subscriptionDraft.billingCycle} onChange={e=>setSubscriptionDraft(d=>({...d,billingCycle:e.target.value}))}><option>Monthly</option><option>Quarterly</option><option>Yearly</option></select></label>
+                <label>Start date<input required type="date" value={subscriptionDraft.startDate} onChange={e=>setSubscriptionDraft(d=>({...d,startDate:e.target.value}))}/></label>
+                <label>End date<input type="date" value={subscriptionDraft.endDate} onChange={e=>setSubscriptionDraft(d=>({...d,endDate:e.target.value}))}/></label>
+                {subscriptionActionError && <p className="full" role="alert" style={{color:"#b42318"}}>{subscriptionActionError}</p>}
+                <div className="full" style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:8}}><button type="button" className="secondary-button" onClick={()=>setSubscriptionDialogOpen(false)}>Cancel</button><button type="submit" className="primary-button" disabled={subscriptionSaving}>{subscriptionSaving ? "Saving…" : subscriptionDialogMode === "edit" ? "Save Changes" : "Create Subscription"}</button></div>
+              </form></section></div>}
+            {selectedSubscription && !subscriptionDialogOpen && <div className="sa-billing-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedSubscription(null);}}><section className="sa-billing-dialog" role="dialog" aria-modal="true" aria-labelledby="subscription-detail-title"><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:18}}><div><p className="section-eyebrow">SUBSCRIPTION DETAILS</p><h2 id="subscription-detail-title" style={{margin:0}}>{selectedSubscription.company}</h2></div><button type="button" className="secondary-button" onClick={()=>setSelectedSubscription(null)}>Close</button></div><div style={{display:"grid",gridTemplateColumns:"minmax(130px,1fr) 2fr",gap:"12px 16px",fontSize:14}}><strong>Plan</strong><span>{selectedSubscription.plan}</span><strong>Amount</strong><span>{formatINR(selectedSubscription.amount)}</span><strong>Billing cycle</strong><span>{selectedSubscription.billingCycle}</span><strong>Status</strong><span>{selectedSubscription.status}</span><strong>Start date</strong><span>{selectedSubscription.startDate ? new Date(selectedSubscription.startDate).toLocaleDateString("en-IN") : "—"}</span><strong>End date</strong><span>{selectedSubscription.endDate ? new Date(selectedSubscription.endDate).toLocaleDateString("en-IN") : "—"}</span><strong>Subscription ID</strong><span style={{overflowWrap:"anywhere"}}>{selectedSubscription._id || "—"}</span></div><div style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:22}}><button type="button" className="secondary-button" onClick={()=>openSubscriptionForm("edit",selectedSubscription)}>Edit</button>{String(selectedSubscription.status).toLowerCase() !== "cancelled" && <button type="button" className="secondary-button" onClick={()=>cancelSubscription(selectedSubscription)}>Cancel Subscription</button>}</div></section></div>}
           </section>
         )}
 
@@ -1603,6 +1671,8 @@ export default function SuperAdminDashboard({ onLogout }) {
                 <h2>Plans &amp; Feature Flags</h2>
                 <p>Manage subscription plan details and feature availability.</p>
               </div>
+              <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+              <button type="button" className="primary-button" onClick={() => openPlanEditor(null)}>Add Plan</button>
               <button type="button" className="secondary-button" onClick={() => {
                 setPlansMessage(""); setPlansError(""); setActivePage("features");
                 fetch("http://localhost:5000/api/super-admin/plans").then(async (response) => {
@@ -1615,6 +1685,7 @@ export default function SuperAdminDashboard({ onLogout }) {
                   setFeatureDrafts(drafts);
                 }).catch((error) => setPlansError(error.message || "Unable to refresh plans."));
               }}>Refresh Plans</button>
+              </div>
             </div>
 
             {plansError && <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{plansError}</p>}
@@ -1635,7 +1706,10 @@ export default function SuperAdminDashboard({ onLogout }) {
                       <strong>{plan.name || "Unnamed plan"}</strong>
                       <small>{plan.description || plan.billingCycle || "Subscription plan"}</small>
                       <span className="plan-active">{plan.isActive === false ? "Inactive" : "Active"}</span>
-                      <button type="button" className="table-action" onClick={() => openPlanEditor(plan)}>Edit Plan</button>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                        <button type="button" className="table-action" onClick={() => openPlanEditor(plan)}>Edit Plan</button>
+                        <button type="button" className="table-action" onClick={() => deletePlan(plan)} disabled={plansSaving}>Delete</button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1645,8 +1719,8 @@ export default function SuperAdminDashboard({ onLogout }) {
             {editingPlan && (
               <div className="dashboard-card" style={{ marginTop: "20px", padding: "20px" }}>
                 <div className="card-title-area">
-                  <h3>Edit {editingPlan.name}</h3>
-                  <p>Changes are saved to the existing Plans API.</p>
+                  <h3>{editingPlan._id ? `Edit ${editingPlan.name}` : "Create Subscription Plan"}</h3>
+                  <p>{editingPlan._id ? "Changes are saved to MongoDB." : "The new plan will be saved to MongoDB."}</p>
                 </div>
                 <div className="settings-form-grid">
                   <div className="settings-field">
@@ -1660,7 +1734,7 @@ export default function SuperAdminDashboard({ onLogout }) {
                   <div className="settings-field">
                     <label htmlFor="plan-billing-cycle">Billing cycle</label>
                     <select id="plan-billing-cycle" value={planDraft.billingCycle} onChange={(event) => setPlanDraft((current) => ({ ...current, billingCycle: event.target.value }))}>
-                      <option value="Monthly">Monthly</option><option value="Yearly">Yearly</option><option value="Custom">Custom</option>
+                      <option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Yearly">Yearly</option>
                     </select>
                   </div>
                   <div className="settings-field">
@@ -1675,7 +1749,7 @@ export default function SuperAdminDashboard({ onLogout }) {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap" }}>
-                  <button type="button" className="primary-button" onClick={savePlan} disabled={plansSaving}>{plansSaving ? "Saving..." : "Save Plan"}</button>
+                  <button type="button" className="primary-button" onClick={savePlan} disabled={plansSaving}>{plansSaving ? "Saving..." : editingPlan._id ? "Save Changes" : "Create Plan"}</button>
                   <button type="button" className="secondary-button" onClick={() => setEditingPlan(null)} disabled={plansSaving}>Cancel</button>
                 </div>
               </div>
@@ -1720,187 +1794,198 @@ export default function SuperAdminDashboard({ onLogout }) {
           </section>
         )}
 
-    {/* SYSTEM HEALTH — connected to the existing backend APIs only */}
+    {/* SYSTEM HEALTH — live metrics from the Node.js and MongoDB backend */}
     {activePage === "health" && (
       <section className="dashboard-section" id="health">
-        <div className="section-heading section-heading-row">
-          <div>
-            <p className="section-eyebrow">SYSTEM MONITORING</p>
-            <h2>System Health</h2>
-            <p>Live API availability and security activity from the backend.</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <span className="last-checked">
-              {systemHealthCheckedAt ? `Last checked: ${systemHealthCheckedAt.toLocaleTimeString("en-IN")}` : "Not checked yet"}
-            </span>
-            <button type="button" className="secondary-button" onClick={refreshSystemHealth}>
-              Refresh Health
-            </button>
-          </div>
-        </div>
+        {(() => {
+          const server = systemHealth?.server || {};
+          const database = systemHealth?.database || {};
+          const system = systemHealth?.system || {};
+          const serverHealthy = String(server.status || "").toLowerCase() === "healthy";
+          const databaseConnected = database.connected === true;
+          const overallHealthy = serverHealthy && databaseConnected;
+          const uptimeSeconds = Number(server.uptimeSeconds);
+          const uptimeText = Number.isFinite(uptimeSeconds)
+            ? `${Math.floor(uptimeSeconds / 86400)}d ${Math.floor((uptimeSeconds % 86400) / 3600)}h ${Math.floor((uptimeSeconds % 3600) / 60)}m`
+            : "Not reported by API";
 
-        {systemHealthError && (
-          <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>
-            System Health API error: {systemHealthError}
-          </p>
-        )}
+          return (
+            <>
+              <div className="section-heading section-heading-row">
+                <div>
+                  <p className="section-eyebrow">SYSTEM MONITORING</p>
+                  <h2>System Health</h2>
+                  <p>Live status and resource metrics reported by your Node.js server and MongoDB connection.</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                  <span className="last-checked">
+                    {systemHealthCheckedAt
+                      ? `Last checked: ${systemHealthCheckedAt.toLocaleTimeString("en-IN")}`
+                      : "Not checked yet"}
+                  </span>
+                  <button type="button" className="secondary-button" onClick={refreshSystemHealth} disabled={systemHealthLoading}>
+                    {systemHealthLoading ? "Checking…" : "↻ Refresh Health"}
+                  </button>
+                </div>
+              </div>
 
-        <div className="health-overview-bar">
-          <div className="health-overview-main">
-            <div className="health-status-dot"></div>
-            <div>
-              <strong>
-                {systemHealthLoading ? "Checking backend services…" : systemHealthError ? "Health check unavailable" : "Backend health endpoint reachable"}
-              </strong>
-              <p>
-                {systemHealthError
-                  ? "The frontend could not confirm system health. Check the backend route and server."
-                  : systemHealthLoading
-                    ? "Waiting for the System Health API response."
-                    : "Only values returned by the backend are shown; unavailable metrics are not fabricated."}
-              </p>
-            </div>
-          </div>
-          <span className="health-status-badge">
-            {systemHealthLoading ? "Checking" : systemHealthError ? "Unavailable" : "API reachable"}
-          </span>
-        </div>
+              {systemHealthError && (
+                <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>
+                  System Health API error: {systemHealthError}
+                </p>
+              )}
 
-        <div className="health-metrics-grid">
-          <div className="health-metric-card">
-            <div className="health-metric-top">
-              <span>System Health API</span>
-              <span className={`metric-status ${systemHealthError ? "normal" : "healthy"}`}>
-                {systemHealthLoading ? "Checking" : systemHealthError ? "Unavailable" : "Reachable"}
-              </span>
-            </div>
-            <strong>{systemHealthLoading ? "…" : systemHealthError ? "—" : `${readHealthValue(systemHealth?.apiResponseMs)}${typeof systemHealth?.apiResponseMs === "number" ? " ms" : ""}`}</strong>
-            <small>Response time measured by this dashboard</small>
-          </div>
-
-          <div className="health-metric-card">
-            <div className="health-metric-top">
-              <span>Server Uptime</span>
-              <span className="metric-status normal">Backend metric</span>
-            </div>
-           {systemHealth?.data?.server?.uptimeSeconds != null
-  ? `${Math.floor(systemHealth.data.server.uptimeSeconds / 3600)}h ${Math.floor((systemHealth.data.server.uptimeSeconds % 3600) / 60)}m`
-  : "Not reported by API"}
-            <small>Shown only when supplied by the API</small>
-          </div>
-
-          <div className="health-metric-card">
-            <div className="health-metric-top">
-              <span>Storage Capacity</span>
-              <span className="metric-status normal">Backend metric</span>
-            </div>
-           <strong>
-  {systemHealth?.system?.totalMemoryMB != null
-    ? `${systemHealth.system.totalMemoryMB} MB total RAM`
-    : "Not reported by API"}
-</strong>
-     <small>Shown only when supplied by the API</small>
-          </div>
-        </div>
-
-        <div className="health-content-grid">
-          <div className="dashboard-card">
-            <div className="card-title-area">
-              <h3>Service Status</h3>
-              <p>Services reported by the System Health API.</p>
-            </div>
-            <div className="service-status-table">
-              {systemHealthLoading ? (
-                <p style={{ padding: "16px" }}>Loading system health…</p>
-              ) : systemHealthError ? (
-                <p style={{ padding: "16px" }}>Service status is unavailable because the health request failed.</p>
-              ) : (() => {
-                const rawServices = systemHealth?.services || systemHealth?.data?.services || systemHealth?.metrics?.services || [];
-                const serviceRows = Array.isArray(rawServices)
-                  ? rawServices.map((item) => typeof item === "string"
-                    ? { name: item, status: "Reported by API", responseTime: "Not reported by API" }
-                    : { name: item.name || item.service || item.label || "Unnamed service", status: item.status || item.state || "Not reported by API", responseTime: item.responseTime ?? item.latency ?? item.response ?? "Not reported by API" })
-                  : Object.entries(rawServices).map(([name, item]) => typeof item === "object" && item !== null
-                    ? { name, status: item.status || item.state || "Not reported by API", responseTime: item.responseTime ?? item.latency ?? "Not reported by API" }
-                    : { name, status: String(item), responseTime: "Not reported by API" });
-                return serviceRows.length ? serviceRows.map((service, index) => (
-                  <div className="service-status-row" key={`${service.name}-${index}`}>
-                    <div><strong>{service.name}</strong></div>
-                    <span className="service-operational"><span></span>{service.status}</span>
-                    <span>{service.responseTime}</span>
-                  </div>
-                )) : <p style={{ padding: "16px" }}>The health endpoint did not provide individual service metrics.</p>;
-              })()}
-            </div>
-          </div>
-          
-      <div className="dashboard-card health-memory-card">
-  <div className="card-title-area">
-    <h3>Server Memory Usage</h3>
-    <p>Live memory metrics reported by the backend.</p>
-  </div>
-
-  <div className="health-memory-grid">
-    <div className="health-memory-item">
-      <span>Total Memory</span>
-      <strong>
-       {systemHealth?.system?.totalMemoryMB ?? "—"} MB
-      </strong>
-    </div>
-
-    <div className="health-memory-item">
-      <span>Free Memory</span>
-      <strong>
-        {systemHealth?.system?.freeMemoryMB ?? "—"} MB
-      </strong>
-    </div>
-
-    <div className="health-memory-item">
-      <span>Process Memory</span>
-      <strong>
-        {systemHealth?.system?.processMemoryMB ?? "—"} MB
-      </strong>
-    </div>
-
-    <div className="health-memory-item">
-      <span>Database Status</span>
-      <strong>
-        {systemHealth?.database?.status ?? "Unknown"}
-      </strong>
-    </div>
-  </div>
-</div>
-        <div className="dashboard-card security-events-card">
-            <div className="card-title-area">
-              <h3>Security Events</h3>
-              <p>Recent records returned by the Security Logs API.</p>
-            </div>
-            <div className="security-summary">
-              <strong>{securityLogs.length}</strong>
-              <span>Events returned by API</span>
-            </div>
-            {securityLogsError && (
-              <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{securityLogsError}</p>
-            )}
-            <div className="security-event-list">
-              {securityLogsError ? (
-                <p style={{ padding: "12px" }}>Security logs could not be loaded.</p>
-              ) : securityLogs.length === 0 ? (
-                <p style={{ padding: "12px" }}>No security events were returned by the API.</p>
-              ) : securityLogs.slice(0, 8).map((event, index) => (
-                <div className="security-event-row" key={event._id || event.id || index}>
-                  <span className="security-event-indicator"></span>
+              <div className="health-overview-bar">
+                <div className="health-overview-main">
+                  <div className="health-status-dot" style={{ background: systemHealthError ? "#c0392b" : overallHealthy ? "#2eaa78" : "#d69b32" }}></div>
                   <div>
-                    <strong>{event.title || event.event || event.action || event.message || event.type || "Security event"}</strong>
-                    <span>{formatSecurityEventTime(event)}{event.severity ? ` · ${event.severity}` : event.status ? ` · ${event.status}` : ""}</span>
+                    <strong>
+                      {systemHealthLoading && !systemHealth
+                        ? "Checking server health…"
+                        : systemHealthError && !systemHealth
+                          ? "Health check unavailable"
+                          : overallHealthy
+                            ? "Server and database are healthy"
+                            : "System is degraded"}
+                    </strong>
+                    <p>
+                      {systemHealth
+                        ? `Backend status: ${readHealthValue(server.status)} · Database: ${readHealthValue(database.status)}`
+                        : "Waiting for a successful response from the System Health API."}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
+                <span className="health-status-badge">
+                  {systemHealthLoading && !systemHealth ? "Checking" : systemHealthError && !systemHealth ? "Unavailable" : overallHealthy ? "Healthy" : "Degraded"}
+                </span>
+              </div>
+
+              <div className="health-metrics-grid">
+                <div className="health-metric-card">
+                  <div className="health-metric-top">
+                    <span>Application Server</span>
+                    <span className={`metric-status ${serverHealthy ? "healthy" : "normal"}`}>
+                      {readHealthValue(server.status)}
+                    </span>
+                  </div>
+                  <strong>{uptimeText}</strong>
+                  <small>Actual Node.js process uptime</small>
+                </div>
+
+                <div className="health-metric-card">
+                  <div className="health-metric-top">
+                    <span>MongoDB Database</span>
+                    <span className={`metric-status ${databaseConnected ? "healthy" : "normal"}`}>
+                      {readHealthValue(database.status)}
+                    </span>
+                  </div>
+                  <strong>{databaseConnected ? "Connected" : "Not connected"}</strong>
+                  <small>Live Mongoose connection state</small>
+                </div>
+
+                <div className="health-metric-card">
+                  <div className="health-metric-top">
+                    <span>Node.js Runtime</span>
+                    <span className="metric-status normal">Backend info</span>
+                  </div>
+                  <strong>{readHealthValue(server.nodeVersion)}</strong>
+                  <small>{readHealthValue(server.platform)}</small>
+                </div>
+              </div>
+
+              <div className="health-content-grid">
+                <div className="dashboard-card health-memory-card">
+                  <div className="card-title-area">
+                    <h3>Server Memory Usage</h3>
+                    <p>Live operating-system and Node.js process memory values.</p>
+                  </div>
+                  <div className="health-memory-grid">
+                    <div className="health-memory-item">
+                      <span>Total System Memory</span>
+                      <strong>{system.totalMemoryMB != null ? `${Number(system.totalMemoryMB).toLocaleString("en-IN")} MB` : "Not reported"}</strong>
+                    </div>
+                    <div className="health-memory-item">
+                      <span>Free System Memory</span>
+                      <strong>{system.freeMemoryMB != null ? `${Number(system.freeMemoryMB).toLocaleString("en-IN")} MB` : "Not reported"}</strong>
+                    </div>
+                    <div className="health-memory-item">
+                      <span>Node Process Memory (RSS)</span>
+                      <strong>{system.processMemoryMB != null ? `${Number(system.processMemoryMB).toLocaleString("en-IN")} MB` : "Not reported"}</strong>
+                    </div>
+                    <div className="health-memory-item">
+                      <span>Memory Used</span>
+                      <strong>
+                        {Number.isFinite(Number(system.totalMemoryMB)) && Number(system.totalMemoryMB) > 0 && Number.isFinite(Number(system.freeMemoryMB))
+                          ? `${((Number(system.totalMemoryMB) - Number(system.freeMemoryMB)) / Number(system.totalMemoryMB) * 100).toFixed(1)}%`
+                          : "Not available"}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dashboard-card">
+                  <div className="card-title-area">
+                    <h3>Health Check Details</h3>
+                    <p>Metadata returned by the backend health controller.</p>
+                  </div>
+                  <div className="service-status-table">
+                    <div className="service-status-row">
+                      <strong>Server status</strong>
+                      <span>{readHealthValue(server.status)}</span>
+                    </div>
+                    <div className="service-status-row">
+                      <strong>Database connection</strong>
+                      <span>{readHealthValue(database.status)}</span>
+                    </div>
+                    <div className="service-status-row">
+                      <strong>Runtime platform</strong>
+                      <span>{readHealthValue(server.platform)}</span>
+                    </div>
+                    <div className="service-status-row">
+                      <strong>Checked at</strong>
+                      <span>{systemHealth?.checkedAt ? new Date(systemHealth.checkedAt).toLocaleString("en-IN") : "Not reported"}</span>
+                    </div>
+                  </div>
+                  <p style={{ marginTop: 12, color: "var(--muted-text, #637875)", fontSize: 12 }}>
+                    CPU usage and API latency are not provided by the current health controller, so they are intentionally not displayed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="dashboard-card security-events-card">
+                <div className="card-title-area">
+                  <h3>Recent Security Events</h3>
+                  <p>Records returned by the existing Security Logs API.</p>
+                </div>
+                <div className="security-summary">
+                  <strong>{securityLogs.length}</strong>
+                  <span>Events returned by API</span>
+                </div>
+                {securityLogsError && (
+                  <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{securityLogsError}</p>
+                )}
+                <div className="security-event-list">
+                  {securityLogsError ? (
+                    <p style={{ padding: "12px" }}>Security logs could not be loaded.</p>
+                  ) : securityLogs.length === 0 ? (
+                    <p style={{ padding: "12px" }}>No security events were returned by the API.</p>
+                  ) : securityLogs.slice(0, 8).map((event, index) => (
+                    <div className="security-event-row" key={event._id || event.id || index}>
+                      <span className="security-event-indicator"></span>
+                      <div>
+                        <strong>{event.title || event.event || event.action || event.message || event.type || "Security event"}</strong>
+                        <span>{formatSecurityEventTime(event)}{event.severity ? ` · ${event.severity}` : event.status ? ` · ${event.status}` : ""}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </section>
     )}
+
         {/* INTEGRATIONS */}
         {activePage === "integrations" && (
           <section className="dashboard-section" id="integrations">
@@ -1908,97 +1993,92 @@ export default function SuperAdminDashboard({ onLogout }) {
               <div>
                 <p className="section-eyebrow">PLATFORM SERVICES</p>
                 <h2>Global Integrations</h2>
-                <p>Manage third-party services available across Cliently tenants.</p>
+                <p>Manage integration records and platform availability.</p>
               </div>
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => {
+                disabled={integrationsLoading}
+                onClick={async () => {
                   setIntegrationsLoading(true);
                   setIntegrationError("");
-                  fetch("http://localhost:5000/api/super-admin/integrations")
-                    .then(async (response) => {
-                      const result = await response.json();
-                      if (!response.ok || result.success === false) {
-                        throw new Error(result.message || `Request failed: ${response.status}`);
-                      }
-                      const records = Array.isArray(result.data)
-                        ? result.data
-                        : Array.isArray(result.integrations)
-                          ? result.integrations
-                          : [];
-                      setIntegrationRecords(records);
-                    })
-                    .catch((error) => {
-                      console.error("Error refreshing integrations:", error);
-                      setIntegrationError(error.message || "Could not refresh integrations.");
-                    })
-                    .finally(() => setIntegrationsLoading(false));
+                  try {
+                    const response = await fetch("http://localhost:5000/api/super-admin/integrations");
+                    const result = await response.json();
+                    if (!response.ok || result.success === false) {
+                      throw new Error(result.message || `Request failed: ${response.status}`);
+                    }
+                    setIntegrationRecords(Array.isArray(result.data) ? result.data : []);
+                  } catch (error) {
+                    setIntegrationError(error.message || "Could not refresh integrations.");
+                  } finally {
+                    setIntegrationsLoading(false);
+                  }
                 }}
               >
-                Refresh Integrations
+                {integrationsLoading ? "Refreshing..." : "Refresh Integrations"}
               </button>
             </div>
 
-            {integrationError && (
-              <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>
-                {integrationError}
-              </p>
-            )}
-            {integrationMessage && (
-              <p role="status" style={{ color: "#218838", margin: "12px 0" }}>
-                {integrationMessage}
-              </p>
-            )}
+            {integrationError && <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{integrationError}</p>}
+            {integrationMessage && <p role="status" style={{ color: "#218838", margin: "12px 0" }}>{integrationMessage}</p>}
 
             <div className="integration-overview">
               <div className="integration-overview-item">
                 <span className="integration-overview-label">Configured Integrations</span>
                 <strong>{integrationRecords.length}</strong>
-                <small>Stored in the database</small>
+                <small>Records returned by MongoDB</small>
               </div>
               <div className="integration-overview-item">
-                <span className="integration-overview-label">Enabled Integrations</span>
-                <strong>{integrationRecords.filter((item) => item.enabled).length}</strong>
-                <small>Platform-level availability</small>
+                <span className="integration-overview-label">Enabled</span>
+                <strong>{integrationRecords.filter((item) => item.enabled === true).length}</strong>
+                <small>Platform availability enabled</small>
               </div>
               <div className="integration-overview-item">
-                <span className="integration-overview-label">API Status</span>
-                <strong className="integration-status-text">
-                  {integrationsLoading ? "Checking…" : integrationError ? "Check API" : "Connected"}
-                </strong>
-                <small>Integration API response</small>
+                <span className="integration-overview-label">Disabled</span>
+                <strong>{integrationRecords.filter((item) => item.enabled !== true).length}</strong>
+                <small>Platform availability disabled</small>
               </div>
             </div>
 
             <div className="integration-section-header">
               <div>
                 <h3>Configured Integrations</h3>
-                <p>Names, descriptions and enabled status are loaded from MongoDB.</p>
+                <p>Manage the database fields: name, description and enabled.</p>
               </div>
               <span className="integration-count">
                 {integrationRecords.length} integration{integrationRecords.length === 1 ? "" : "s"}
               </span>
             </div>
 
+            <div style={{ margin: "14px 0", maxWidth: 420 }}>
+              <input
+                type="search"
+                aria-label="Search integrations"
+                placeholder="Search by integration name or description..."
+                value={integrationQuery}
+                onChange={(event) => setIntegrationQuery(event.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+
             <div className="integration-card-grid">
               {integrationsLoading ? (
-                <div className="dashboard-card" style={{ padding: "20px" }}>
-                  Loading integrations from the database...
-                </div>
-              ) : integrationRecords.length === 0 ? (
-                <div className="dashboard-card" style={{ padding: "20px" }}>
-                  {integrationError
-                    ? "Integrations could not be loaded. Check the backend API."
-                    : "No integrations found. Add records to the Integrations collection first."}
-                </div>
-              ) : (
-                integrationRecords.map((integration) => {
-                  const isEnabled = Boolean(integration.enabled);
-                  const rawStatus = String(integration.status || "").toLowerCase();
-                  const status = ["error", "pending"].includes(rawStatus)
-                    ? integration.status
-                    : (isEnabled ? "Connected" : "Disconnected");
+                <div className="dashboard-card" style={{ padding: "20px" }}>Loading integrations from MongoDB...</div>
+              ) : (() => {
+                const visibleIntegrations = integrationRecords.filter((item) =>
+                  `${item.name || ""} ${item.description || ""}`.toLowerCase().includes(integrationQuery.trim().toLowerCase())
+                );
+                if (visibleIntegrations.length === 0) {
+                  return (
+                    <div className="dashboard-card" style={{ padding: "20px" }}>
+                      {integrationError ? "Integrations could not be loaded. Check the backend API." :
+                        integrationRecords.length === 0 ? "No integration records found in the database." : "No integrations match your search."}
+                    </div>
+                  );
+                }
+                return visibleIntegrations.map((integration) => {
+                  const isEnabled = integration.enabled === true;
                   const initials = String(integration.name || "I").trim().charAt(0).toUpperCase();
                   return (
                     <div className="integration-card" key={integration._id || integration.name}>
@@ -2011,51 +2091,23 @@ export default function SuperAdminDashboard({ onLogout }) {
                           </div>
                         </div>
                         <span className={`integration-connected ${isEnabled ? "" : "integration-disconnected"}`}>
-                          <span></span>
-                          {status}
+                          <span></span>{isEnabled ? "Enabled" : "Disabled"}
                         </span>
                       </div>
-
                       <div className="integration-divider"></div>
-                      <p className="integration-description">
-                        {integration.description || "No description provided."}
-                      </p>
-
+                      <p className="integration-description">{integration.description || "No description provided."}</p>
                       <div className="integration-details">
-                        <div>
-                          <span>Enabled</span>
-                          <strong>{isEnabled ? "Yes" : "No"}</strong>
-                        </div>
-                        <div>
-                          <span>Last Sync</span>
-                          <strong>
-                            {integration.lastSyncAt
-                              ? new Date(integration.lastSyncAt).toLocaleString("en-IN", {
-                                  dateStyle: "medium",
-                                  timeStyle: "short",
-                                })
-                              : "Not synced"}
-                          </strong>
-                        </div>
+                        <div><span>Platform availability</span><strong>{isEnabled ? "Enabled" : "Disabled"}</strong></div>
+                        <div><span>Record updated</span><strong>{integration.updatedAt ? new Date(integration.updatedAt).toLocaleDateString("en-IN") : "Not provided"}</strong></div>
                       </div>
-
                       <div className="integration-card-footer">
-                        <span className="integration-api-status">
-                          <span></span>
-                          {isEnabled ? "Enabled on platform" : "Disabled on platform"}
-                        </span>
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => openIntegrationConfig(integration)}
-                        >
-                          Configure
-                        </button>
+                        <span className="integration-api-status"><span></span>{isEnabled ? "Available on platform" : "Unavailable on platform"}</span>
+                        <button type="button" className="text-button" onClick={() => openIntegrationConfig(integration)}>Configure</button>
                       </div>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
             </div>
 
             {selectedIntegration && (
@@ -2063,360 +2115,250 @@ export default function SuperAdminDashboard({ onLogout }) {
                 <div className="table-header">
                   <div>
                     <h3>Configure {selectedIntegration.name}</h3>
-                    <p>Update the integration record stored in the backend.</p>
+                    <p>Changes are saved to the integration record in MongoDB.</p>
                   </div>
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={() => {
-                      setSelectedIntegration(null);
-                      setIntegrationError("");
-                      setIntegrationMessage("");
-                    }}
-                  >
-                    Close
-                  </button>
+                  <button type="button" className="text-button" onClick={() => {
+                    setSelectedIntegration(null);
+                    setIntegrationError("");
+                    setIntegrationMessage("");
+                  }}>Close</button>
                 </div>
-
                 <div className="settings-form-grid">
                   <div className="settings-field">
                     <label htmlFor="integration-name">Integration Name</label>
-                    <input
-                      id="integration-name"
-                      type="text"
-                      value={integrationDraft.name}
-                      onChange={(event) =>
-                        setIntegrationDraft((current) => ({ ...current, name: event.target.value }))
-                      }
-                    />
+                    <input id="integration-name" type="text" maxLength={100} value={integrationDraft.name}
+                      onChange={(event) => setIntegrationDraft((current) => ({ ...current, name: event.target.value }))} />
                   </div>
                   <div className="settings-field">
                     <label htmlFor="integration-description">Description</label>
-                    <input
-                      id="integration-description"
-                      type="text"
-                      value={integrationDraft.description}
-                      onChange={(event) =>
-                        setIntegrationDraft((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                    />
+                    <input id="integration-description" type="text" maxLength={500} value={integrationDraft.description}
+                      onChange={(event) => setIntegrationDraft((current) => ({ ...current, description: event.target.value }))} />
                   </div>
                   <div className="settings-field">
                     <label htmlFor="integration-enabled">Platform Availability</label>
-                    <select
-                      id="integration-enabled"
-                      value={integrationDraft.enabled ? "true" : "false"}
-                      onChange={(event) =>
-                        setIntegrationDraft((current) => ({
-                          ...current,
-                          enabled: event.target.value === "true",
-                        }))
-                      }
-                    >
+                    <select id="integration-enabled" value={integrationDraft.enabled ? "true" : "false"}
+                      onChange={(event) => setIntegrationDraft((current) => ({ ...current, enabled: event.target.value === "true" }))}>
                       <option value="true">Enabled</option>
                       <option value="false">Disabled</option>
                     </select>
                   </div>
                 </div>
-
                 <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={saveIntegration}
-                    disabled={integrationSaving}
-                  >
+                  <button type="button" className="primary-button" onClick={saveIntegration} disabled={integrationSaving}>
                     {integrationSaving ? "Saving..." : "Save Changes"}
                   </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      setIntegrationDraft({
-                        name: selectedIntegration.name || "",
-                        description: selectedIntegration.description || "",
-                        enabled: Boolean(selectedIntegration.enabled),
-                      });
-                      setIntegrationError("");
-                      setIntegrationMessage("");
-                    }}
-                    disabled={integrationSaving}
-                  >
-                    Reset
-                  </button>
+                  <button type="button" className="secondary-button" onClick={() => setIntegrationDraft({
+                    name: selectedIntegration.name || "",
+                    description: selectedIntegration.description || "",
+                    enabled: selectedIntegration.enabled === true,
+                  })} disabled={integrationSaving}>Reset</button>
                 </div>
               </div>
             )}
           </section>
         )}
 
-        {/* NOTIFICATIONS */}
+
+{/* NOTIFICATIONS */}
 {activePage === "notifications" && (
   <section className="dashboard-section" id="notifications">
     <div className="section-heading section-heading-row">
-      <div>
-        <p className="section-eyebrow">ACTIVITY CENTER</p>
-        <h2>Notifications</h2>
-        <p>Monitor important platform events, billing alerts and system activity.</p>
+      <div><p className="section-eyebrow">ACTIVITY CENTER</p><h2>Notifications</h2><p>Publish platform messages and track read status using live MongoDB records.</p></div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button type="button" className="secondary-button" onClick={refreshNotifications} disabled={notificationsLoading}>↻ Refresh</button>
+        <button type="button" className="primary-button" onClick={() => setShowNotificationForm((value) => !value)}>{showNotificationForm ? "Close Form" : "+ Create Notification"}</button>
+        <button type="button" className="secondary-button" onClick={markAllNotificationsRead} disabled={notificationsLoading || notifications.every((item) => item.isRead)}>Mark All Read</button>
       </div>
-      <button
-        className="secondary-button"
-        onClick={markAllNotificationsRead}
-        disabled={notificationsLoading || notifications.every((item) => !item.unread)}
-        title="Save read status for all unread notifications in MongoDB."
-      >
-        Mark All as Read
-      </button>
     </div>
 
-    {notificationError && (
-      <p role="alert" style={{ color: "#c0392b", margin: "12px 0" }}>{notificationError}</p>
-    )}
+    {notificationError && <p role="alert" style={{color:"#c0392b",margin:"12px 0"}}>{notificationError}</p>}
+    {notificationMessage && <p role="status" style={{color:"#16866f",margin:"12px 0"}}>{notificationMessage}</p>}
+
+    {showNotificationForm && <form onSubmit={createNotification} className="notification-panel" style={{padding:18,marginBottom:18,display:"grid",gap:12}}>
+      <h3 style={{margin:0}}>Create platform notification</h3>
+      <input aria-label="Notification title" required maxLength={200} placeholder="Notification title" value={notificationDraft.title} onChange={(e) => setNotificationDraft((d) => ({...d,title:e.target.value}))} />
+      <textarea aria-label="Notification message" required maxLength={2000} rows={3} placeholder="Write the notification message..." value={notificationDraft.message} onChange={(e) => setNotificationDraft((d) => ({...d,message:e.target.value}))} />
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <select aria-label="Notification type" value={notificationDraft.type} onChange={(e) => setNotificationDraft((d) => ({...d,type:e.target.value}))}><option>System</option><option>Billing</option><option>Security</option><option>General</option></select>
+        <select aria-label="Audience" value={notificationDraft.audience} onChange={(e) => setNotificationDraft((d) => ({...d,audience:e.target.value}))}><option>All</option><option>Admins</option><option>Tenants</option></select>
+        <button type="submit" className="primary-button" disabled={notificationSaving}>{notificationSaving ? "Saving..." : "Publish Notification"}</button>
+      </div>
+    </form>}
 
     <div className="notification-summary">
-      <div className="notification-summary-card">
-        <div><span>Total Notifications</span><strong>{notifications.length}</strong></div>
-        <div className="notification-summary-icon">N</div>
-      </div>
-      <div className="notification-summary-card">
-        <div><span>Unread</span><strong className="notification-unread-count">{notifications.filter((item) => item.unread).length}</strong></div>
-        <div className="notification-summary-icon unread">{notifications.filter((item) => item.unread).length}</div>
-      </div>
-      <div className="notification-summary-card">
-        <div><span>Critical Alerts</span><strong>{notifications.filter((item) => /critical|urgent|high/i.test(String(item.priority || item.severity || ""))).length}</strong></div>
-        <div className="notification-summary-icon alert">!</div>
-      </div>
+      <div className="notification-summary-card"><div><span>Total Notifications</span><strong>{notifications.length}</strong></div><div className="notification-summary-icon">N</div></div>
+      <div className="notification-summary-card"><div><span>Unread</span><strong className="notification-unread-count">{notifications.filter((item) => !item.isRead).length}</strong></div><div className="notification-summary-icon unread">{notifications.filter((item) => !item.isRead).length}</div></div>
+      <div className="notification-summary-card"><div><span>Read</span><strong>{notifications.filter((item) => item.isRead).length}</strong></div><div className="notification-summary-icon">✓</div></div>
     </div>
 
-    <div className="notification-toolbar">
-      <div className="notification-tabs">
-        {["All", "Unread", "Billing", "System"].map((filter) => (
-          <button
-            key={filter}
-            className={`notification-tab ${notificationFilter === filter ? "active" : ""}`}
-            onClick={() => setNotificationFilter(filter)}
-          >
-            {filter}
-            {filter === "Unread" && <span>{notifications.filter((item) => item.unread).length}</span>}
-          </button>
-        ))}
-      </div>
-      <select
-        className="notification-filter"
-        value={notificationSort}
-        onChange={(event) => setNotificationSort(event.target.value)}
-        aria-label="Sort notifications"
-      >
-        <option value="latest">Latest first</option>
-        <option value="oldest">Oldest first</option>
-      </select>
+    <div className="notification-toolbar" style={{gap:10,flexWrap:"wrap"}}>
+      <div className="notification-tabs">{["All","Unread","Read","Billing","System"].map((filter) => <button type="button" key={filter} className={`notification-tab ${notificationFilter === filter ? "active" : ""}`} onClick={() => setNotificationFilter(filter)}>{filter}{filter === "Unread" && <span>{notifications.filter((item) => !item.isRead).length}</span>}</button>)}</div>
+      <input aria-label="Search notifications" placeholder="Search title or message..." value={notificationQuery} onChange={(e) => setNotificationQuery(e.target.value)} />
+      <select className="notification-filter" value={notificationSort} onChange={(e) => setNotificationSort(e.target.value)} aria-label="Sort notifications"><option value="latest">Latest first</option><option value="oldest">Oldest first</option></select>
     </div>
 
     <div className="notification-panel">
-      {notificationsLoading ? (
-        <p style={{ padding: "20px" }}>Loading notifications from the database...</p>
-      ) : (() => {
+      {notificationsLoading ? <p style={{padding:20}}>Loading notifications from MongoDB...</p> : (() => {
+        const query = notificationQuery.trim().toLowerCase();
         const filtered = notifications.filter((item) => {
-          if (notificationFilter === "Unread") return item.unread;
-          if (notificationFilter === "Billing") return /billing|payment|subscription|invoice/i.test(`${item.category} ${item.title} ${item.description}`);
-          if (notificationFilter === "System") return /system|security|maintenance|platform/i.test(`${item.category} ${item.title} ${item.description}`);
+          const type = String(item.type || "System");
+          const text = `${item.title || ""} ${item.message || ""} ${type} ${item.audience || ""}`.toLowerCase();
+          if (query && !text.includes(query)) return false;
+          if (notificationFilter === "Unread") return !item.isRead;
+          if (notificationFilter === "Read") return item.isRead;
+          if (notificationFilter === "Billing") return /billing|payment|subscription|invoice/i.test(`${type} ${item.title} ${item.message}`);
+          if (notificationFilter === "System") return /system|security|maintenance|platform/i.test(`${type} ${item.title} ${item.message}`);
           return true;
-        }).sort((a, b) => {
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return notificationSort === "latest" ? bTime - aTime : aTime - bTime;
-        });
-
-        if (filtered.length === 0) {
-          return <p style={{ padding: "20px" }}>{notificationError ? "Notifications could not be loaded." : "No notifications found for this filter."}</p>;
-        }
-
-        return filtered.map((item, index) => {
-          const categoryText = String(item.category || "System");
-          const categoryClass = /billing|payment/i.test(categoryText) ? "billing" : /tenant|company/i.test(categoryText) ? "tenant" : /security|critical/i.test(categoryText) ? "security" : /plan|feature|config/i.test(categoryText) ? "plan" : "system";
-          const timestamp = item.createdAt
-            ? new Date(item.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
-            : (item.time || "Time unavailable");
-          const id = item._id || item.id || `${item.title}-${index}`;
-
-          return (
-            <div key={id} className={`notification-item ${item.unread ? "unread" : ""}`}>
-              <div className={`notification-item-icon ${categoryClass}`}>
-                {categoryClass === "billing" ? "$" : categoryClass === "tenant" ? "+" : categoryClass === "security" ? "!" : categoryClass === "plan" ? "P" : "i"}
-              </div>
-              <div className="notification-item-content">
-                <div className="notification-item-title">
-                  <h3>{item.title}</h3>
-                  <span className={`notification-priority ${/critical|urgent|high/i.test(String(item.priority || item.severity || "")) ? "critical" : categoryClass === "billing" ? "attention" : "normal"}`}>
-                    {item.priority || item.severity || categoryText}
-                  </span>
-                </div>
-                <p>{item.description}</p>
-                <div className="notification-meta">
-                  <span>{item.source}</span><span>•</span><span>{timestamp}</span>
-                </div>
-              </div>
-              <div className="notification-item-actions">
-                {item.unread && <span className="notification-unread-dot"></span>}
-                <button
-                  onClick={() => item.unread ? markNotificationRead(item) : undefined}
-                  disabled={!item.unread}
-                  title={item.unread ? "Mark this notification as read" : "Already read"}
-                >
-                  {item.unread ? "Mark Read" : "Read"}
-                </button>
-              </div>
-            </div>
-          );
+        }).sort((a,b) => notificationSort === "latest" ? new Date(b.createdAt || 0)-new Date(a.createdAt || 0) : new Date(a.createdAt || 0)-new Date(b.createdAt || 0));
+        if (!filtered.length) return <p style={{padding:20}}>{notificationError ? "Notifications could not be loaded." : "No notifications match your search or filter."}</p>;
+        return filtered.map((item,index) => {
+          const type = String(item.type || "System");
+          const categoryClass = /billing|payment/i.test(type) ? "billing" : /security/i.test(type) ? "security" : "system";
+          const timestamp = item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}) : "Time unavailable";
+          return <div key={item._id || index} className={`notification-item ${!item.isRead ? "unread" : ""}`}>
+            <div className={`notification-item-icon ${categoryClass}`}>{categoryClass === "billing" ? "$" : categoryClass === "security" ? "!" : "i"}</div>
+            <div className="notification-item-content"><div className="notification-item-title"><h3>{item.title}</h3><span className={`notification-priority ${categoryClass === "billing" ? "attention" : "normal"}`}>{type}</span></div>
+              <p>{item.message}</p><div className="notification-meta"><span>Audience: {item.audience || "All"}</span><span>•</span><span>{timestamp}</span></div></div>
+            <div className="notification-item-actions">{!item.isRead && <span className="notification-unread-dot"/>}<button type="button" onClick={() => !item.isRead && markNotificationRead(item)} disabled={item.isRead}>{item.isRead ? "Read" : "Mark Read"}</button></div>
+          </div>;
         });
       })()}
     </div>
-
-    <div className="notification-footer">
-      <span>Showing {notifications.filter((item) => {
-        if (notificationFilter === "Unread") return item.unread;
-        if (notificationFilter === "Billing") return /billing|payment|subscription|invoice/i.test(`${item.category} ${item.title} ${item.description}`);
-        if (notificationFilter === "System") return /system|security|maintenance|platform/i.test(`${item.category} ${item.title} ${item.description}`);
-        return true;
-      }).length} notification(s) from the API</span>
-      <button className="text-button" onClick={() => setNotificationFilter("All")}>View All Notifications →</button>
-    </div>
+    <div className="notification-footer"><span>{notifications.length} record(s) loaded from the notifications API</span><button type="button" className="text-button" onClick={() => {setNotificationFilter("All");setNotificationQuery("");}}>Clear filters</button></div>
   </section>
 )}
 
 {/* ANNOUNCEMENTS */}
- {activePage === "announcements" && (
+{activePage === "announcements" && (
   <section className="dashboard-section" id="announcements">
+    <style>{`
+      .announcement-feedback{padding:12px 15px;border-radius:10px;margin:12px 0;font-size:13px}
+      .announcement-feedback.error{background:#fff0ef;color:#a33b32;border:1px solid #f1c5c1}
+      .announcement-feedback.success{background:#eaf8f2;color:#24775a;border:1px solid #bde6d4}
+      .announcement-compose-panel{margin:18px 0;padding:22px;border:1px solid #cfe4df;border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(18,60,58,.07)}
+      .announcement-compose-panel h3{margin:0;color:#183735}
+      .announcement-compose-panel p{margin:5px 0 0;color:#637875;font-size:13px}
+      .announcement-form-field{display:grid;gap:7px;margin:13px 0;color:#35514e;font-size:12px;font-weight:700}
+      .announcement-form-field input,.announcement-form-field textarea,.announcement-form-field select,.announcement-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cfe0dc;border-radius:10px;background:#fff;color:#183735;font:inherit;outline:none}
+      .announcement-form-field input:focus,.announcement-form-field textarea:focus,.announcement-form-field select:focus,.announcement-search:focus{border-color:#55b9a8;box-shadow:0 0 0 3px rgba(85,185,168,.13)}
+      .announcement-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+      .announcement-form-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px}
+      .announcement-form-actions span{color:#637875;font-size:11px}
+      .announcement-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .announcement-search{max-width:290px}
+      .announcement-empty{padding:45px 20px;text-align:center;color:#35514e}
+      .announcement-empty p{color:#637875;font-size:13px}
+      .announcement-row{align-items:flex-start}
+      @media(max-width:700px){.announcement-form-grid{grid-template-columns:1fr}.announcement-form-actions{align-items:flex-start;flex-direction:column}.announcement-search{max-width:none;flex:1 1 100%}}
+    `}</style>
     <div className="section-heading section-heading-row">
       <div>
         <p className="section-eyebrow">PLATFORM COMMUNICATION</p>
         <h2>Announcements</h2>
-        <p>Publish important updates and platform communications to Cliently tenants.</p>
+        <p>Create and publish platform updates for your Cliently workspace.</p>
       </div>
-      <button
-        className="primary-button"
-        onClick={async () => {
-          const title = window.prompt("Announcement title:");
-          if (!title || !title.trim()) return;
-          const message = window.prompt("Announcement message:");
-          if (!message || !message.trim()) return;
-          const type = window.prompt("Announcement type (General, Billing, Security, Feature):", "General") || "General";
-          const statusInput = window.prompt("Status (Draft or Published):", "Draft") || "Draft";
-          const status = statusInput.trim().toLowerCase() === "published" ? "Published" : "Draft";
-          try {
-            const response = await fetch("http://localhost:5000/api/super-admin/announcements", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title: title.trim(), message: message.trim(), type: type.trim(), status, ...(status === "Published" ? { publishedAt: new Date().toISOString() } : {}) })
-            });
-            const result = await response.json();
-            if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
-            const created = result.data || result.announcement;
-            if (created) setAnnouncements((current) => [created, ...current]);
-            else {
-              const refreshed = await fetch("http://localhost:5000/api/super-admin/announcements");
-              const refreshedResult = await refreshed.json();
-              setAnnouncements(Array.isArray(refreshedResult.data) ? refreshedResult.data : []);
-            }
-            window.alert("Announcement saved successfully.");
-          } catch (error) {
-            console.error("Create announcement error:", error);
-            window.alert("Could not save announcement. Check whether the backend supports POST on this route.");
-          }
-        }}
-      >+ New Announcement</button>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <button type="button" className="secondary-button" onClick={refreshAnnouncements} disabled={announcementsLoading}>
+          {announcementsLoading ? "Refreshing..." : "↻ Refresh"}
+        </button>
+        <button type="button" className="primary-button" onClick={() => {setAnnouncementError("");setAnnouncementMessage("");setAnnouncementFormOpen(true);}}>
+          + New Announcement
+        </button>
+      </div>
     </div>
+
+    {announcementError && <div className="announcement-feedback error" role="alert">{announcementError}</div>}
+    {announcementMessage && <div className="announcement-feedback success" role="status">{announcementMessage}</div>}
 
     <div className="announcement-summary">
       <div className="announcement-summary-card"><div><span>Total Announcements</span><strong>{announcements.length}</strong></div><div className="announcement-summary-icon">A</div></div>
-      <div className="announcement-summary-card"><div><span>Published</span><strong className="announcement-published-count">{announcements.filter((item) => String(item.status || "").toLowerCase() === "published").length}</strong></div><div className="announcement-summary-icon published">✓</div></div>
-      <div className="announcement-summary-card"><div><span>Drafts</span><strong>{announcements.filter((item) => String(item.status || "").toLowerCase() === "draft").length}</strong></div><div className="announcement-summary-icon draft">D</div></div>
+      <div className="announcement-summary-card"><div><span>Published</span><strong className="announcement-published-count">{announcements.filter((item) => item.status === "Published").length}</strong></div><div className="announcement-summary-icon published">✓</div></div>
+      <div className="announcement-summary-card"><div><span>Drafts</span><strong>{announcements.filter((item) => item.status === "Draft").length}</strong></div><div className="announcement-summary-icon draft">D</div></div>
     </div>
+
+    {announcementFormOpen && (
+      <form className="announcement-compose-panel" onSubmit={createAnnouncement}>
+        <div className="section-heading-row" style={{marginBottom:16}}>
+          <div><p className="section-eyebrow">NEW PLATFORM MESSAGE</p><h3>Create announcement</h3><p>Save as a draft or publish immediately.</p></div>
+          <button type="button" className="secondary-button" onClick={() => setAnnouncementFormOpen(false)}>Close</button>
+        </div>
+        <label className="announcement-form-field">Title
+          <input required maxLength={200} value={announcementDraft.title} onChange={(event) => setAnnouncementDraft((current) => ({...current,title:event.target.value}))} placeholder="e.g. Scheduled platform maintenance" />
+        </label>
+        <label className="announcement-form-field">Message
+          <textarea required maxLength={2000} rows={5} value={announcementDraft.message} onChange={(event) => setAnnouncementDraft((current) => ({...current,message:event.target.value}))} placeholder="Write the announcement details..." />
+        </label>
+        <div className="announcement-form-grid">
+          <label className="announcement-form-field">Announcement type
+            <select value={announcementDraft.type} onChange={(event) => setAnnouncementDraft((current) => ({...current,type:event.target.value}))}>
+              <option value="General">General</option><option value="Maintenance">Maintenance</option><option value="Update">Update</option><option value="Important">Important</option>
+            </select>
+          </label>
+          <label className="announcement-form-field">Save as
+            <select value={announcementDraft.status} onChange={(event) => setAnnouncementDraft((current) => ({...current,status:event.target.value}))}>
+              <option value="Draft">Draft</option><option value="Published">Published</option>
+            </select>
+          </label>
+        </div>
+        <div className="announcement-form-actions">
+          <span>Saved directly to your announcements database.</span>
+          <button type="submit" className="primary-button" disabled={announcementSaving}>{announcementSaving ? "Saving..." : announcementDraft.status === "Published" ? "Create & Publish" : "Save Draft"}</button>
+        </div>
+      </form>
+    )}
 
     <div className="announcement-toolbar">
       <div className="announcement-tabs">
         {["All", "Published", "Drafts"].map((filter) => (
-          <button key={filter} className={`announcement-tab ${announcementFilter === filter ? "active" : ""}`} onClick={() => setAnnouncementFilter(filter)}>{filter}</button>
+          <button type="button" key={filter} className={`announcement-tab ${announcementFilter === filter ? "active" : ""}`} onClick={() => setAnnouncementFilter(filter)}>{filter}</button>
         ))}
       </div>
+      <input className="announcement-search" type="search" value={announcementQuery} onChange={(event) => setAnnouncementQuery(event.target.value)} placeholder="Search title or message..." />
+      <select className="announcement-filter" value={announcementTypeFilter} onChange={(event) => setAnnouncementTypeFilter(event.target.value)}>
+        <option value="All">All types</option><option value="General">General</option><option value="Maintenance">Maintenance</option><option value="Update">Update</option><option value="Important">Important</option>
+      </select>
       <select className="announcement-filter" value={announcementSort} onChange={(event) => setAnnouncementSort(event.target.value)}>
         <option value="latest">Latest first</option><option value="oldest">Oldest first</option>
       </select>
     </div>
 
     <div className="announcement-panel">
-      {announcementsLoading ? <p>Loading announcements...</p> : announcementError ? <p role="alert">{announcementError}</p> : (() => {
-        let visible = announcements.filter((item) => announcementFilter === "All" || String(item.status || "").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, ""));
-        visible = [...visible].sort((a, b) => {
+      {announcementsLoading ? <p>Loading announcements from database...</p> : (() => {
+        let visible = announcements.filter((item) => {
+          const statusMatch = announcementFilter === "All" || String(item.status || "Draft").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, "");
+          const typeMatch = announcementTypeFilter === "All" || String(item.type || "General").toLowerCase() === announcementTypeFilter.toLowerCase();
+          const query = announcementQuery.trim().toLowerCase();
+          const queryMatch = !query || [item.title, item.message].some((value) => String(value || "").toLowerCase().includes(query));
+          return statusMatch && typeMatch && queryMatch;
+        });
+        visible = [...visible].sort((a,b) => {
           const aDate = new Date(a.publishedAt || a.updatedAt || a.createdAt || 0).getTime();
           const bDate = new Date(b.publishedAt || b.updatedAt || b.createdAt || 0).getTime();
           return announcementSort === "latest" ? bDate - aDate : aDate - bDate;
         });
-        if (!visible.length) return <p>{announcements.length ? "No announcements match this filter." : "No announcements found."}</p>;
+        if (!visible.length) return <div className="announcement-empty"><strong>{announcements.length ? "No matching announcements" : "No announcements yet"}</strong><p>{announcements.length ? "Try changing your search or filters." : "Create your first platform announcement to get started."}</p></div>;
         return visible.map((item) => {
           const status = String(item.status || "Draft");
           const type = String(item.type || "General");
           const date = item.publishedAt || item.updatedAt || item.createdAt;
-          return <div className="announcement-row" key={item._id || `${item.title}-${date || "item"}`}>
-            <div className={`announcement-type ${type.toLowerCase()}`}>{type.charAt(0).toUpperCase()}</div>
+          return <article className="announcement-row" key={item._id || `${item.title}-${date || "item"}`}>
+            <div className={`announcement-type ${type.toLowerCase()}`}>{type.slice(0,1).toUpperCase()}</div>
             <div className="announcement-main">
               <div className="announcement-title-line"><h3>{item.title || "Untitled announcement"}</h3><span className={`announcement-status ${status.toLowerCase()}`}>{status}</span></div>
-              <p>{item.message || item.description || "No message provided."}</p>
-              <div className="announcement-details"><span>Type: {type}</span><span>•</span><span>{date ? `${status === "Published" ? "Published" : "Updated"} ${new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : "Date unavailable"}</span></div>
-           {status.toLowerCase() === "draft" && (
-  <button
-    type="button"
-    className="secondary-button"
-    onClick={async () => {
-      const confirmed = window.confirm(
-        `Publish "${item.title}"?`
-      );
-
-      if (!confirmed) return;
-
-      try {
-        const response = await fetch(
-          `http://localhost:5000/api/super-admin/announcements/${item._id}/publish`,
-          { method: "PATCH" }
-        );
-
-        const result = await response.json();
-
-        if (!response.ok || result.success === false) {
-          throw new Error(
-            result.message || "Failed to publish announcement"
-          );
-        }
-
-        const refreshed = await fetch(
-          "http://localhost:5000/api/super-admin/announcements"
-        );
-        const refreshedResult = await refreshed.json();
-
-        if (!refreshed.ok || !refreshedResult.success) {
-          throw new Error("Published, but failed to refresh the list");
-        }
-
-        setAnnouncements(refreshedResult.data || []);
-        window.alert("Announcement published successfully.");
-      } catch (error) {
-        console.error("Publish announcement error:", error);
-        window.alert(error.message || "Could not publish announcement.");
-      }
-    }}
-  >
-    Publish
-  </button>
-)}
+              <p>{item.message || "No message provided."}</p>
+              <div className="announcement-details"><span>{type}</span><span>•</span><span>{date ? `${status === "Published" ? "Published" : "Created"} ${new Date(date).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}` : "Date unavailable"}</span></div>
+              {status === "Draft" && <button type="button" className="secondary-button" disabled={publishingAnnouncementId === String(item._id)} onClick={() => publishAnnouncement(item)}>{publishingAnnouncementId === String(item._id) ? "Publishing..." : "Publish announcement"}</button>}
             </div>
-          </div>;
+          </article>;
         });
       })()}
     </div>
-    <div className="announcement-footer"><span>Showing {announcements.filter((item) => announcementFilter === "All" || String(item.status || "").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, "")).length} of {announcements.length} announcements</span></div>
+    <div className="announcement-footer"><span>Showing {announcements.filter((item) => {
+      const statusMatch = announcementFilter === "All" || String(item.status || "Draft").toLowerCase() === announcementFilter.toLowerCase().replace(/s$/, "");
+      const typeMatch = announcementTypeFilter === "All" || String(item.type || "General").toLowerCase() === announcementTypeFilter.toLowerCase();
+      const query = announcementQuery.trim().toLowerCase();
+      return statusMatch && typeMatch && (!query || [item.title,item.message].some((value) => String(value || "").toLowerCase().includes(query)));
+    }).length} of {announcements.length} announcements · live database records</span></div>
   </section>
 )}
  {activePage === "settings" && (
@@ -2425,7 +2367,7 @@ export default function SuperAdminDashboard({ onLogout }) {
       <div>
         <span className="section-eyebrow">PLATFORM ADMINISTRATION</span>
         <h2>Settings</h2>
-        <p>Manage Cliently-wide defaults, security preferences and platform operations.</p>
+        <p>Manage essential Cliently platform preferences.</p>
       </div>
       <span className="settings-admin-badge">● Super Admin</span>
     </div>
@@ -2433,12 +2375,12 @@ export default function SuperAdminDashboard({ onLogout }) {
     <div className="settings-layout">
       <aside className="settings-menu">
         <div className="settings-menu-group">
-          <h4>PLATFORM CONFIGURATION</h4>
-          {["General", "Regional Defaults", "Security", "Notifications", "Data & Audit"].map((item) => (
+          <h4>SETTINGS</h4>
+          {["General", "Regional Defaults", "Security", "Notifications"].map((item) => (
             <button type="button" key={item}
               className={`settings-menu-item ${activeSetting === item ? "active" : ""}`}
-              onClick={() => { setActiveSetting(item); setSettingsMessage(""); }}>
-              <span>{item === "General" ? "▣" : item === "Regional Defaults" ? "◷" : item === "Security" ? "⌾" : item === "Notifications" ? "♢" : "⇅"}</span>
+              onClick={() => { setActiveSetting(item); setSettingsMessage(""); setSettingsError(""); }}>
+              <span>{item === "General" ? "▣" : item === "Regional Defaults" ? "◷" : item === "Security" ? "⌾" : "♢"}</span>
               {item}
             </button>
           ))}
@@ -2448,14 +2390,13 @@ export default function SuperAdminDashboard({ onLogout }) {
       <div className="settings-content">
         <div className="settings-content-header">
           <div>
-            <span className="settings-content-eyebrow">CLIENTLY PLATFORM SETTINGS</span>
+            <span className="settings-content-eyebrow">CLIENTLY PLATFORM</span>
             <h3>{activeSetting}</h3>
             <p>
-              {activeSetting === "General" && "Manage platform identity and support contact details."}
-              {activeSetting === "Regional Defaults" && "Set default timezone, currency, date and language preferences."}
-              {activeSetting === "Security" && "Configure platform security policy defaults."}
-              {activeSetting === "Notifications" && "Choose which platform-wide alerts should be enabled."}
-              {activeSetting === "Data & Audit" && "Configure data retention defaults and maintenance mode."}
+              {activeSetting === "General" && "Platform identity and support contact details."}
+              {activeSetting === "Regional Defaults" && "Default timezone, currency and display formats."}
+              {activeSetting === "Security" && "Basic platform password and session policies."}
+              {activeSetting === "Notifications" && "Choose which platform alerts are enabled."}
             </p>
           </div>
           <button type="button" className="primary-button" onClick={saveSettings} disabled={settingsSaving || settingsLoading}>
@@ -2463,90 +2404,113 @@ export default function SuperAdminDashboard({ onLogout }) {
           </button>
         </div>
 
-        {settingsLoading && <p role="status">Loading saved settings from MongoDB. You can view the default settings while this request completes...</p>}
+        {settingsLoading && <p role="status">Loading saved settings...</p>}
         {settingsError && (
           <div role="alert" style={{ color: "#c0392b", marginBottom: 12 }}>
             <p>{settingsError}</p>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={async () => {
-                setSettingsLoading(true);
-                setSettingsError("");
-                try {
-                  const saved = await getSettings();
-                  setSettings(normalizeDashboardSettings(saved));
-                } catch (error) {
-                  setSettingsError(error.message || "Unable to load settings.");
-                } finally {
-                  setSettingsLoading(false);
-                }
-              }}
-              disabled={settingsLoading || settingsSaving}
-            >
-              {settingsLoading ? "Retrying..." : "Retry loading settings"}
-            </button>
+            <button type="button" className="secondary-button" onClick={async () => {
+              setSettingsLoading(true); setSettingsError("");
+              try { setSettings(normalizeDashboardSettings(await getSettings())); }
+              catch (error) { setSettingsError(error.message || "Unable to load settings."); }
+              finally { setSettingsLoading(false); }
+            }} disabled={settingsLoading || settingsSaving}>Retry</button>
           </div>
         )}
         {settingsMessage && <p role="status" style={{ color: "#218838", marginBottom: 12 }}>{settingsMessage}</p>}
 
         {activeSetting === "General" && (
           <div className="settings-card">
-            <div className="settings-card-header"><div><h3>Platform Identity</h3><p>Global Cliently platform details, not individual tenant details.</p></div><span className="settings-card-status">Database</span></div>
+            <div className="settings-card-header">
+              <div><h3>Organization</h3><p>Platform identity and support contact.</p></div>
+              <span className="settings-card-status">MongoDB</span>
+            </div>
             <div className="settings-form-grid">
-              <div className="settings-field"><label htmlFor="platform-name">Platform Name</label><input id="platform-name" value={settings.general.platformName} maxLength={80} onChange={(e) => updateSettingsSection("general", "platformName", e.target.value)} disabled={settingsSaving} /></div>
-              <div className="settings-field"><label htmlFor="support-email">Support Email</label><input id="support-email" type="email" value={settings.general.supportEmail} onChange={(e) => updateSettingsSection("general", "supportEmail", e.target.value)} disabled={settingsSaving} /></div>
-              <div className="settings-field"><label htmlFor="support-url">Support URL</label><input id="support-url" type="url" placeholder="https://support.cliently.com" value={settings.general.supportUrl} onChange={(e) => updateSettingsSection("general", "supportUrl", e.target.value)} disabled={settingsSaving} /></div>
+              <div className="settings-field"><label htmlFor="platform-name">Platform Name</label>
+                <input id="platform-name" value={settings.organization.companyName} maxLength={100}
+                  onChange={(e) => updateSettingsSection("organization", "companyName", e.target.value)} disabled={settingsSaving} /></div>
+              <div className="settings-field"><label htmlFor="support-email">Support Email</label>
+                <input id="support-email" type="email" value={settings.organization.supportEmail}
+                  onChange={(e) => updateSettingsSection("organization", "supportEmail", e.target.value)} disabled={settingsSaving} /></div>
+              <div className="settings-field"><label htmlFor="support-url">Support URL</label>
+                <input id="support-url" type="url" value={settings.organization.supportUrl}
+                  onChange={(e) => updateSettingsSection("organization", "supportUrl", e.target.value)} disabled={settingsSaving} /></div>
             </div>
           </div>
         )}
 
         {activeSetting === "Regional Defaults" && (
           <div className="settings-card">
-            <div className="settings-card-header"><div><h3>Regional Defaults</h3><p>Defaults for newly created tenant workspaces where applicable.</p></div></div>
+            <div className="settings-card-header"><div><h3>Regional Preferences</h3><p>Default regional display settings.</p></div></div>
             <div className="settings-form-grid">
-              <div className="settings-field"><label htmlFor="regional-timezone">Timezone</label><select id="regional-timezone" value={settings.regional.timezone} onChange={(e) => updateSettingsSection("regional", "timezone", e.target.value)} disabled={settingsSaving}><option value="Asia/Kolkata">Asia/Kolkata — India</option><option value="UTC">UTC</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option><option value="Asia/Singapore">Asia/Singapore</option></select></div>
-              <div className="settings-field"><label htmlFor="regional-currency">Currency</label><select id="regional-currency" value={settings.regional.currency} onChange={(e) => updateSettingsSection("regional", "currency", e.target.value)} disabled={settingsSaving}><option value="INR">INR — Indian Rupee</option><option value="USD">USD — US Dollar</option><option value="EUR">EUR — Euro</option><option value="GBP">GBP — Pound Sterling</option><option value="SGD">SGD — Singapore Dollar</option></select></div>
-              <div className="settings-field"><label htmlFor="regional-date">Date Format</label><select id="regional-date" value={settings.regional.dateFormat} onChange={(e) => updateSettingsSection("regional", "dateFormat", e.target.value)} disabled={settingsSaving}><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option></select></div>
-              <div className="settings-field"><label htmlFor="regional-time">Time Format</label><select id="regional-time" value={settings.regional.timeFormat} onChange={(e) => updateSettingsSection("regional", "timeFormat", e.target.value)} disabled={settingsSaving}><option value="12-hour">12-hour</option><option value="24-hour">24-hour</option></select></div>
-              <div className="settings-field"><label htmlFor="regional-language">Language</label><select id="regional-language" value={settings.regional.language} onChange={(e) => updateSettingsSection("regional", "language", e.target.value)} disabled={settingsSaving}><option value="English">English</option></select></div>
+              <div className="settings-field"><label htmlFor="regional-timezone">Timezone</label>
+                <select id="regional-timezone" value={settings.regional.timezone} onChange={(e) => updateSettingsSection("regional", "timezone", e.target.value)} disabled={settingsSaving}>
+                  <option value="Asia/Kolkata">Asia/Kolkata</option><option value="UTC">UTC</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option><option value="Asia/Singapore">Asia/Singapore</option>
+                </select></div>
+              <div className="settings-field"><label htmlFor="regional-currency">Currency</label>
+                <select id="regional-currency" value={settings.regional.currency} onChange={(e) => updateSettingsSection("regional", "currency", e.target.value)} disabled={settingsSaving}>
+                  <option value="INR">INR — Indian Rupee</option><option value="USD">USD — US Dollar</option><option value="EUR">EUR — Euro</option><option value="GBP">GBP — Pound Sterling</option><option value="SGD">SGD — Singapore Dollar</option>
+                </select></div>
+              <div className="settings-field"><label htmlFor="regional-date">Date Format</label>
+                <select id="regional-date" value={settings.regional.dateFormat} onChange={(e) => updateSettingsSection("regional", "dateFormat", e.target.value)} disabled={settingsSaving}>
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select></div>
+              <div className="settings-field"><label htmlFor="regional-time">Time Format</label>
+                <select id="regional-time" value={settings.regional.timeFormat} onChange={(e) => updateSettingsSection("regional", "timeFormat", e.target.value)} disabled={settingsSaving}>
+                  <option value="12h">12-hour</option><option value="24h">24-hour</option>
+                </select></div>
+              <div className="settings-field"><label htmlFor="regional-language">Language</label>
+                <select id="regional-language" value={settings.regional.language} onChange={(e) => updateSettingsSection("regional", "language", e.target.value)} disabled={settingsSaving}>
+                  <option value="en">English</option>
+                </select></div>
+              <div className="settings-field"><label htmlFor="regional-week">Week Starts On</label>
+                <select id="regional-week" value={settings.regional.weekStartsOn} onChange={(e) => updateSettingsSection("regional", "weekStartsOn", e.target.value)} disabled={settingsSaving}>
+                  <option value="Monday">Monday</option><option value="Sunday">Sunday</option>
+                </select></div>
             </div>
           </div>
         )}
 
         {activeSetting === "Security" && (
           <div className="settings-card">
-            <div className="settings-card-header"><div><h3>Security Defaults</h3><p>These preferences must also be enforced by the authentication provider/backend.</p></div></div>
+            <div className="settings-card-header"><div><h3>Security Preferences</h3><p>Stored policy settings; enforcement remains with the authentication backend.</p></div></div>
             <div className="settings-form-grid">
-              <div className="settings-field"><label htmlFor="session-timeout">Session Timeout (minutes)</label><input id="session-timeout" type="number" min="5" max="1440" value={settings.security.sessionTimeoutMinutes} onChange={(e) => updateSettingsSection("security", "sessionTimeoutMinutes", Math.max(5, Number(e.target.value) || 5))} disabled={settingsSaving} /></div>
-              <div className="settings-field"><label htmlFor="password-minimum">Minimum Password Length</label><input id="password-minimum" type="number" min="8" max="64" value={settings.security.passwordMinLength} onChange={(e) => updateSettingsSection("security", "passwordMinLength", Math.max(8, Number(e.target.value) || 8))} disabled={settingsSaving} /></div>
+              <div className="settings-field"><label htmlFor="session-timeout">Session Timeout (minutes)</label>
+                <input id="session-timeout" type="number" min="5" max="1440" value={settings.security.sessionTimeoutMinutes}
+                  onChange={(e) => updateSettingsSection("security", "sessionTimeoutMinutes", Math.min(1440, Math.max(5, Number(e.target.value) || 5)))} disabled={settingsSaving} /></div>
+              <div className="settings-field"><label htmlFor="password-minimum">Minimum Password Length</label>
+                <input id="password-minimum" type="number" min="8" max="64" value={settings.security.passwordMinLength}
+                  onChange={(e) => updateSettingsSection("security", "passwordMinLength", Math.min(64, Math.max(8, Number(e.target.value) || 8)))} disabled={settingsSaving} /></div>
             </div>
-            <div className="settings-option-row"><div><strong>Require Two-Factor Authentication</strong><p>Policy preference for platform accounts.</p></div><label className="settings-switch"><input type="checkbox" checked={settings.security.requireTwoFactor} onChange={(e) => updateSettingsSection("security", "requireTwoFactor", e.target.checked)} disabled={settingsSaving} /><span></span></label></div>
+            {[
+              ["twoFactorRequired", "Require two-factor authentication"],
+              ["requireUppercase", "Require uppercase letter"],
+              ["requireNumber", "Require a number"],
+              ["requireSpecialCharacter", "Require special character"],
+            ].map(([field, label]) => (
+              <div className="settings-option-row" key={field}>
+                <div><strong>{label}</strong></div>
+                <label className="settings-switch"><input type="checkbox" checked={Boolean(settings.security[field])}
+                  onChange={(e) => updateSettingsSection("security", field, e.target.checked)} disabled={settingsSaving} /><span></span></label>
+              </div>
+            ))}
           </div>
         )}
 
         {activeSetting === "Notifications" && (
           <div className="settings-card">
-            <div className="settings-card-header"><div><h3>Platform Notifications</h3><p>Enable or disable platform-wide notification categories.</p></div></div>
+            <div className="settings-card-header"><div><h3>Notification Preferences</h3><p>Enable or disable platform notification categories.</p></div></div>
             {[
-              ["adminEmail", "Administrator Email Notifications", "Email notifications for platform administrators."],
-              ["systemAlerts", "System Alerts", "Service availability, errors and infrastructure alerts."],
-              ["securityAlerts", "Security Alerts", "Authentication and suspicious activity alerts."],
-              ["billingAlerts", "Subscription & Billing Alerts", "Payment, renewal and subscription alerts."],
-            ].map(([field, label, description]) => (
-              <div className="settings-option-row" key={field}><div><strong>{label}</strong><p>{description}</p></div><label className="settings-switch"><input type="checkbox" checked={settings.notifications[field]} onChange={(e) => updateSettingsSection("notifications", field, e.target.checked)} disabled={settingsSaving} /><span></span></label></div>
+              ["emailEnabled", "Email notifications"],
+              ["systemAlertsEnabled", "System alerts"],
+              ["securityAlerts", "Security alerts"],
+              ["billingAlerts", "Billing alerts"],
+            ].map(([field, label]) => (
+              <div className="settings-option-row" key={field}>
+                <div><strong>{label}</strong></div>
+                <label className="settings-switch"><input type="checkbox" checked={Boolean(settings.notifications[field])}
+                  onChange={(e) => updateSettingsSection("notifications", field, e.target.checked)} disabled={settingsSaving} /><span></span></label>
+              </div>
             ))}
-          </div>
-        )}
-
-        {activeSetting === "Data & Audit" && (
-          <div className="settings-card">
-            <div className="settings-card-header"><div><h3>Data Retention & Operations</h3><p>Configure retention defaults and platform maintenance preference.</p></div></div>
-            <div className="settings-form-grid">
-              <div className="settings-field"><label htmlFor="audit-retention">Audit Log Retention (days)</label><input id="audit-retention" type="number" min="30" max="3650" value={settings.data.auditRetentionDays} onChange={(e) => updateSettingsSection("data", "auditRetentionDays", Math.max(30, Number(e.target.value) || 30))} disabled={settingsSaving} /></div>
-              <div className="settings-field"><label htmlFor="data-retention">Default Data Retention (days)</label><input id="data-retention" type="number" min="30" max="3650" value={settings.data.dataRetentionDays} onChange={(e) => updateSettingsSection("data", "dataRetentionDays", Math.max(30, Number(e.target.value) || 30))} disabled={settingsSaving} /></div>
-            </div>
-            <div className="settings-option-row"><div><strong>Maintenance Mode</strong><p>Preference only; backend middleware must enforce it before tenant access changes.</p></div><label className="settings-switch"><input type="checkbox" checked={settings.data.maintenanceMode} onChange={(e) => updateSettingsSection("data", "maintenanceMode", e.target.checked)} disabled={settingsSaving} /><span></span></label></div>
           </div>
         )}
       </div>
