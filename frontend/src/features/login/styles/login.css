@@ -1,7 +1,7 @@
 .login-page {
     min-height: 100vh;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 2fr;
     background: #F4FAF8;
 }
 
@@ -10,7 +10,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: #FFFFFF;
+    background: #ffffff;
     padding: 42px 7%;
 }
 
@@ -23,12 +23,12 @@
 .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 76px;
 }
 
 .brand-logo {
-    width: 42px;
+    width: 47px;
     height: 39px;
     display: flex;
     align-items: center;
@@ -36,7 +36,7 @@
     border-radius: 11px;
     background: #123C3A;
     color: #ffffff;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 500;
 }
 
@@ -57,15 +57,51 @@
 }
 
 .login-heading {
+    position: relative;
+    padding-left: 20px;
     margin-bottom: 34px;
 }
 
+.login-heading::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 2px;
+    height: 105px;
+    background: linear-gradient(
+        to bottom,
+        #123C3A,
+        rgba(20, 184, 166, 0.15)
+    );
+}
+
+.login-heading::after {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #123C3A;
+    box-shadow: 0 0 10px rgba(20, 184, 166, 0.25);
+}
+
 .login-heading h1 {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     color: #123C3A;
     font-size: 34px;
     font-weight: 650;
     letter-spacing: -1.2px;
+}
+
+.login-heading h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.5px;
+    color: #0F766E;
 }
 
 .login-heading p {
