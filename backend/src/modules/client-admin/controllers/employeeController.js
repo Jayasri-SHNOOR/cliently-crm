@@ -3,25 +3,27 @@ const Employee = require('../../../models/Employee')
 const { assertSeatAvailable } = require('../../../utils/seats')
 
 const getEmployees = async (req, res, next) => {
-  try{
+  try {
     const tenantId = req.user.tenantId
-    const employees = await Employee.find({tenantId})
-      .sort({createdAt: -1})
+
+    const employees = await Employee.find({ tenantId })
+      .sort({ createdAt: -1 })
 
     res.status(200).json({
-      count: withStats.length,
-      employees: withStats
+      count: employees.length,
+      employees
     })
-  }catch(error){
+  } catch (error) {
     next(error)
   }
 }
+
 const getEmployeeById = async (req, res, next) => {
-  try{
+  try {
     const tenantId = req.user.tenantId
     const { id } = req.params
 
-    if(!mongoose.isValidObjectId(id)){
+    if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
         message: 'Invalid employee ID'
       })
@@ -30,27 +32,26 @@ const getEmployeeById = async (req, res, next) => {
     const employee = await Employee.findOne({
       _id: id,
       tenantId
-    }).lean()
+    })
 
-    if(!employee){
+    if (!employee) {
       return res.status(404).json({
         message: 'Employee not found'
       })
     }
 
     res.status(200).json(employee)
-  } catch(error){
+  } catch (error) {
     next(error)
   }
 }
 
-
 const createEmployee = async (req, res, next) => {
-  try{
+  try {
     const tenantId = req.user.tenantId
     const { name, email, role, department, phone, status } = req.body
 
-    if(!name || !email){
+    if (!name || !email) {
       return res.status(400).json({
         message: 'Employee name and email are required'
       })
@@ -64,7 +65,7 @@ const createEmployee = async (req, res, next) => {
       tenantId,
       name,
       email,
-      role: 'Sales Executive', 
+      role,
       department,
       phone,
       status
@@ -79,13 +80,12 @@ const createEmployee = async (req, res, next) => {
   }
 }
 
-
 const updateEmployee = async (req, res, next) => {
-  try{
+  try {
     const tenantId = req.user.tenantId
     const { id } = req.params
 
-    if(!mongoose.isValidObjectId(id)){
+    if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
         message: 'Invalid employee ID'
       })
@@ -94,6 +94,7 @@ const updateEmployee = async (req, res, next) => {
     const allowedFields = [
       'name',
       'email',
+      'role',
       'department',
       'phone',
       'status'
@@ -101,19 +102,19 @@ const updateEmployee = async (req, res, next) => {
 
     const updates = {}
 
-    for(const field of allowedFields){
-      if (req.body[field] !== undefined){
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
         updates[field] = req.body[field]
       }
     }
 
-    if(Object.keys(updates).length === 0){
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         message: 'Provide at least one field to update'
       })
     }
 
-    if(updates.status === 'Active'){
+    if (updates.status === 'Active') {
       const current = await Employee.findOne({ _id: id, tenantId }).select('status').lean()
 
       if (!current) {
@@ -133,7 +134,7 @@ const updateEmployee = async (req, res, next) => {
       { new: true, runValidators: true }
     )
 
-    if(!employee){
+    if (!employee) {
       return res.status(404).json({
         message: 'Employee not found'
       })
@@ -148,13 +149,12 @@ const updateEmployee = async (req, res, next) => {
   }
 }
 
-
 const deleteEmployee = async (req, res, next) => {
-  try{
+  try {
     const tenantId = req.user.tenantId
     const { id } = req.params
 
-    if(!mongoose.isValidObjectId(id)){
+    if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
         message: 'Invalid employee ID'
       })
@@ -165,7 +165,7 @@ const deleteEmployee = async (req, res, next) => {
       tenantId
     })
 
-    if(!employee){
+    if (!employee) {
       return res.status(404).json({
         message: 'Employee not found'
       })
@@ -174,7 +174,7 @@ const deleteEmployee = async (req, res, next) => {
     res.status(200).json({
       message: 'Employee deleted successfully'
     })
-  }catch(error){
+  } catch (error) {
     next(error)
   }
 }
