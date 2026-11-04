@@ -1,5 +1,4 @@
 import {useState} from 'react'
-import {useNavigate} from 'react-router-dom'
 import {apiFetch} from '../../lib/api'
 import {clearSession} from '../../lib/session'
 import './clientadmin.css'
@@ -15,7 +14,6 @@ import Employees from './components/Employees'
 import HelpSupport from './components/HelpSupport'
 
 function ClientAdmin(){
-  const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [settingsSection, setSettingsSection] = useState('company')
 
@@ -34,7 +32,7 @@ function ClientAdmin(){
   const handleLogout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST', auth: false }).catch(() => null)
     clearSession()
-    navigate('/login?reason=SIGNED_OUT', { replace: true })
+    window.location.replace('/login?reason=SIGNED_OUT')
   }
 
   return(
