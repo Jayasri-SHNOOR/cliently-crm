@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./features/login/pages/Login";
+import LandingPage from "./features/landing/LandingPage";
 import SuperAdminDashboard from "./features/super-admin/SuperAdminDashboard";
 import ClientAdmin from "./features/client-admin/clientadmin";
 import SalesExecutive from "./features/sales/SalesExecutive";
@@ -17,17 +18,28 @@ function App() {
         <BrowserRouter>
             <SessionGate>
                 <Routes>
+                    <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<Login />} />
-                    <Route path="/super-admin/*" element={<SuperAdminDashboard onLogout={handleLogout} />} />
-                    <Route path="/salesExecutive/*" element={ <SalesExecutive onLogout={handleLogout} />}   />
+                    <Route path="/super-admin/*" 
+                        element={
+                            <ProtectedRoute roles={["SUPER_ADMIN"]}>
+                                <SuperAdminDashboard onLogout={handleLogout} />
+                            </ProtectedRoute>
+                        }
+                     />
+                    <Route path="/salesExecutive/*" 
+                        element={
+                            <ProtectedRoute roles={["SALES_EXECUTIVE"]}>
+                                <SalesExecutive onLogout={handleLogout} />
+                            </ProtectedRoute>
+                    } />
                     <Route
                         path="/client-admin/*"
                         element={
                             <ProtectedRoute roles={["CLIENT_ADMIN"]}>
-                                <ClientAdmin />
-                            </ProtectedRoute>
-                        }
-                        onLogout={handleLogout}
+                                <ClientAdmin onLogout={handleLogout} />
+                            </ProtectedRoute>  
+                        }  
                     />
 
                     <Route path="*" element={<Navigate to="/login" replace />} />
