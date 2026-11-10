@@ -345,7 +345,7 @@ function Products() {
                   <input
                     name="code"
                     type="text"
-                    placeholder="CRM-PRO-001"
+                    placeholder="DH-SER/PR-001"
                   />
                 </div>
 
