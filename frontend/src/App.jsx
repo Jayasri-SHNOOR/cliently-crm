@@ -4,6 +4,7 @@ import LandingPage from "./features/landing/LandingPage";
 import SuperAdminDashboard from "./features/super-admin/SuperAdminDashboard";
 import ClientAdmin from "./features/client-admin/clientadmin";
 import SalesExecutive from "./features/sales/SalesExecutive";
+import OperationsApp from "./features/operations/OperationsApp";
 import SessionGate from "./components/SessionGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { logout } from "./lib/auth";
@@ -40,6 +41,14 @@ function App() {
                                 <ClientAdmin onLogout={handleLogout} />
                             </ProtectedRoute>  
                         }  
+                    />
+                    <Route
+                        path="/operations/*"
+                        element={
+                            <ProtectedRoute roles={["OPERATIONAL_STAFF"]}>
+                                <OperationsApp />
+                            </ProtectedRoute>
+                        }
                     />
 
                     <Route path="*" element={<Navigate to="/login" replace />} />

@@ -16,7 +16,7 @@ const REASON_MESSAGES = {
     NO_TOKEN: "Please sign in to continue.",
     INVALID_TOKEN: "Please sign in to continue.",
     USER_INACTIVE: "Your account is inactive. Contact your administrator.",
-    TENANT_INACTIVE: "Your company account is not active. Contact NexaSoft support.",
+    TENANT_INACTIVE: "Your company account is not active. Contact Cliently for support.",
 };
 
 function formatCountdown(totalSeconds){

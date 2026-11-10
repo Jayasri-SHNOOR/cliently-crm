@@ -1,17 +1,17 @@
 const tenant = {
-  slug: 'cliently',
-  companyName: 'Cliently',
+  slug: 'devhub',
+  companyName: 'DevHub',
   adminName: 'Jeyka',
-  adminEmail: 'jeyka@cliently.com',
+  adminEmail: 'jeyka@devhub.com',
   plan: 'Professional',
   seats: 15,
-  email: 'contact@cliently.com',
+  email: 'contact@devhub.com',
   phone: '+91 9876543210',
-  website: 'https://www.cliently.com',
+  website: 'https://www.devhub.com',
   industry: 'software',
   address: '12, Anna Salai, Tiruchirappalli, Tamil Nadu 620001',
   nextBillingDate: '2026-11-01',
-  paymentMethod: { type: 'UPI', upiId: 'cliently@upi' }
+  paymentMethod: { type: 'UPI', upiId: 'devhub@upi' }
 }
 
 const leads = [
