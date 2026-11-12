@@ -4,7 +4,17 @@ const tenantSchema = new mongoose.Schema(
   {
     company: { type: String, required: true, trim: true, maxlength: 150 },
     admin: { type: String, required: true, trim: true, maxlength: 150 },
-    plan: { type: String, required: true, enum: ["Starter", "Pro", "Enterprise"] },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: [/^$|^\S+@\S+\.\S+$/, "Please enter a valid email address"],
+    },
+    plan: {
+      type: String,
+      required: true,
+      enum: ["Starter", "Pro", "Enterprise"],
+    },
     environment: { type: String, required: true, trim: true, maxlength: 50 },
     status: {
       type: String,
@@ -16,7 +26,6 @@ const tenantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-tenantSchema.index({ createdAt: -1, _id: -1 });
 
 module.exports =
   mongoose.models.SuperAdminTenant ||
