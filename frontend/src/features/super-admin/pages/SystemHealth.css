@@ -1,0 +1,249 @@
+/* Existing Super Admin SystemHealth styles */
+
+.environment-dot,
+.health-status-dot,
+.status-badge span,
+.service-operational span,
+.integration-status span,
+.state-dot {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--mint-dark);
+}
+
+.health-overview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px 18px;
+  margin-bottom: 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.health-overview-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.health-status-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.health-overview-main strong {
+  display: block;
+  color: var(--dark-text);
+  font-size: 11px;
+}
+
+.health-overview-main p {
+  margin: 4px 0 0;
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.health-status-badge {
+  padding: 5px 9px;
+  border-radius: 12px;
+  background: var(--pale-mint);
+  color: #357f74;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.health-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 13px;
+  margin-bottom: 13px;
+}
+
+.health-metric-card {
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.health-metric-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.health-metric-top > span:first-child {
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.health-metric-card > strong {
+  display: block;
+  margin-top: 13px;
+  color: var(--deep-teal);
+  font-size: 22px;
+}
+
+.health-metric-card > small {
+  display: block;
+  margin-top: 5px;
+  color: #899895;
+  font-size: 9px;
+}
+
+.health-content-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 13px;
+}
+
+.service-status-table {
+  padding: 0 20px;
+}
+
+.service-status-row {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid #e5efed;
+}
+
+.service-status-row:last-child {
+  border-bottom: none;
+}
+
+.service-status-row strong {
+  color: var(--dark-text);
+  font-size: 10px;
+}
+
+.service-status-row > span:last-child {
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.service-operational {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #357f74;
+  font-size: 8px;
+}
+
+.dashboard-section .dashboard-card,
+.dashboard-section .health-overview-bar,
+.dashboard-section .health-content-grid,
+.dashboard-section .health-metrics-grid,
+.dashboard-section .billing-revenue-grid,
+.dashboard-section .plan-overview-grid,
+.dashboard-section .feature-access-card {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+}
+
+.health-overview-bar {
+  display: flex !important;
+}
+
+.health-metrics-grid {
+  display: grid !important;
+}
+
+.health-content-grid {
+  display: grid !important;
+}
+
+.automation-row,
+.connected-service-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  border-bottom: 1px solid #e8f0ee;
+}
+
+.automation-row:last-child,
+.connected-service-row:last-child {
+  border-bottom: none;
+}
+
+.automation-icon,
+.service-logo {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #eaf6f3;
+  color: #357f74;
+  font-weight: 700;
+}
+
+.automation-row strong,
+.connected-service-row strong {
+  display: block;
+  color: #183735;
+  font-size: 12px;
+}
+
+.automation-row span:not(.automation-status),
+.connected-service-row span:not(.connected-status) {
+  display: block;
+  margin-top: 4px;
+  color: #8a9a97;
+  font-size: 10px;
+}
+
+/* CONNECTED SERVICES */
+
+.connected-service-row {
+  grid-template-columns: 40px 1fr auto auto;
+}
+
+.service-logo {
+  font-size: 13px;
+}
+
+.health-memory-card {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.health-memory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.health-memory-item {
+  padding: 18px;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+  background: #f8fafc;
+  min-width: 0;
+}
+
+.health-memory-item span {
+  display: block;
+  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.health-memory-item strong {
+  display: block;
+  color: #172b4d;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}

@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./features/login/pages/Login";
 import LandingPage from "./features/landing/LandingPage";
-import SuperAdminDashboard from "./features/super-admin/SuperAdminDashboard";
+import SuperAdminApp from "./features/super-admin/SuperAdminApp";
 import ClientAdmin from "./features/client-admin/clientadmin";
 import SalesExecutive from "./features/sales/SalesExecutive";
 import SessionGate from "./components/SessionGate";
@@ -23,7 +23,7 @@ function App() {
                     <Route path="/super-admin/*" 
                         element={
                             <ProtectedRoute roles={["SUPER_ADMIN"]}>
-                                <SuperAdminDashboard onLogout={handleLogout} />
+                                <SuperAdminApp onLogout={handleLogout} />
                             </ProtectedRoute>
                         }
                      />
