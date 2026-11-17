@@ -9,7 +9,7 @@ import "./Dashboard.css";
 
 const MOCK_MODE = import.meta.env.VITE_OPS_MOCK === "true";
 const ACTIVE_TICKET_STATUSES = ["Open", "In Progress", "Waiting on Customer"];
-const ACTIVE_ORDER_STATUSES = ["Draft", "Scheduled", "In Progress", "On Hold"];
+const ACTIVE_ORDER_STATUSES = ["Planned", "Draft", "Scheduled", "In Progress", "On Hold"];
 
 function extractRows(result) {
   if (Array.isArray(result)) return result;
@@ -33,8 +33,78 @@ function ticketLabel(ticket) {
   return number == null ? "Ticket" : `TCK-${String(number).padStart(4, "0")}`;
 }
 
+function orderLabel(order) {
+  const number = order.number;
+  return number == null ? "Work order" : `WO-${String(number).padStart(4, "0")}`;
+}
+
 function statusClass(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function sum(...values) {
+  return values.reduce((total, value) => total + (Number(value) || 0), 0);
+}
+
+function hoursText(value) {
+  return value == null ? "—" : `${value} h`;
+}
+
+function fromApi(summary) {
+  const tickets = summary.tickets || {};
+  const workOrders = summary.workOrders || {};
+  const assets = summary.assets || {};
+  const knowledgeBase = summary.knowledgeBase || {};
+
+  return {
+    openTickets: sum(tickets.open, tickets.inProgress, tickets.waitingOnCustomer),
+    urgentTickets: tickets.urgentOpen ?? null,
+    resolvedLast7Days: tickets.resolvedLast7Days ?? null,
+    avgResolutionHours: tickets.avgResolutionHours ?? null,
+    activeWorkOrders: sum(workOrders.planned, workOrders.inProgress, workOrders.onHold),
+    overdueWorkOrders: workOrders.overdue ?? null,
+    completedWorkOrders: workOrders.completedLast30Days ?? null,
+    totalAssets: assets.total ?? null,
+    lowStockAssets: assets.lowStock ?? null,
+    publishedArticles: knowledgeBase.published ?? null,
+    draftArticles: knowledgeBase.drafts ?? null,
+    recentTickets: Array.isArray(summary.recentTickets) ? summary.recentTickets : [],
+    upcomingWorkOrders: Array.isArray(summary.upcomingWorkOrders) ? summary.upcomingWorkOrders : [],
+    lowStockItems: Array.isArray(summary.lowStockAssets) ? summary.lowStockAssets : [],
+  };
+}
+
+async function fromMock() {
+  const [ticketsResponse, ordersResponse, articlesResponse, assetsResponse] = await Promise.all([
+    opsApi.listTickets({ page: 1, limit: 100, sort: "newest" }),
+    opsApi.listWorkOrders({ page: 1, limit: 100, sort: "newest" }),
+    opsApi.listArticles({ page: 1, limit: 100 }),
+    opsApi.listAssets({ page: 1, limit: 100 }),
+  ]);
+  const tickets = extractRows(ticketsResponse);
+  const orders = extractRows(ordersResponse);
+  const articles = extractRows(articlesResponse);
+  const assets = extractRows(assetsResponse);
+  const isLow = (a) => a.lowStock ?? (a.status !== "Retired" && Number(a.quantity) <= Number(a.reorderLevel));
+  const isActive = (o) => ACTIVE_ORDER_STATUSES.includes(o.status);
+  const due = (o) => o.dueDate || o.scheduledEnd;
+
+  return {
+    openTickets: tickets.filter((t) => ACTIVE_TICKET_STATUSES.includes(t.status)).length,
+    urgentTickets: tickets.filter((t) => ACTIVE_TICKET_STATUSES.includes(t.status) && t.priority === "Urgent").length,
+    resolvedLast7Days: tickets.filter((t) => t.status === "Resolved").length,
+    avgResolutionHours: null,
+    activeWorkOrders: orders.filter(isActive).length,
+    overdueWorkOrders: orders.filter((o) => isActive(o) && due(o) && new Date(due(o)) < new Date()).length,
+    completedWorkOrders: orders.filter((o) => o.status === "Completed").length,
+    totalAssets: extractTotal(assetsResponse, assets),
+    lowStockAssets: assets.filter(isLow).length,
+    publishedArticles: articles.filter((a) => a.status === "Published").length,
+    draftArticles: articles.filter((a) => a.status === "Draft").length,
+    recentTickets: tickets.slice(0, 5),
+    upcomingWorkOrders: orders.filter((o) => isActive(o) && due(o)).sort((a, b) => new Date(due(a)) - new Date(due(b))).slice(0, 5),
+    lowStockItems: assets.filter(isLow).slice(0, 5),
+  };
 }
 
 export default function Dashboard() {
@@ -49,49 +119,12 @@ export default function Dashboard() {
     setError("");
 
     try {
-      const dashboardResponse = await opsApi.getDashboard();
-      const summary = dashboardResponse?.data?.data ?? dashboardResponse?.data ?? {};
-
-      // Mock summary can be a static fixture. Derive accurate counts from
-      // the same stores used by the list pages when mock mode is enabled.
       if (MOCK_MODE) {
-        const [ticketsResponse, ordersResponse, articlesResponse, assetsResponse] = await Promise.all([
-          opsApi.listTickets({ page: 1, limit: 100, sort: "newest" }),
-          opsApi.listWorkOrders({ page: 1, limit: 100, sort: "newest" }),
-          opsApi.listArticles({ page: 1, limit: 100 }),
-          opsApi.listAssets({ page: 1, limit: 100 }),
-        ]);
-        const tickets = extractRows(ticketsResponse);
-        const orders = extractRows(ordersResponse);
-        const articles = extractRows(articlesResponse);
-        const assets = extractRows(assetsResponse);
-        setData({
-          totalTickets: extractTotal(ticketsResponse, tickets),
-          openTickets: tickets.filter(t => ACTIVE_TICKET_STATUSES.includes(t.status)).length,
-          urgentTickets: tickets.filter(t => ACTIVE_TICKET_STATUSES.includes(t.status) && ["High", "Urgent"].includes(t.priority)).length,
-          unassignedTickets: tickets.filter(t => ACTIVE_TICKET_STATUSES.includes(t.status) && !t.assignedTo).length,
-          resolvedTickets: tickets.filter(t => t.status === "Resolved").length,
-          totalWorkOrders: extractTotal(ordersResponse, orders),
-          activeWorkOrders: orders.filter(o => ACTIVE_ORDER_STATUSES.includes(o.status)).length,
-          overdueWorkOrders: orders.filter(o => ACTIVE_ORDER_STATUSES.includes(o.status) && o.scheduledEnd && new Date(o.scheduledEnd) < new Date()).length,
-          totalArticles: extractTotal(articlesResponse, articles),
-          totalAssets: extractTotal(assetsResponse, assets),
-          lowStockAssets: assets.filter(a => a.lowStock ?? (a.status !== "Retired" && Number(a.quantity) <= Number(a.reorderLevel))).length,
-          recentTickets: tickets.slice(0, 5),
-          upcomingWorkOrders: orders.filter(o => ACTIVE_ORDER_STATUSES.includes(o.status) && o.scheduledStart).sort((a,b) => new Date(a.scheduledStart) - new Date(b.scheduledStart)).slice(0, 5),
-          lowStockItems: assets.filter(a => a.lowStock ?? (a.status !== "Retired" && Number(a.quantity) <= Number(a.reorderLevel))).slice(0, 5),
-        });
+        setData(await fromMock());
       } else {
-        // Use only fields the backend actually supplies; never invent metrics.
-        setData({
-          ...summary,
-          urgentTickets: summary.urgentTickets ?? null,
-          unassignedTickets: summary.unassignedTickets ?? null,
-          overdueWorkOrders: summary.overdueWorkOrders ?? null,
-          recentTickets: summary.recentTickets ?? [],
-          upcomingWorkOrders: summary.upcomingWorkOrders ?? summary.recentWorkOrders ?? [],
-          lowStockItems: summary.lowStockItems ?? [],
-        });
+        const response = await opsApi.getDashboard();
+        const summary = response?.data?.data ?? response?.data ?? {};
+        setData(fromApi(summary));
       }
     } catch (err) {
       setError(err?.message || "Could not load the operations dashboard.");
@@ -105,9 +138,18 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Active Tickets", value: data?.openTickets, detail: "Open, in progress or waiting", icon: LifeBuoy, to: "/operations/tickets" },
-    { label: "High Priority", value: data?.urgentTickets, detail: "High and urgent active tickets", icon: ShieldAlert, to: "/operations/tickets?sort=priority" },
+    { label: "Urgent Tickets", value: data?.urgentTickets, detail: "Urgent tickets not yet resolved", icon: ShieldAlert, to: "/operations/tickets?sort=priority" },
     { label: "Active Work Orders", value: data?.activeWorkOrders, detail: "Not yet completed or cancelled", icon: ClipboardList, to: "/operations/work-orders" },
-    { label: "Low Stock Assets", value: data?.lowStockAssets, detail: "Items needing attention", icon: Boxes, to: "/operations/assets?lowStock=true" },
+    { label: "Low Stock Assets", value: data?.lowStockAssets, detail: "At or below reorder level", icon: Boxes, to: "/operations/assets?lowStock=true" },
+  ];
+
+  const summaryItems = [
+    { label: "Resolved (last 7 days)", value: data?.resolvedLast7Days },
+    { label: "Avg Resolution (30 days)", value: hoursText(data?.avgResolutionHours) },
+    { label: "Overdue Work Orders", value: data?.overdueWorkOrders },
+    { label: "Completed Orders (30 days)", value: data?.completedWorkOrders },
+    { label: "Published Articles", value: data?.publishedArticles },
+    { label: "Total Assets", value: data?.totalAssets },
   ];
 
   return (
@@ -150,7 +192,7 @@ export default function Dashboard() {
           <div className="ops-dashboard-sections">
             <section className="ops-dashboard-panel">
               <div className="ops-panel-heading"><div><h2>Recent Support Tickets</h2><p>Latest customer support requests</p></div><Link to="/operations/tickets">View all <ArrowRight size={15} /></Link></div>
-              {(data.recentTickets || []).length ? (
+              {data.recentTickets.length ? (
                 <div className="ops-dashboard-table-wrap"><table className="ops-dashboard-table"><thead><tr><th>Ticket</th><th>Customer</th><th>Status</th><th>Priority</th></tr></thead><tbody>
                   {data.recentTickets.map((ticket, index) => <tr key={ticket._id ?? index}>
                     <td><Link to={`/operations/tickets/${ticket._id}`}><b>{ticketLabel(ticket)}</b><span>{ticket.subject || "Untitled ticket"}</span></Link></td>
@@ -163,24 +205,39 @@ export default function Dashboard() {
             </section>
 
             <section className="ops-dashboard-panel">
-              <div className="ops-panel-heading"><div><h2>Upcoming Work Orders</h2><p>Scheduled operational activities</p></div><Link to="/operations/work-orders">View all <ArrowRight size={15} /></Link></div>
-              {(data.upcomingWorkOrders || []).length ? <div className="ops-dashboard-item-list">{data.upcomingWorkOrders.map((order, index) => <Link key={order._id ?? index} to={`/operations/work-orders/${order._id}`} className="ops-dashboard-item"><span className="ops-dashboard-item-icon"><Clock3 size={18} /></span><span className="ops-dashboard-item-body"><b>{order.title || "Work order"}</b><small>{dateText(order.scheduledStart)} · {order.status || "—"}</small></span><ArrowRight size={16} /></Link>)}</div> : <div className="ops-dashboard-empty"><ClipboardList size={20} /> No upcoming work orders to display.</div>}
+              <div className="ops-panel-heading"><div><h2>Upcoming Work Orders</h2><p>Active work orders by due date</p></div><Link to="/operations/work-orders">View all <ArrowRight size={15} /></Link></div>
+              {data.upcomingWorkOrders.length ? <div className="ops-dashboard-item-list">{data.upcomingWorkOrders.map((order, index) => (
+                <Link key={order._id ?? index} to={`/operations/work-orders/${order._id}`} className="ops-dashboard-item">
+                  <span className="ops-dashboard-item-icon"><Clock3 size={18} /></span>
+                  <span className="ops-dashboard-item-body">
+                    <b>{orderLabel(order)} · {order.title || "Work order"}</b>
+                    <small>Due {dateText(order.dueDate || order.scheduledEnd)} · {order.status === "Planned" ? "Scheduled" : order.status || "—"}{order.progress != null ? ` · ${order.progress}%` : ""}{order.overdue ? " · Overdue" : ""}</small>
+                  </span>
+                  <ArrowRight size={16} />
+                </Link>
+              ))}</div> : <div className="ops-dashboard-empty"><ClipboardList size={20} /> No upcoming work orders to display.</div>}
             </section>
 
             <section className="ops-dashboard-panel">
               <div className="ops-panel-heading"><div><h2>Low Stock Assets</h2><p>Inventory items requiring attention</p></div><Link to="/operations/assets?lowStock=true">View all <ArrowRight size={15} /></Link></div>
-              {(data.lowStockItems || []).length ? <div className="ops-dashboard-item-list">{data.lowStockItems.map((asset, index) => <Link key={asset._id ?? index} to={`/operations/assets/${asset._id}`} className="ops-dashboard-item"><span className="ops-dashboard-item-icon"><Boxes size={18} /></span><span className="ops-dashboard-item-body"><b>{asset.name || "Asset"}</b><small>{asset.quantity ?? "—"} {asset.unit || "units"} remaining · Reorder level {asset.reorderLevel ?? "—"}</small></span><ArrowRight size={16} /></Link>)}</div> : <div className="ops-dashboard-empty"><CheckCircle2 size={20} /> No low-stock items to display.</div>}
+              {data.lowStockItems.length ? <div className="ops-dashboard-item-list">{data.lowStockItems.map((asset, index) => (
+                <Link key={asset._id ?? index} to={`/operations/assets/${asset._id}`} className="ops-dashboard-item">
+                  <span className="ops-dashboard-item-icon"><Boxes size={18} /></span>
+                  <span className="ops-dashboard-item-body">
+                    <b>{asset.name || "Asset"}</b>
+                    <small>{asset.quantity ?? "—"} {asset.unit || "units"} remaining · Reorder level {asset.reorderLevel ?? "—"}</small>
+                  </span>
+                  <ArrowRight size={16} />
+                </Link>
+              ))}</div> : <div className="ops-dashboard-empty"><CheckCircle2 size={20} /> No low-stock items to display.</div>}
             </section>
 
             <section className="ops-dashboard-panel">
-              <div className="ops-panel-heading"><div><h2>Operations Summary</h2><p>Overview of available records</p></div></div>
+              <div className="ops-panel-heading"><div><h2>Operations Summary</h2><p>Support and delivery performance</p></div></div>
               <div className="ops-dashboard-summary">
-                <div><span>Total Tickets</span><strong>{data.totalTickets ?? "—"}</strong></div>
-                <div><span>Resolved Tickets</span><strong>{data.resolvedTickets ?? "—"}</strong></div>
-                <div><span>Total Work Orders</span><strong>{data.totalWorkOrders ?? "—"}</strong></div>
-                <div><span>Knowledge Articles</span><strong>{data.totalArticles ?? "—"}</strong></div>
-                <div><span>Total Assets</span><strong>{data.totalAssets ?? "—"}</strong></div>
-                <div><span>Unassigned Tickets</span><strong>{data.unassignedTickets ?? "—"}</strong></div>
+                {summaryItems.map(({ label, value }) => (
+                  <div key={label}><span>{label}</span><strong>{value == null ? "—" : value}</strong></div>
+                ))}
               </div>
             </section>
           </div>
