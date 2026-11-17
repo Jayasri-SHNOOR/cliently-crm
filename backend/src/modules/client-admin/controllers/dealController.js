@@ -21,7 +21,6 @@ function formatDeal(deal) {
 }
 
 async function getSummary(tenantId) {
-  // aggregate() does not auto-cast strings to ObjectId like find() does
   const result = await Deal.aggregate([
     { $match:{ tenantId: new mongoose.Types.ObjectId(tenantId) } },
     {
@@ -81,6 +80,7 @@ async function listDeals(req, res, next) {
 
 async function getDeal(req, res, next) {
   try{
+    if(!mongoose.isValidObjectId(req.params.id)) throw new AppError('Invalid deal ID', 400)
     const deal = await Deal.findOne({
       _id: req.params.id,
       tenantId: req.user.tenantId
@@ -110,6 +110,7 @@ async function createDeal(req, res, next) {
 
 async function updateDeal(req, res, next) {
   try{
+    if(!mongoose.isValidObjectId(req.params.id)) throw new AppError('Invalid deal ID', 400)
     const updates = pick(req.body, ALLOWED_FIELDS)
     if(Object.keys(updates).length === 0){
       throw new AppError('No valid fields to update', 400)
@@ -139,6 +140,7 @@ async function updateDeal(req, res, next) {
 
 async function deleteDeal(req, res, next) {
   try {
+    if(!mongoose.isValidObjectId(req.params.id)) throw new AppError('Invalid deal ID', 400)
     const deal = await Deal.findOneAndDelete({
       _id: req.params.id,
       tenantId: req.user.tenantId
@@ -154,6 +156,7 @@ async function deleteDeal(req, res, next) {
 
 async function addActivity(req, res, next) {
   try{
+    if(!mongoose.isValidObjectId(req.params.id)) throw new AppError('Invalid deal ID', 400)
     const { text } = req.body
     if(typeof text !== 'string' || text.trim() === '') {
       throw new AppError('Activity text is required', 400)
