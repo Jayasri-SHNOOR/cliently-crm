@@ -1,4 +1,3 @@
-
 import { apiFetch } from "../../../lib/api";
 import { mockData } from "./mockData";
 
@@ -2318,388 +2317,511 @@ function mockGetDashboard() {
 }
 
 // ==========================================
-// FINAL OPERATIONS API OBJECT
-// Part 6 continues below this heading
+// REAL API ADAPTER
+// Converts between the shapes the pages use
+// and the shapes the backend sends and accepts
 // ==========================================
 
-/* ==========================================
-   CLIENTLY CRM - OPERATIONS API
-   FINAL EXPORT
-   ========================================== */
+const WORK_ORDER_STATUS_TO_API = {
+  Draft: "Planned",
+  Scheduled: "Planned",
+};
+
+const WORK_ORDER_STATUS_FROM_API = {
+  Planned: "Scheduled",
+};
+
+const API_WORK_ORDER_SORTS = ["newest", "dueDate"];
+const API_KB_STATUSES = ["Draft", "Published"];
+const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+
+function apiPath(path) {
+  return String(path).replace(/^\/knowledge-base(?=\/|\?|$)/, "/kb-articles");
+}
+
+function dateOnly(value) {
+  if (!value) return null;
+  const text = String(value);
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
+}
+
+function refId(value) {
+  if (value === "" || value === undefined) return value === "" ? null : undefined;
+  if (value && typeof value === "object") return value._id ?? null;
+  return value;
+}
+
+function cleanRefs(body, fields) {
+  const out = { ...body };
+  fields.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(out, field)) {
+      out[field] = refId(out[field]);
+    }
+  });
+  return out;
+}
+
+function mapOne(response, convert) {
+  const data = response?.data;
+  return { ...response, data: data ? convert(data) : data };
+}
+
+function mapPage(response, convert) {
+  const rows = Array.isArray(response?.data) ? response.data : [];
+  return {
+    ...response,
+    data: rows.map(convert),
+    pagination: response?.pagination ?? {
+      page: 1,
+      limit: rows.length,
+      total: rows.length,
+      pages: 1,
+    },
+  };
+}
+
+function sortPageLocally(rows, sort) {
+  const list = [...rows];
+  if (sort === "oldest") {
+    list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  } else if (sort === "priority") {
+    list.sort(
+      (a, b) =>
+        (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99) ||
+        new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  }
+  return list;
+}
+
+// ---------- Tickets ----------
+
+function fromApiNote(note) {
+  if (!note) return note;
+  return {
+    ...note,
+    body: note.text,
+    isInternal: true,
+    createdBy: { _id: note.authorId ?? null, name: note.authorName || "Staff" },
+  };
+}
+
+function fromApiTicket(ticket) {
+  if (!ticket) return ticket;
+  return {
+    ...ticket,
+    notes: Array.isArray(ticket.notes) ? ticket.notes.map(fromApiNote) : ticket.notes,
+  };
+}
+
+function toApiTicket(body = {}) {
+  const out = cleanRefs(body, ["assignedTo", "productId"]);
+  delete out._id;
+  delete out.number;
+  delete out.notes;
+  delete out.createdAt;
+  delete out.updatedAt;
+  delete out.resolvedAt;
+  delete out.closedAt;
+  return out;
+}
+
+async function apiAddNote(id, body = {}) {
+  const text = String(body?.text ?? body?.body ?? "").trim();
+  const response = await apiFetch(`${BASE_URL}/tickets/${id}/notes`, {
+    method: "POST",
+    body: { text },
+  });
+  const ticket = fromApiTicket(response?.data);
+  const notes = ticket?.notes || [];
+  return { data: notes[notes.length - 1] ?? null, ticket };
+}
+
+// ---------- Work orders ----------
+
+function fromApiMilestone(milestone) {
+  if (!milestone) return milestone;
+  return {
+    ...milestone,
+    dueDate: dateOnly(milestone.dueDate),
+    status: milestone.done ? "Completed" : "Pending",
+    completedAt: milestone.doneAt ?? null,
+  };
+}
+
+function fromApiWorkOrder(workOrder) {
+  if (!workOrder) return workOrder;
+  return {
+    ...workOrder,
+    status: WORK_ORDER_STATUS_FROM_API[workOrder.status] || workOrder.status,
+    startDate: dateOnly(workOrder.startDate),
+    dueDate: dateOnly(workOrder.dueDate),
+    scheduledStart: dateOnly(workOrder.startDate),
+    scheduledEnd: dateOnly(workOrder.dueDate),
+    milestones: Array.isArray(workOrder.milestones)
+      ? workOrder.milestones.map(fromApiMilestone)
+      : workOrder.milestones,
+  };
+}
+
+function toApiWorkOrder(body = {}) {
+  const out = cleanRefs(body, ["assignedTo", "productId"]);
+  if (Object.prototype.hasOwnProperty.call(out, "scheduledStart")) {
+    out.startDate = out.scheduledStart || null;
+    delete out.scheduledStart;
+  }
+  if (Object.prototype.hasOwnProperty.call(out, "scheduledEnd")) {
+    out.dueDate = out.scheduledEnd || null;
+    delete out.scheduledEnd;
+  }
+  if (out.status && WORK_ORDER_STATUS_TO_API[out.status]) {
+    out.status = WORK_ORDER_STATUS_TO_API[out.status];
+  }
+  [
+    "_id", "number", "ticketId", "milestones", "dealId", "progress",
+    "milestonesTotal", "milestonesDone", "overdue", "completedAt",
+    "createdAt", "updatedAt",
+  ].forEach((field) => delete out[field]);
+  return out;
+}
+
+function workOrderParams(params = {}) {
+  const out = { ...params };
+  if (out.status && WORK_ORDER_STATUS_TO_API[out.status]) {
+    out.status = WORK_ORDER_STATUS_TO_API[out.status];
+  }
+  if (out.sort && !API_WORK_ORDER_SORTS.includes(out.sort)) {
+    delete out.sort;
+  }
+  return out;
+}
+
+async function apiListWorkOrders(params = {}) {
+  const response = await apiFetch(
+    `${BASE_URL}/work-orders${query(workOrderParams(params))}`
+  );
+  const page = mapPage(response, fromApiWorkOrder);
+  return { ...page, data: sortPageLocally(page.data, params.sort) };
+}
+
+function toApiMilestone(body = {}) {
+  const out = {};
+  if (body.title !== undefined) out.title = body.title;
+  if (body.dueDate !== undefined) out.dueDate = body.dueDate || null;
+  if (typeof body.done === "boolean") out.done = body.done;
+  else if (body.status !== undefined) out.done = body.status === "Completed";
+  return out;
+}
+
+function findMilestoneIn(workOrder, milestoneId) {
+  return (workOrder?.milestones || []).find(
+    (milestone) => String(milestone._id) === String(milestoneId)
+  );
+}
+
+async function apiCreateMilestone(workOrderId, body = {}) {
+  const input = toApiMilestone(body);
+  let response = await apiFetch(`${BASE_URL}/work-orders/${workOrderId}/milestones`, {
+    method: "POST",
+    body: { title: input.title, dueDate: input.dueDate ?? null },
+  });
+  let workOrder = response?.data;
+  const list = workOrder?.milestones || [];
+  let created = list[list.length - 1];
+
+  if (created && input.done) {
+    response = await apiFetch(
+      `${BASE_URL}/work-orders/${workOrderId}/milestones/${created._id}`,
+      { method: "PATCH", body: { done: true } }
+    );
+    workOrder = response?.data;
+    created = findMilestoneIn(workOrder, created._id) || created;
+  }
+
+  return { data: fromApiMilestone(created) ?? null, workOrder: fromApiWorkOrder(workOrder) };
+}
+
+async function apiUpdateMilestone(workOrderId, milestoneId, body = {}) {
+  const input = toApiMilestone(body);
+  const response = Object.keys(input).length
+    ? await apiFetch(`${BASE_URL}/work-orders/${workOrderId}/milestones/${milestoneId}`, {
+        method: "PATCH",
+        body: input,
+      })
+    : await apiFetch(`${BASE_URL}/work-orders/${workOrderId}`);
+  const workOrder = response?.data;
+  return {
+    data: fromApiMilestone(findMilestoneIn(workOrder, milestoneId)) ?? null,
+    workOrder: fromApiWorkOrder(workOrder),
+  };
+}
+
+async function apiDeleteMilestone(workOrderId, milestoneId) {
+  const response = await apiFetch(
+    `${BASE_URL}/work-orders/${workOrderId}/milestones/${milestoneId}`,
+    { method: "DELETE" }
+  );
+  return {
+    message: "Milestone deleted successfully.",
+    workOrder: fromApiWorkOrder(response?.data),
+  };
+}
+
+// ---------- Knowledge base ----------
+
+function toApiArticle(body = {}) {
+  const out = { ...body };
+  if (out.status && !API_KB_STATUSES.includes(out.status)) {
+    out.status = "Draft";
+  }
+  ["_id", "views", "publishedAt", "authorId", "authorName", "createdAt", "updatedAt"]
+    .forEach((field) => delete out[field]);
+  return out;
+}
+
+function articleParams(params = {}) {
+  const out = { ...params };
+  if (out.status && !API_KB_STATUSES.includes(out.status)) {
+    delete out.status;
+  }
+  delete out.sort;
+  return out;
+}
+
+async function apiListArticles(params = {}) {
+  const response = await apiFetch(`${BASE_URL}/kb-articles${query(articleParams(params))}`);
+  const page = mapPage(response, (article) => article);
+  if (params.sort === "title") {
+    page.data = [...page.data].sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  } else if (params.sort === "oldest") {
+    page.data = [...page.data].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }
+  return page;
+}
+
+// ---------- Assets ----------
+
+function fromApiAsset(asset) {
+  if (!asset) return asset;
+  return {
+    ...asset,
+    purchaseDate: dateOnly(asset.purchaseDate),
+    warrantyUntil: dateOnly(asset.warrantyUntil),
+    lowStock:
+      asset.lowStock ??
+      (asset.status !== "Retired" && Number(asset.quantity) <= Number(asset.reorderLevel)),
+  };
+}
+
+function toApiAsset(body = {}, { creating = false } = {}) {
+  const out = cleanRefs(body, ["productId"]);
+  ["_id", "assignment", "lowStock", "createdAt", "updatedAt"].forEach((field) => delete out[field]);
+  if (!creating) delete out.quantity;
+  if (creating) delete out.status;
+  if (out.status === "Assigned") delete out.status;
+  return out;
+}
+
+function toApiAssign(body = {}) {
+  const out = {};
+  const customerName = String(body.customerName || "").trim();
+  const workOrderId = refId(body.workOrderId);
+  if (customerName) out.customerName = customerName;
+  if (workOrderId) out.workOrderId = workOrderId;
+  return out;
+}
+
+// ==========================================
+// FINAL OPERATIONS API OBJECT
+// ==========================================
 
 export const opsApi = {
-  // ========================================
-  // DASHBOARD
-  // ========================================
-
   getDashboard: () =>
-    USE_MOCK
-      ? mockGetDashboard()
-      : apiFetch(`${BASE_URL}/dashboard`),
+    USE_MOCK ? mockGetDashboard() : apiFetch(`${BASE_URL}/dashboard`),
 
   dashboard: () =>
-    USE_MOCK
-      ? mockGetDashboard()
-      : apiFetch(`${BASE_URL}/dashboard`),
+    USE_MOCK ? mockGetDashboard() : apiFetch(`${BASE_URL}/dashboard`),
 
-  // ========================================
-  // STAFF
-  // ========================================
+  search: (q) =>
+    apiFetch(`${BASE_URL}/search${query({ q })}`),
 
   staff: (params = {}) =>
     USE_MOCK
       ? mockListStaff(params)
-      : apiFetch(
-          `${BASE_URL}/staff${query(params)}`
-        ),
+      : apiFetch(`${BASE_URL}/staff${query(params)}`).then((r) => mapPage(r, (x) => x)),
 
   listStaff: (params = {}) =>
     USE_MOCK
       ? mockListStaff(params)
-      : apiFetch(
-          `${BASE_URL}/staff${query(params)}`
-        ),
-
-  // ========================================
-  // PRODUCTS
-  // ========================================
+      : apiFetch(`${BASE_URL}/staff${query(params)}`).then((r) => mapPage(r, (x) => x)),
 
   products: (params = {}) =>
     USE_MOCK
       ? mockListProducts(params)
-      : apiFetch(
-          `${BASE_URL}/products${query(params)}`
-        ),
+      : apiFetch(`${BASE_URL}/products${query(params)}`).then((r) => mapPage(r, (x) => x)),
 
   listProducts: (params = {}) =>
     USE_MOCK
       ? mockListProducts(params)
-      : apiFetch(
-          `${BASE_URL}/products${query(params)}`
-        ),
-
-  // ========================================
-  // SUPPORT TICKETS
-  // ========================================
+      : apiFetch(`${BASE_URL}/products${query(params)}`).then((r) => mapPage(r, (x) => x)),
 
   listTickets: (params = {}) =>
     USE_MOCK
       ? mockTickets(params)
-      : apiFetch(
-          `${BASE_URL}/tickets${query(params)}`
-        ),
+      : apiFetch(`${BASE_URL}/tickets${query(params)}`).then((r) => mapPage(r, fromApiTicket)),
 
   getTicket: (id) =>
     USE_MOCK
       ? mockGetTicket(id)
-      : apiFetch(
-          `${BASE_URL}/tickets/${id}`
-        ),
+      : apiFetch(`${BASE_URL}/tickets/${id}`).then((r) => mapOne(r, fromApiTicket)),
 
   createTicket: (body) =>
     USE_MOCK
       ? mockCreateTicket(body)
-      : apiFetch(
-          `${BASE_URL}/tickets`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/tickets`, { method: "POST", body: toApiTicket(body) })
+          .then((r) => mapOne(r, fromApiTicket)),
 
   updateTicket: (id, body) =>
     USE_MOCK
       ? mockUpdateTicket(id, body)
-      : apiFetch(
-          `${BASE_URL}/tickets/${id}`,
-          {
-            method: "PATCH",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/tickets/${id}`, { method: "PATCH", body: toApiTicket(body) })
+          .then((r) => mapOne(r, fromApiTicket)),
+
+  deleteTicket: (id) =>
+    apiFetch(`${BASE_URL}/tickets/${id}`, { method: "DELETE" }),
 
   addNote: (id, body) =>
-    USE_MOCK
-      ? mockAddNote(id, body)
-      : apiFetch(
-          `${BASE_URL}/tickets/${id}/notes`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
-
-  // ========================================
-  // WORK ORDERS
-  // ========================================
+    USE_MOCK ? mockAddNote(id, body) : apiAddNote(id, body),
 
   listWorkOrders: (params = {}) =>
-    USE_MOCK
-      ? mockListWorkOrders(params)
-      : apiFetch(
-          `${BASE_URL}/work-orders${query(params)}`
-        ),
+    USE_MOCK ? mockListWorkOrders(params) : apiListWorkOrders(params),
 
   getWorkOrder: (id) =>
     USE_MOCK
       ? mockGetWorkOrder(id)
-      : apiFetch(
-          `${BASE_URL}/work-orders/${id}`
-        ),
+      : apiFetch(`${BASE_URL}/work-orders/${id}`).then((r) => mapOne(r, fromApiWorkOrder)),
 
   createWorkOrder: (body) =>
     USE_MOCK
       ? mockCreateWorkOrder(body)
-      : apiFetch(
-          `${BASE_URL}/work-orders`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/work-orders`, { method: "POST", body: toApiWorkOrder(body) })
+          .then((r) => mapOne(r, fromApiWorkOrder)),
 
   updateWorkOrder: (id, body) =>
     USE_MOCK
       ? mockUpdateWorkOrder(id, body)
-      : apiFetch(
-          `${BASE_URL}/work-orders/${id}`,
-          {
-            method: "PATCH",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/work-orders/${id}`, { method: "PATCH", body: toApiWorkOrder(body) })
+          .then((r) => mapOne(r, fromApiWorkOrder)),
 
   deleteWorkOrder: (id) =>
     USE_MOCK
       ? mockDeleteWorkOrder(id)
-      : apiFetch(
-          `${BASE_URL}/work-orders/${id}`,
-          {
-            method: "DELETE",
-          }
-        ),
+      : apiFetch(`${BASE_URL}/work-orders/${id}`, { method: "DELETE" }),
 
-  // ========================================
-  // MILESTONES
-  // ========================================
+  listWonDeals: () =>
+    apiFetch(`${BASE_URL}/won-deals`),
+
+  createWorkOrderFromDeal: (dealId) =>
+    apiFetch(`${BASE_URL}/work-orders/from-deal/${dealId}`, { method: "POST" })
+      .then((r) => mapOne(r, fromApiWorkOrder)),
 
   createMilestone: (workOrderId, body) =>
     USE_MOCK
-      ? mockCreateMilestone(
-          workOrderId,
-          body
-        )
-      : apiFetch(
-          `${BASE_URL}/work-orders/${workOrderId}/milestones`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      ? mockCreateMilestone(workOrderId, body)
+      : apiCreateMilestone(workOrderId, body),
 
-  updateMilestone: (
-    workOrderId,
-    milestoneId,
-    body
-  ) =>
+  updateMilestone: (workOrderId, milestoneId, body) =>
     USE_MOCK
-      ? mockUpdateMilestone(
-          workOrderId,
-          milestoneId,
-          body
-        )
-      : apiFetch(
-          `${BASE_URL}/work-orders/${workOrderId}/milestones/${milestoneId}`,
-          {
-            method: "PATCH",
-            body,
-          }
-        ),
+      ? mockUpdateMilestone(workOrderId, milestoneId, body)
+      : apiUpdateMilestone(workOrderId, milestoneId, body),
 
-  deleteMilestone: (
-    workOrderId,
-    milestoneId
-  ) =>
+  deleteMilestone: (workOrderId, milestoneId) =>
     USE_MOCK
-      ? mockDeleteMilestone(
-          workOrderId,
-          milestoneId
-        )
-      : apiFetch(
-          `${BASE_URL}/work-orders/${workOrderId}/milestones/${milestoneId}`,
-          {
-            method: "DELETE",
-          }
-        ),
-
-  // ========================================
-  // KNOWLEDGE BASE
-  // ========================================
+      ? mockDeleteMilestone(workOrderId, milestoneId)
+      : apiDeleteMilestone(workOrderId, milestoneId),
 
   listArticles: (params = {}) =>
-    USE_MOCK
-      ? mockListArticles(params)
-      : apiFetch(
-          `${BASE_URL}/knowledge-base${query(params)}`
-        ),
+    USE_MOCK ? mockListArticles(params) : apiListArticles(params),
+
+  listCategories: () =>
+    apiFetch(`${BASE_URL}/kb-articles/categories`),
 
   getArticle: (id) =>
     USE_MOCK
       ? mockGetArticle(id)
-      : apiFetch(
-          `${BASE_URL}/knowledge-base/${id}`
-        ),
+      : apiFetch(`${BASE_URL}/kb-articles/${id}`),
 
   createArticle: (body) =>
     USE_MOCK
       ? mockCreateArticle(body)
-      : apiFetch(
-          `${BASE_URL}/knowledge-base`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/kb-articles`, { method: "POST", body: toApiArticle(body) }),
 
   updateArticle: (id, body) =>
     USE_MOCK
       ? mockUpdateArticle(id, body)
-      : apiFetch(
-          `${BASE_URL}/knowledge-base/${id}`,
-          {
-            method: "PATCH",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/kb-articles/${id}`, { method: "PATCH", body: toApiArticle(body) }),
 
   deleteArticle: (id) =>
     USE_MOCK
       ? mockDeleteArticle(id)
-      : apiFetch(
-          `${BASE_URL}/knowledge-base/${id}`,
-          {
-            method: "DELETE",
-          }
-        ),
-
-  // ========================================
-  // INVENTORY & ASSETS
-  // ========================================
+      : apiFetch(`${BASE_URL}/kb-articles/${id}`, { method: "DELETE" }),
 
   listAssets: (params = {}) =>
     USE_MOCK
       ? assetList(params)
-      : apiFetch(
-          `${BASE_URL}/assets${query(params)}`
-        ),
+      : apiFetch(`${BASE_URL}/assets${query(params)}`).then((r) => mapPage(r, fromApiAsset)),
 
   getAsset: (id) =>
     USE_MOCK
       ? assetGet(id)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}`
-        ),
+      : apiFetch(`${BASE_URL}/assets/${id}`).then((r) => mapOne(r, fromApiAsset)),
 
   createAsset: (body) =>
     USE_MOCK
       ? assetCreate(body)
-      : apiFetch(
-          `${BASE_URL}/assets`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/assets`, { method: "POST", body: toApiAsset(body, { creating: true }) })
+          .then((r) => mapOne(r, fromApiAsset)),
 
   updateAsset: (id, body) =>
     USE_MOCK
       ? assetUpdate(id, body)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}`,
-          {
-            method: "PATCH",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/assets/${id}`, { method: "PATCH", body: toApiAsset(body) })
+          .then((r) => mapOne(r, fromApiAsset)),
 
   assignAsset: (id, body) =>
     USE_MOCK
       ? assetAssign(id, body)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}/assign`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/assets/${id}/assign`, { method: "POST", body: toApiAssign(body) })
+          .then((r) => mapOne(r, fromApiAsset)),
 
   unassignAsset: (id) =>
     USE_MOCK
       ? assetUnassign(id)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}/unassign`,
-          {
-            method: "POST",
-          }
-        ),
+      : apiFetch(`${BASE_URL}/assets/${id}/unassign`, { method: "POST" })
+          .then((r) => mapOne(r, fromApiAsset)),
 
   adjustStock: (id, body) =>
     USE_MOCK
       ? assetAdjustStock(id, body)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}/adjust-stock`,
-          {
-            method: "POST",
-            body,
-          }
-        ),
+      : apiFetch(`${BASE_URL}/assets/${id}/adjust-stock`, {
+          method: "POST",
+          body: { change: Number(body?.change) },
+        }).then((r) => mapOne(r, fromApiAsset)),
 
   deleteAsset: (id) =>
     USE_MOCK
       ? assetDelete(id)
-      : apiFetch(
-          `${BASE_URL}/assets/${id}`,
-          {
-            method: "DELETE",
-          }
-        ),
-
-  // ========================================
-  // GENERIC API METHODS
-  // ========================================
+      : apiFetch(`${BASE_URL}/assets/${id}`, { method: "DELETE" }),
 
   get: (path, params = {}) =>
-    apiFetch(
-      `${BASE_URL}${path}${query(params)}`
-    ),
+    apiFetch(`${BASE_URL}${apiPath(path)}${query(params)}`),
 
   post: (path, body) =>
-    apiFetch(
-      `${BASE_URL}${path}`,
-      {
-        method: "POST",
-        body,
-      }
-    ),
+    apiFetch(`${BASE_URL}${apiPath(path)}`, { method: "POST", body }),
 
   patch: (path, body) =>
-    apiFetch(
-      `${BASE_URL}${path}`,
-      {
-        method: "PATCH",
-        body,
-      }
-    ),
+    apiFetch(`${BASE_URL}${apiPath(path)}`, { method: "PATCH", body }),
 
   delete: (path) =>
-    apiFetch(
-      `${BASE_URL}${path}`,
-      {
-        method: "DELETE",
-      }
-    ),
+    apiFetch(`${BASE_URL}${apiPath(path)}`, { method: "DELETE" }),
 };
-
-// ==========================================
-// END OF OPERATIONS API SERVICE
-// ==========================================
