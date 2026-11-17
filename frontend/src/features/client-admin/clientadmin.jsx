@@ -5,6 +5,7 @@ import './clientadmin.css'
 
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
+import Customers from "./components/Customers";
 import Dashboard from './components/Dashboard'
 import Leads from './components/Leads'
 import Settings from './components/Settings'
@@ -12,6 +13,7 @@ import Products from './components/Products'
 import Deals from './components/Deals'
 import Employees from './components/Employees'
 import HelpSupport from './components/HelpSupport'
+import Subscriptions from './components/Subscriptions'
 
 function ClientAdmin(){
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -53,6 +55,7 @@ function ClientAdmin(){
           {currentPage === 'dashboard' && (
             <Dashboard onNavigate={handleNavigate} />
           )}
+          {currentPage === 'customers' && <Customers />}
           {currentPage === 'leads' && <Leads />}
           {currentPage === 'products' && <Products />}
           {currentPage === 'deals' && <Deals />}
@@ -61,6 +64,8 @@ function ClientAdmin(){
             <Settings initialSection={settingsSection} />
           )}
           {currentPage === 'help' && <HelpSupport />}
+          {currentPage === 'subscriptions' && <Subscriptions />}
+
         </div>
       </div>
     </div>

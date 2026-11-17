@@ -1,4 +1,4 @@
-import './Sidebar.css'
+
 import {
   LayoutDashboard,
   Users,
@@ -7,77 +7,56 @@ import {
   Settings,
   HelpCircle,
   PackageCheck,
-  LogOut
+  CreditCard,
+  LogOut,
+  ContactRound
 } from 'lucide-react'
 
 function Sidebar({ onNavigate, currentPage, onLogout }) {
+
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'leads', label: 'Leads', icon: Users },
+    { id: 'customers', label: 'Customers', icon: ContactRound },
+    { id: 'deals', label: 'Deals', icon: Briefcase },
+    { id: 'employees', label: 'Employees', icon: UserRound },
+    { id: 'products', label: 'Our Products', icon: PackageCheck },
+    { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'help', label: 'Help & Support', icon: HelpCircle }
+  ]
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
         <div className="logo-box">DH</div>
-        <div className="logo-text">DevHub</div>
-        <div className="logo-powered">Powered by Cliently</div>
+
+        <div className="logo-brand">
+          <div className="logo-text">DevHub</div>
+          <div className="logo-powered">Powered by Cliently</div>
+        </div>
       </div>
 
       <div className="sidebar-content">
-        <p className="nav-title">NAVIGATION</p>
+        <p className="nav-title">MAIN MENU</p>
 
         <nav className="nav-menu">
-          <button
-            className={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => onNavigate('dashboard')}
-          >
-            <LayoutDashboard className="nav-icon" />
-            <span>Dashboard</span>
-          </button>
+          {menuItems.map((item) => {
+            const Icon = item.icon
 
-          <button
-            className={`nav-item ${currentPage === 'leads' ? 'active' : ''}`}
-            onClick={() => onNavigate('leads')}
-          >
-            <Users className="nav-icon" />
-            <span>Leads</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === 'deals' ? 'active' : ''}`}
-            onClick={() => onNavigate('deals')}
-          >
-            <Briefcase className="nav-icon" />
-            <span>Deals</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === 'employees' ? 'active' : ''}`}
-            onClick={() => onNavigate('employees')}
-          >
-            <UserRound className="nav-icon" />
-            <span>Employees</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === 'products' ? 'active' : ''}`}
-            onClick={() => onNavigate('products')}
-          >
-            <PackageCheck className="nav-icon" />
-            <span>Our Products</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === 'settings' ? 'active' : ''}`}
-            onClick={() => onNavigate('settings')}
-          >
-            <Settings className="nav-icon" />
-            <span>Settings</span>
-          </button>
-
-          <button
-            className={`nav-item ${currentPage === 'help' ? 'active' : ''}`}
-            onClick={() => onNavigate('help')}
-          >
-            <HelpCircle className="nav-icon" />
-            <span>Help &amp; Support</span>
-          </button>
+            return (
+              <button
+                key={item.id}
+                className={`nav-item ${
+                  currentPage === item.id ? 'active' : ''
+                }`}
+                onClick={() => onNavigate(item.id)}
+              >
+                <Icon className="nav-icon" />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
         </nav>
       </div>
 
