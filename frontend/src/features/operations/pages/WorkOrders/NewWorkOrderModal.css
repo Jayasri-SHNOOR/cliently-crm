@@ -1,0 +1,417 @@
+
+/* ==========================================
+   CLIENTLY CRM - OPERATIONS DASHBOARD
+   NEW WORK ORDER MODAL
+   ========================================== */
+
+/* MODAL OVERLAY */
+
+.operations .ops-wo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  background: rgba(12, 34, 32, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+/* MODAL CONTAINER */
+
+.operations .ops-wo-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #dcebe7;
+  border-radius: 18px;
+  box-shadow: 0 20px 65px rgba(12, 34, 32, 0.22);
+  color: #183735;
+}
+
+/* HEADER */
+
+.operations .ops-wo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 22px 26px;
+  border-bottom: 1px solid #e5eeeb;
+  background: #ffffff;
+}
+
+.operations .ops-wo-modal-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.operations .ops-wo-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #e5f5f1;
+  color: #176f63;
+}
+
+.operations .ops-wo-modal-heading h2 {
+  margin: 0 0 5px;
+  color: #123c3a;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.operations .ops-wo-modal-heading p {
+  margin: 0;
+  color: #708580;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* CLOSE BUTTON */
+
+.operations .ops-wo-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #e0ece8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #526c67;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.operations .ops-wo-modal-close:hover:not(:disabled) {
+  background: #eaf6f3;
+  color: #123c3a;
+}
+
+/* FORM STRUCTURE */
+
+.operations .ops-wo-modal form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+}
+
+.operations .ops-wo-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  padding: 26px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c7ded8 transparent;
+}
+
+/* FORM GRID */
+
+.operations .ops-wo-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* FORM FIELDS */
+
+.operations .ops-wo-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.operations .ops-wo-modal-field label {
+  display: block;
+  margin: 0;
+  color: #385b55;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.operations .ops-wo-modal-field input,
+.operations .ops-wo-modal-field select,
+.operations .ops-wo-modal-field textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #cfe4df;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #183735;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.operations .ops-wo-modal-field input,
+.operations .ops-wo-modal-field select {
+  min-height: 44px;
+}
+
+.operations .ops-wo-modal-field textarea {
+  min-height: 105px;
+  resize: vertical;
+}
+
+.operations .ops-wo-modal-field input::placeholder,
+.operations .ops-wo-modal-field textarea::placeholder {
+  color: #9aaea9;
+}
+
+.operations .ops-wo-modal-field input:focus,
+.operations .ops-wo-modal-field select:focus,
+.operations .ops-wo-modal-field textarea:focus {
+  border-color: #55b9a8;
+  box-shadow: 0 0 0 3px rgba(85, 185, 168, 0.16);
+}
+
+.operations .ops-wo-modal-field select {
+  cursor: pointer;
+}
+
+.operations .ops-wo-modal-field small {
+  color: #708580;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* DISABLED FIELDS */
+
+.operations .ops-wo-modal-field input:disabled,
+.operations .ops-wo-modal-field select:disabled,
+.operations .ops-wo-modal-field textarea:disabled {
+  background: #f4f8f7;
+  color: #8da39d;
+  cursor: not-allowed;
+}
+
+/* ERROR MESSAGE */
+
+.operations .ops-wo-modal-error {
+  padding: 12px 14px;
+  border: 1px solid #f3c6c6;
+  border-radius: 9px;
+  background: #fef0f0;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* MODAL FOOTER */
+
+.operations .ops-wo-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 18px 26px;
+  border-top: 1px solid #e5eeeb;
+  background: #ffffff;
+}
+
+/* CANCEL BUTTON */
+
+.operations .ops-wo-modal-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 20px;
+  border: 1px solid #cfe4df;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #526c67;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.operations .ops-wo-modal-cancel:hover:not(:disabled) {
+  background: #f1f8f6;
+  color: #123c3a;
+}
+
+/* CREATE BUTTON */
+
+.operations .ops-wo-modal-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 9px;
+  background: #176f63;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.operations .ops-wo-modal-submit:hover:not(:disabled) {
+  background: #10564e;
+}
+
+/* DISABLED BUTTONS */
+
+.operations .ops-wo-modal-close:disabled,
+.operations .ops-wo-modal-cancel:disabled,
+.operations .ops-wo-modal-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* KEYBOARD FOCUS */
+
+.operations .ops-wo-modal-close:focus-visible,
+.operations .ops-wo-modal-cancel:focus-visible,
+.operations .ops-wo-modal-submit:focus-visible {
+  outline: 3px solid rgba(85, 185, 168, 0.45);
+  outline-offset: 2px;
+}
+
+/* LOADING SPINNER */
+
+.operations .ops-wo-modal-spinner {
+  animation: ops-wo-modal-spin 1s linear infinite;
+}
+
+@keyframes ops-wo-modal-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN
+   ========================================== */
+
+@media (max-width: 768px) {
+  .operations .ops-wo-modal-overlay {
+    padding: 12px;
+  }
+
+  .operations .ops-wo-modal {
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px;
+  }
+
+  .operations .ops-wo-modal-header {
+    padding: 18px 20px;
+  }
+
+  .operations .ops-wo-modal-body {
+    padding: 20px;
+  }
+
+  .operations .ops-wo-modal-footer {
+    padding: 16px 20px;
+  }
+
+  .operations .ops-wo-modal-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .operations .ops-wo-modal-overlay {
+    padding: 8px;
+  }
+
+  .operations .ops-wo-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+
+  .operations .ops-wo-modal-heading h2 {
+    font-size: 17px;
+  }
+
+  .operations .ops-wo-modal-heading p {
+    font-size: 12px;
+  }
+
+  .operations .ops-wo-modal-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .operations .ops-wo-modal-header {
+    padding: 15px;
+  }
+
+  .operations .ops-wo-modal-body {
+    padding: 16px;
+    gap: 18px;
+  }
+
+  .operations .ops-wo-modal-footer {
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .operations .ops-wo-modal-cancel,
+  .operations .ops-wo-modal-submit {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operations .ops-wo-modal-spinner {
+    animation: none;
+  }
+}
