@@ -1,0 +1,212 @@
+
+/* OPERATIONS SIDEBAR
+   Matches Client Admin sidebar styling
+   Scoped to Operations only
+*/
+
+.ops-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 235px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--deep-teal, #123f3b);
+  border-right: 1px solid #1d514d;
+  color: var(--white, #ffffff);
+  box-sizing: border-box;
+  z-index: 20;
+}
+
+/* DevHub branding */
+
+.ops-sidebar-brand {
+  height: 64px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid #1d514d;
+  box-sizing: border-box;
+}
+
+.ops-sidebar-logo {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--mint-accent, #a9e6d2);
+  color: var(--deep-teal, #123f3b);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ops-sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ops-sidebar-company {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--white, #ffffff);
+}
+
+.ops-sidebar-powered {
+  margin-top: 2px;
+  font-size: 8px;
+  font-weight: 500;
+  color: #9bb5b1;
+}
+
+/* Navigation area */
+
+.ops-sidebar-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 25px 13px;
+}
+
+.ops-sidebar-section-title {
+  margin: 0 8px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #9bb5b1;
+}
+
+.ops-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ops-sidebar-nav-item {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #b8cfcc;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.ops-sidebar-nav-item span {
+  display: inline-block;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.ops-sidebar-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ops-sidebar-nav-item:hover {
+  background-color: #1d514d;
+  color: var(--white, #ffffff);
+}
+
+.ops-sidebar-nav-item.active {
+  background-color: #1d514d;
+  color: var(--white, #ffffff);
+  border-left: 3px solid
+    var(--mint-accent, #a9e6d2);
+  padding-left: 8px;
+}
+
+/* Logout */
+
+.ops-sidebar-bottom {
+  margin-top: auto;
+  padding: 18px 13px;
+  border-top: 1px solid #1d514d;
+}
+
+.ops-sidebar-logout {
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #b8cfcc;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.ops-sidebar-logout:hover {
+  background-color: #1d514d;
+  color: var(--white, #ffffff);
+}
+
+.ops-sidebar-nav-item:focus-visible,
+.ops-sidebar-logout:focus-visible {
+  outline: 2px solid
+    var(--mint-accent, #a9e6d2);
+  outline-offset: 2px;
+}
+
+/* Smaller screens */
+
+@media (max-width: 600px) {
+  .ops-sidebar {
+    width: 200px;
+  }
+
+  .ops-sidebar-brand {
+    padding: 0 12px;
+  }
+
+  .ops-sidebar-content {
+    padding: 20px 8px;
+  }
+
+  .ops-sidebar-bottom {
+    padding: 14px 8px;
+  }
+
+  .ops-sidebar-nav-item,
+  .ops-sidebar-logout {
+    font-size: 12px;
+    gap: 8px;
+  }
+}

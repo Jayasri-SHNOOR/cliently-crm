@@ -1,0 +1,310 @@
+
+.operations .ops-new-ticket-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(12, 35, 33, 0.6);
+  backdrop-filter: blur(4px);
+  box-sizing: border-box;
+}
+
+/* MODAL CONTAINER */
+
+.operations .ops-new-ticket-modal {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cfe4df;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 24px 65px rgba(0, 0, 0, 0.22);
+  animation: ops-modal-enter 0.2s ease-out;
+}
+
+@keyframes ops-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* HEADER */
+
+.operations .ops-new-ticket-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 28px;
+  border-bottom: 1px solid #e2efec;
+  background: #f7fcfa;
+}
+
+.operations .ops-new-ticket-header h2 {
+  margin: 0;
+  color: #123c3a;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+.operations .ops-new-ticket-header p {
+  margin: 7px 0 0;
+  color: #637875;
+  font-size: 13px;
+}
+
+.operations .ops-new-ticket-close {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 9px;
+  background: #eaf6f3;
+  color: #123c3a;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.operations .ops-new-ticket-close:hover:not(:disabled) {
+  background: #d5eee8;
+}
+
+/* FORM LAYOUT */
+
+.operations .ops-new-ticket-modal form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.operations .ops-new-ticket-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 25px 28px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.operations .ops-new-ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+
+.operations .ops-new-ticket-section {
+  margin: 6px 0 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf4f2;
+  color: #123c3a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* FORM FIELDS */
+
+.operations .ops-new-ticket-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.operations .ops-new-ticket-field label {
+  color: #183735;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.operations .ops-new-ticket-field label span {
+  color: #dc2626;
+}
+
+.operations .ops-new-ticket-field input,
+.operations .ops-new-ticket-field select,
+.operations .ops-new-ticket-field textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #cfe4df;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  color: #183735;
+  font-family: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.operations .ops-new-ticket-field input,
+.operations .ops-new-ticket-field select {
+  min-height: 42px;
+}
+
+.operations .ops-new-ticket-field textarea {
+  min-height: 115px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.operations .ops-new-ticket-field input::placeholder,
+.operations .ops-new-ticket-field textarea::placeholder {
+  color: #92a5a1;
+}
+
+.operations .ops-new-ticket-field input:focus,
+.operations .ops-new-ticket-field select:focus,
+.operations .ops-new-ticket-field textarea:focus {
+  border-color: #55b9a8;
+  box-shadow: 0 0 0 3px rgba(117, 213, 197, 0.15);
+}
+
+/* ERROR MESSAGE */
+
+.operations .ops-new-ticket-error {
+  padding: 12px 15px;
+  border: 1px solid #f4c7c7;
+  border-radius: 9px;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+/* REQUIRED FIELD NOTE */
+
+.operations .ops-new-ticket-required {
+  margin: 0;
+  color: #637875;
+  font-size: 11px;
+}
+
+/* FOOTER */
+
+.operations .ops-new-ticket-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  padding: 18px 28px;
+  border-top: 1px solid #e2efec;
+  background: #ffffff;
+}
+
+.operations .ops-new-ticket-cancel,
+.operations .ops-new-ticket-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 19px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.operations .ops-new-ticket-cancel {
+  border: 1px solid #cfe4df;
+  background: #ffffff;
+  color: #425e5a;
+}
+
+.operations .ops-new-ticket-cancel:hover:not(:disabled) {
+  background: #f4faf8;
+}
+
+.operations .ops-new-ticket-submit {
+  border: 1px solid #123c3a;
+  background: #123c3a;
+  color: #ffffff;
+}
+
+.operations .ops-new-ticket-submit:hover:not(:disabled) {
+  background: #1d514d;
+  transform: translateY(-1px);
+}
+
+/* LOADING SPINNER */
+
+.operations .ops-new-ticket-spinner {
+  animation: ops-ticket-spin 0.9s linear infinite;
+}
+
+@keyframes ops-ticket-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* DISABLED BUTTONS */
+
+.operations .ops-new-ticket-modal button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* RESPONSIVE DESIGN */
+
+@media (max-width: 700px) {
+  .operations .ops-new-ticket-overlay {
+    padding: 10px;
+  }
+
+  .operations .ops-new-ticket-modal {
+    max-height: 95vh;
+    border-radius: 13px;
+  }
+
+  .operations .ops-new-ticket-header {
+    padding: 19px;
+  }
+
+  .operations .ops-new-ticket-header h2 {
+    font-size: 19px;
+  }
+
+  .operations .ops-new-ticket-body {
+    padding: 19px;
+  }
+
+  .operations .ops-new-ticket-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .operations .ops-new-ticket-footer {
+    padding: 15px 19px;
+  }
+
+  .operations .ops-new-ticket-cancel,
+  .operations .ops-new-ticket-submit {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operations .ops-new-ticket-modal,
+  .operations .ops-new-ticket-spinner {
+    animation: none;
+  }
+}

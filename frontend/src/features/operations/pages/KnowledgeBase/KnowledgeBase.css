@@ -1,0 +1,49 @@
+/* Cliently Operations — Knowledge Base */
+.operations .ops-kb-page {display:flex;flex-direction:column;gap:22px;width:100%;min-width:0;box-sizing:border-box;color:#103f3d}
+.operations .ops-kb-page * {box-sizing:border-box}
+.operations .ops-kb-header,.operations .ops-kb-heading,.operations .ops-kb-filters,.operations .ops-kb-card-top,.operations .ops-kb-card-footer,.operations .ops-kb-pagination,.operations .ops-kb-pagination-buttons {display:flex;align-items:center;gap:12px}
+.operations .ops-kb-header,.operations .ops-kb-pagination,.operations .ops-kb-card-top,.operations .ops-kb-card-footer {justify-content:space-between}
+.operations .ops-kb-header {flex-wrap:wrap;gap:16px}
+.operations .ops-kb-heading-icon,.operations .ops-kb-card-icon {display:grid;place-items:center;background:#eaf7f3;color:#287c74;border-radius:11px;flex-shrink:0}
+.operations .ops-kb-heading-icon {width:48px;height:48px}
+.operations .ops-kb-heading h1 {font-size:27px;font-weight:800;line-height:1.2;margin:0 0 7px;color:#103f3d}
+.operations .ops-kb-heading p {font-size:14px;color:#66817e;margin:0}
+.operations .ops-kb-primary-button,.operations .ops-kb-secondary-button,.operations .ops-kb-refresh-button,.operations .ops-kb-pagination button {display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:9px;padding:11px 15px;font:inherit;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s}
+.operations .ops-kb-primary-button {background:#247c71;border:1px solid #247c71;color:#fff}
+.operations .ops-kb-primary-button:hover {background:#185b56}
+.operations .ops-kb-secondary-button,.operations .ops-kb-refresh-button,.operations .ops-kb-pagination button {background:#fff;border:1px solid #cde1dc;color:#185b56}
+.operations .ops-kb-secondary-button:hover,.operations .ops-kb-refresh-button:hover,.operations .ops-kb-pagination button:not(:disabled):hover {background:#eaf7f4}
+.operations .ops-kb-filter-panel {display:flex;flex-direction:column;gap:17px;padding:21px;background:#fff;border:1px solid #d5e7e2;border-radius:14px}
+.operations .ops-kb-search {display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid #cde1dc;border-radius:9px;color:#66817e;min-height:45px}
+.operations .ops-kb-search:focus-within {border-color:#40a89a;box-shadow:0 0 0 2px #40a89a22}
+.operations .ops-kb-search input {width:100%;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:13px;color:#103f3d;padding:11px 0}
+.operations .ops-kb-search input::placeholder {color:#91a5a1}
+.operations .ops-kb-filters {flex-wrap:wrap;align-items:flex-end}
+.operations .ops-kb-filters label {display:flex;flex-direction:column;gap:7px;flex:1;min-width:150px;color:#476660;font-size:12px;font-weight:700}
+.operations .ops-kb-filters select {width:100%;height:42px;padding:0 11px;background:#fff;border:1px solid #cde1dc;border-radius:9px;color:#185b56;font:inherit;font-size:13px}
+.operations .ops-kb-refresh-button {height:42px;width:42px;padding:0;flex-shrink:0}
+.operations .ops-kb-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.operations .ops-kb-article-card {display:flex;flex-direction:column;gap:13px;min-width:0;padding:22px;background:#fff;border:1px solid #d5e7e2;border-radius:14px;text-decoration:none;color:#103f3d;transition:transform .2s,box-shadow .2s,border-color .2s}
+.operations .ops-kb-article-card:hover {transform:translateY(-2px);border-color:#a9d6cb;box-shadow:0 9px 25px rgba(18,60,58,.09)}
+.operations .ops-kb-card-icon {height:39px;width:39px}
+.operations .ops-kb-card-badges,.operations .ops-kb-card-tags {display:flex;flex-wrap:wrap;gap:6px}
+.operations .ops-kb-badge {display:inline-block;padding:5px 9px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
+.operations .ops-kb-article-card h2 {font-size:17px;line-height:1.35;font-weight:800;margin:0;overflow-wrap:anywhere}
+.operations .ops-kb-card-summary {font-size:13px;color:#66817e;line-height:1.65;margin:0;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.operations .ops-kb-card-category {align-self:flex-start;border-radius:6px;padding:6px 9px;background:#f2faf7;color:#287c74;font-size:11px;font-weight:700}
+.operations .ops-kb-card-tags span {font-size:11px;color:#607e78;background:#f5faf8;padding:4px 7px;border-radius:5px}
+.operations .ops-kb-card-footer {margin-top:auto;padding-top:13px;border-top:1px solid #edf2f0;color:#78918d;font-size:11px;gap:8px;flex-wrap:wrap}
+.operations .ops-kb-card-footer span {display:inline-flex;align-items:center;gap:5px}
+.operations .ops-kb-state {display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;min-height:240px;padding:35px 20px;background:#fff;border:1px solid #d5e7e2;border-radius:14px;color:#66817e}
+.operations .ops-kb-state h3 {font-size:17px;color:#103f3d;margin:0}
+.operations .ops-kb-state p {margin:0;font-size:13px;line-height:1.6}
+.operations .ops-kb-error {color:#ad4036;border-color:#f0c8c4;background:#fffafa}
+.operations .ops-kb-error h3 {color:#ad4036}
+.operations .ops-kb-pagination {padding:14px 18px;background:#fff;border:1px solid #d5e7e2;border-radius:12px;color:#66817e;font-size:12px;flex-wrap:wrap}
+.operations .ops-kb-pagination button:disabled {opacity:.45;cursor:not-allowed}
+.operations .ops-kb-page a:focus-visible,.operations .ops-kb-page button:focus-visible,.operations .ops-kb-page select:focus-visible {outline:3px solid #40a89a;outline-offset:2px}
+.operations .ops-kb-loading-icon {animation:ops-kb-spin 1s linear infinite}
+@keyframes ops-kb-spin {to {transform:rotate(360deg)}}
+@media (max-width:1150px) {.operations .ops-kb-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px) {.operations .ops-kb-grid {grid-template-columns:1fr}.operations .ops-kb-filter-panel {padding:16px}.operations .ops-kb-heading h1 {font-size:23px}.operations .ops-kb-filters label {min-width:130px}.operations .ops-kb-article-card {padding:18px}}
+@media (max-width:420px) {.operations .ops-kb-primary-button {width:100%}.operations .ops-kb-header {align-items:stretch}.operations .ops-kb-filters label {flex-basis:100%}.operations .ops-kb-pagination-buttons {width:100%;justify-content:space-between}}
