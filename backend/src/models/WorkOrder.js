@@ -66,7 +66,10 @@ workOrderSchema.virtual('progress').get(function(){
 workOrderSchema.index({tenantId: 1, number: 1}, {unique: true})
 workOrderSchema.index({tenantId: 1, createdAt: -1})
 workOrderSchema.index({tenantId: 1, status: 1, dueDate: 1})
-workOrderSchema.index({tenantId: 1, dealId: 1})
+workOrderSchema.index(
+  {tenantId: 1, dealId: 1},
+  {unique: true, partialFilterExpression: {dealId: {$type: 'objectId'}}}
+)
 
 module.exports = mongoose.model('WorkOrder', workOrderSchema)
 module.exports.WORK_ORDER_STATUSES = WORK_ORDER_STATUSES
