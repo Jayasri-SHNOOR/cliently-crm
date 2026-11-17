@@ -4,6 +4,7 @@ const Product = require('../../../models/Product')
 const AppError = require('../../../utils/AppError')
 const pick = require('../../../utils/pick')
 const nextSequence = require('../../../utils/nextSequence')
+const Deal = require('../../../models/Deal')
 const {WORK_ORDER_STATUSES, WORK_ORDER_PRIORITIES} = require('../../../models/WorkOrder')
 const {
   assertValidId,
@@ -222,7 +223,7 @@ async function updateWorkOrder(req, res, next){
     await applyRefs(workOrder, req.body, req.user.tenantId)
     await workOrder.save()
     await respond(res, workOrder)
-  } catch(err){
+  }catch(err){
     next(err)
   }
 }
@@ -296,6 +297,108 @@ async function deleteMilestone(req, res, next){
     next(err)
   }
 }
+function formatNumber(number) {
+  return `WO-${String(number).padStart(4, '0')}`
+}
+
+function readMilestones(body) {
+  const milestones = body.milestones === undefined ? [] : body.milestones
+  if (!Array.isArray(milestones)) {
+    throw new AppError('milestones must be a list', 400)
+  }
+  if (milestones.length > MAX_MILESTONES) {
+    throw new AppError(`A work order can have at most ${MAX_MILESTONES} milestones`, 400)
+  }
+  return milestones.map(milestoneInput)
+}
+
+async function listWonDeals(req, res, next) {
+  try {
+    const { tenantId } = req.user
+    const deals = await Deal.find({ tenantId, status: 'Won' })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .select('name customer product value assignedTo updatedAt')
+      .lean()
+
+    const linked = await WorkOrder.find({ tenantId, dealId: { $in: deals.map((deal) => deal._id) } })
+      .select('dealId number')
+      .lean()
+    const byDeal = new Map(linked.map((order) => [String(order.dealId), { _id: order._id, number: order.number }]))
+
+    res.json({
+      data: deals.map((deal) => ({
+        _id: deal._id,
+        name: deal.name,
+        customer: deal.customer,
+        product: deal.product,
+        value: deal.value,
+        assignedTo: deal.assignedTo || null,
+        updatedAt: deal.updatedAt,
+        workOrder: byDeal.get(String(deal._id)) || null
+      }))
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function createFromDeal(req, res, next) {
+  try {
+    const { tenantId } = req.user
+    assertValidId(req.params.dealId, 'deal')
+
+    const deal = await Deal.findOne({ _id: req.params.dealId, tenantId }).lean()
+    if (!deal) {
+      throw new AppError('Deal not found', 404)
+    }
+    if (deal.status !== 'Won') {
+      throw new AppError('Only won deals can become work orders', 400)
+    }
+
+    const existing = await WorkOrder.findOne({ tenantId, dealId: deal._id }).select('number').lean()
+    if (existing) {
+      throw new AppError(`Work order ${formatNumber(existing.number)} already exists for this deal`, 409)
+    }
+
+    const product = deal.product
+      ? await Product.findOne({ tenantId, name: deal.product })
+          .collation({ locale: 'en', strength: 2 })
+          .select('_id')
+          .lean()
+      : null
+
+    const value = Number(deal.value || 0).toLocaleString('en-IN')
+    const workOrder = new WorkOrder({
+      tenantId,
+      createdBy: req.user.id,
+      dealId: deal._id,
+      productId: product ? product._id : null,
+      title: (req.body.title || `${deal.name} - ${deal.customer}`).slice(0, 150),
+      description: req.body.description ?? `Created from the won deal "${deal.name}" (value ₹${value}).`,
+      customer: { name: String(deal.customer).slice(0, 100) },
+      priority: req.body.priority,
+      milestones: readMilestones(req.body)
+    })
+    applyDates(workOrder, req.body)
+    if (req.body.assignedTo !== undefined) {
+      workOrder.assignedTo = await refInTenant(Employee, req.body.assignedTo, tenantId, 'Employee')
+    }
+
+    await workOrder.validate({ pathsToSkip: ['number'] })
+    workOrder.number = await nextSequence(`workorder:${tenantId}`)
+    await workOrder.save()
+
+    await Deal.updateOne(
+      { _id: deal._id, tenantId },
+      { $push: { activities: { $each: [`Work order ${formatNumber(workOrder.number)} created`], $position: 0 } } }
+    )
+
+    await respond(res, workOrder, 201)
+  } catch (err) {
+    next(err)
+  }
+}
 
 module.exports = {
   listWorkOrders,
@@ -305,5 +408,9 @@ module.exports = {
   deleteWorkOrder,
   addMilestone,
   updateMilestone,
-  deleteMilestone
+  deleteMilestone,
+  listWonDeals,
+  createFromDeal,
+  presentWorkOrder: present,
+  startOfToday
 }
