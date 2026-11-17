@@ -8,27 +8,33 @@ const User = require('../models/User')
 
 const accounts = [
   {
-    name: 'NexaSoft Owner',
-    email: process.env.SEED_SUPER_ADMIN_EMAIL || 'owner@nexasoft.com',
+    name: 'Cliently Admin',
+    email: process.env.SEED_SUPER_ADMIN_EMAIL || 'owner@cliently.com',
     role: 'SUPER_ADMIN',
     companySlug: null
   },
   {
     name: 'Jeyka',
-    email: process.env.SEED_CLIENT_ADMIN_EMAIL || 'jeyka@cliently.com',
+    email: process.env.SEED_CLIENT_ADMIN_EMAIL || 'jeyka@devhub.com',
     role: 'CLIENT_ADMIN',
-    companySlug: 'cliently'
+    companySlug: 'devhub'
   },
   {
     name: 'Arjun',
-    email: process.env.SEED_SALES_USER_EMAIL || 'arjun@cliently.com',
-    role: 'SALES_USER',
-    companySlug: 'cliently'
+    email: process.env.SEED_SALES_USER_EMAIL || 'arjun@devhub.com',
+    role: 'SALES_EXECUTIVE',
+    companySlug: 'devhub'
+  },
+  {
+    name: 'Divya',
+    email: process.env.SEED_OPS_USER_EMAIL || 'divya@devhub.com',
+    role: 'OPERATIONAL_STAFF',
+    companySlug: 'devhub'
   }
 ]
 
 function randomPassword(){
-  return crypto.randomBytes(24).toString('base64url')
+  return crypto.randomBytes(24).toString('base64url') + 'Aa1'
 }
 
 async function findTenantId(slug){

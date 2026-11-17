@@ -73,7 +73,7 @@ async function loadActiveAccount(session){
     tenant = await Tenant.findById(user.tenantId).lean()
     if(!tenant || tenant.status !== 'Active'){
       await revokeSession(session, 'tenant_inactive')
-      throw new AppError('Your company account is not active. Contact NexaSoft support.', 403, 'TENANT_INACTIVE')
+      throw new AppError('Your company account is not active. Contact Cliently for support.', 403, 'TENANT_INACTIVE')
     }
   }
 

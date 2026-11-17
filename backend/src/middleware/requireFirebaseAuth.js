@@ -38,7 +38,7 @@ async function requireFirebaseAuth(req, res, next){
     if(user.role !== 'SUPER_ADMIN'){
       tenant = await Tenant.findById(user.tenantId).lean()
       if(!tenant || tenant.status !== 'Active'){
-        throw new AppError('Your company account is not active. Contact NexaSoft support.', 403)
+        throw new AppError('Your company account is not active. Contact Cliently support.', 403)
       }
     }
     req.user = {

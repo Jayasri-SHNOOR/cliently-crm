@@ -8,7 +8,6 @@ import {
   NotebookPen,
   Package,
   Bell,
-  UserCircle,
   CircleHelp,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -23,7 +22,6 @@ export default function Sidebar() {
   { label: "Notes", path: "/SalesExecutive/notes", icon: NotebookPen },
   { label: "Products", path: "/SalesExecutive/products", icon: Package },
   { label: "Notifications", path: "/SalesExecutive/notifications", icon: Bell },
-  { label: "Profile", path: "/SalesExecutive/profile", icon: UserCircle },
   { label: "Help", path: "/SalesExecutive/help", icon: CircleHelp },
 ];
 

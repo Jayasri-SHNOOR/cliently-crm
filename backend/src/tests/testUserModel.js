@@ -27,7 +27,7 @@ async function main(){
 
   await check('Super admin without a company', {
     firebaseUid: 'uid-super-admin',
-    email: 'owner@nexasoft.com',
+    email: 'owner@cliently.com',
     name: 'Platform Owner',
     role: 'SUPER_ADMIN'
   })
@@ -36,7 +36,7 @@ async function main(){
     firebaseUid: 'uid-sales',
     email: 'arjun@cliently.com',
     name: 'Arjun',
-    role: 'SALES_USER',
+    role: 'SALES_EXECUTIVE',
     tenantId: companyId
   })
 }

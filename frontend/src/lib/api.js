@@ -14,11 +14,12 @@ export const SESSION_ENDED_CODES = [
 ];
 
 export class ApiError extends Error {
-    constructor(message, status, { code = null, retryAfter = 0 } = {}) {
+    constructor(message, status, { code = null, retryAfter = 0, errors = null } = {}) {
         super(message);
         this.status = status;
         this.code = code;
         this.retryAfter = retryAfter;
+        this.errors = errors;
     }
 }
 
@@ -48,6 +49,7 @@ async function send(path, { method = "GET", body, token } = {}) {
         throw new ApiError(data.message || `Request failed (${response.status})`, response.status, {
             code: data.code || null,
             retryAfter: Number(response.headers.get("Retry-After")) || 0,
+            errors: data.errors || null,
         });
     }
     return data;

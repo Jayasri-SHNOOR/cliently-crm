@@ -6,6 +6,8 @@
   border-bottom: 1px solid #CFE4DF;
   display: flex;
   align-items: center;
+  background-color: #FFFFFF;
+
 }
 .topbar-left {
   display: flex;
@@ -442,4 +444,9 @@
   .profile-dropdown {
     width: 225px;
   }
+}
+.breadcrumb {
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-right: 28px;
 }
