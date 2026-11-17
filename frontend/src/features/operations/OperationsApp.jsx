@@ -1,3 +1,4 @@
+
 import "./OperationsApp.css";
 
 import {
@@ -5,14 +6,12 @@ import {
   Route,
   Navigate,
   useNavigate,
-  useLocation,
 } from "react-router-dom";
 
 import { useCurrentUser } from "../../lib/useSession";
 import { logout } from "../../lib/auth";
 
 // Layout Components
-import OpsErrorBoundary from "./components/OpsErrorBoundary";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 
@@ -40,17 +39,13 @@ import AssetDetail from "./pages/Assets/AssetDetail";
 import OperationsProfile from "./pages/Profile/OperationsProfile";
 
 function OperationsApp() {
-  const user = useCurrentUser();
+  const { user } = useCurrentUser();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Logout Function
-  async function handleLogout() {
-    try {
-      await logout();
-    } finally {
-      window.location.replace("/login?reason=SIGNED_OUT");
-    }
+  function handleLogout() {
+    logout();
+    window.location.assign("/login?reason=SIGNED_OUT");
   }
 
   // Navigate to Profile Page
@@ -74,7 +69,6 @@ function OperationsApp() {
 
         {/* Operations Pages */}
         <main className="ops-content">
-          <OpsErrorBoundary key={location.pathname}>
           <Routes>
             {/* Dashboard */}
             <Route
@@ -153,7 +147,6 @@ function OperationsApp() {
               }
             />
           </Routes>
-          </OpsErrorBoundary>
         </main>
       </div>
     </div>
