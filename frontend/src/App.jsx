@@ -8,6 +8,7 @@ import OperationsApp from "./features/operations/OperationsApp";
 import ManagerApp from "./features/manager/ManagerApp";
 import SessionGate from "./components/SessionGate";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicSite from "./features/public-site/PublicSite";
 import { logout } from "./lib/auth";
 
 async function handleLogout() {

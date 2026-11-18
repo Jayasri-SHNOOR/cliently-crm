@@ -167,11 +167,79 @@ async function updatePaymentMethod(req, res, next) {
   }
 }
 
+const PUBLIC_SITE_FIELDS = ['enabled', 'tagline', 'about', 'logoUrl', 'showPrices']
+
+function formatPublicSite(tenant) {
+  const site = tenant.publicSite || {}
+  return {
+    slug: tenant.slug,
+    url: `/site/${tenant.slug}`,
+    enabled: site.enabled !== false,
+    tagline: site.tagline || '',
+    about: site.about || '',
+    logoUrl: site.logoUrl || '',
+    showPrices: site.showPrices !== false
+  }
+}
+
+async function getPublicSite(req, res, next) {
+  try {
+    const tenant = await Tenant.findById(req.user.tenantId).lean()
+    if (!tenant) {
+      throw new AppError('Company not found', 404)
+    }
+    res.json(formatPublicSite(tenant))
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function updatePublicSite(req, res, next) {
+  try {
+    const updates = {}
+    PUBLIC_SITE_FIELDS.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[`publicSite.${field}`] = req.body[field]
+      }
+    })
+
+    if (Object.keys(updates).length === 0) {
+      throw new AppError('No valid fields to update', 400)
+    }
+    if (updates['publicSite.enabled'] !== undefined && typeof updates['publicSite.enabled'] !== 'boolean') {
+      throw new AppError('enabled must be true or false', 400)
+    }
+    if (updates['publicSite.showPrices'] !== undefined && typeof updates['publicSite.showPrices'] !== 'boolean') {
+      throw new AppError('showPrices must be true or false', 400)
+    }
+    if (updates['publicSite.logoUrl'] === '') {
+      delete updates['publicSite.logoUrl']
+      updates.$unset = { 'publicSite.logoUrl': '' }
+    }
+
+    const { $unset, ...set } = updates
+    const tenant = await Tenant.findByIdAndUpdate(
+      req.user.tenantId,
+      { ...(Object.keys(set).length ? { $set: set } : {}), ...($unset ? { $unset } : {}) },
+      { returnDocument: 'after', runValidators: true }
+    ).lean()
+
+    if (!tenant) {
+      throw new AppError('Company not found', 404)
+    }
+    res.json(formatPublicSite(tenant))
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   getCompany,
   updateCompany,
   getBilling,
   listPlans,
   getInvoice,
-  updatePaymentMethod
+  updatePaymentMethod,
+  getPublicSite,
+  updatePublicSite
 }
