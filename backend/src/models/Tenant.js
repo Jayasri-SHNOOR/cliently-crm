@@ -42,6 +42,13 @@ const tenantSchema = new mongoose.Schema(
     },
     industry: {type: String, enum: INDUSTRIES},
     address: {type: String, trim: true, maxlength: 300},
+    publicSite: {
+      enabled: { type: Boolean, default: true },
+      tagline: { type: String, trim: true, maxlength: 120 },
+      about: { type: String, trim: true, maxlength: 1500 },
+      logoUrl: { type: String, trim: true, match: [/^https?:\/\/\S+$/, 'Logo URL must start with http:// or https://'] },
+      showPrices: { type: Boolean, default: true }
+    },
     nextBillingDate: {type: Date},
     paymentMethod: {
       type: {type: String, enum: ['UPI', 'Card', 'NetBanking'], default: 'UPI'},

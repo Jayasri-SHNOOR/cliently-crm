@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 const LEAD_STATUSES = ['New', 'Contacted', 'Qualified', 'Demo', 'Proposal', 'Negotiation', 'Won', 'Lost']
-const PRODUCTS = ['CRM Software', 'Website Development', 'CRM + Website Development', 'Other']
 
 const leadSchema = new mongoose.Schema(
   {
@@ -36,15 +35,23 @@ const leadSchema = new mongoose.Schema(
         default: 0, 
         min: [0, 'Value cannot be negative'] 
     },
-    productInterested:{ 
-        type: String, 
-        enum: PRODUCTS, 
-        default: 'CRM Software' 
+    productInterested: {
+        type: String,
+        trim: true,
+        maxlength: 120,
+        default: 'General enquiry'
     },
     executive:{ 
         type: String, 
         trim: true 
-    } 
+    },
+    source: { type: String, enum: ['Manual', 'Website', 'Import'], default: 'Manual' },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
+    productName: { type: String, trim: true, maxlength: 120 },
+    message: { type: String, trim: true, maxlength: 1000 },
+    enquiryCount: { type: Number, default: 0, min: 0 },
+    lastEnquiryAt: { type: Date },
+    consentAt: { type: Date }
   },
   { 
     timestamps: true,
@@ -52,6 +59,6 @@ const leadSchema = new mongoose.Schema(
 }
 )
 leadSchema.index({ tenantId: 1, createdAt: -1 })
+leadSchema.index({ tenantId: 1, email: 1 })
 module.exports = mongoose.model('Lead', leadSchema)
 module.exports.LEAD_STATUSES = LEAD_STATUSES
-module.exports.PRODUCTS = PRODUCTS

@@ -7,6 +7,7 @@ import SalesExecutive from "./features/sales/SalesExecutive";
 import OperationsApp from "./features/operations/OperationsApp";
 import SessionGate from "./components/SessionGate";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicSite from "./features/public-site/PublicSite";
 import { logout } from "./lib/auth";
 
 async function handleLogout() {
@@ -21,6 +22,7 @@ function App() {
                 <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/site/:slug" element={<PublicSite />} />
                     <Route path="/super-admin/*" 
                         element={
                             <ProtectedRoute roles={["SUPER_ADMIN"]}>
