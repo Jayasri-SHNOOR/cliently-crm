@@ -3,6 +3,7 @@ const AppError = require('../../../utils/AppError')
 const pick = require('../../../utils/pick')
 const escapeRegex = require('../../../utils/escapeRegex')
 const ALLOWED_FIELDS = ['name', 'email', 'company', 'phone', 'status', 'value', 'productInterested', 'executive']
+const resolveLeadProduct = require('../../../utils/resolveLeadProduct')
 function formatLead(lead) {
   return{
     id: lead._id,
@@ -14,7 +15,13 @@ function formatLead(lead) {
     value: lead.value,
     productInterested: lead.productInterested,
     executive: lead.executive,
-    createdAt: lead.createdAt
+    createdAt: lead.createdAt,
+    source: lead.source || 'Manual',
+    productName: lead.productName || '',
+    productId: lead.productId || null,
+    message: lead.message || '',
+    enquiryCount: lead.enquiryCount || 0,
+    lastEnquiryAt: lead.lastEnquiryAt || null,
   }
 }
 
@@ -61,9 +68,11 @@ async function getLead(req, res, next) {
 async function createLead(req, res, next) {
     try{
       const data = pick(req.body, ALLOWED_FIELDS)
+      const product = await resolveLeadProduct(req.body, req.user.tenantId)
       const lead = await Lead.create({
         ...data,
-        tenantId: req.user.tenantId 
+        ...(product || {}),
+        tenantId: req.user.tenantId
       })
   
     res.status(201).json(formatLead(lead))
@@ -74,7 +83,10 @@ async function createLead(req, res, next) {
 async function updateLead(req, res, next) {
     try{
       const updates = pick(req.body, ALLOWED_FIELDS)
-  
+      const product = await resolveLeadProduct(req.body, req.user.tenantId)
+      if (product) {
+        Object.assign(updates, product)
+      }
       if(Object.keys(updates).length === 0) {
         throw new AppError('No valid fields to update', 400)
       }

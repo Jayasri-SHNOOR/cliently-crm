@@ -5,7 +5,9 @@ const {
   getBilling,
   listPlans,
   getInvoice,
-  updatePaymentMethod
+  updatePaymentMethod,
+  getPublicSite,
+  updatePublicSite
 } = require('../controllers/settingsController')
 const {
   listUsers,
@@ -30,5 +32,8 @@ router.get('/roles', listRoles)
 router.patch('/users/:id/role', updateRole)
 router.post('/users/:id/deactivate', deactivateUser)
 router.post('/users/:id/activate', activateUser)
+
+router.get('/public-site', getPublicSite)
+router.patch('/public-site', updatePublicSite)
 
 module.exports = router
