@@ -3,6 +3,7 @@ export const ROLE_HOME = {
     SUPER_ADMIN: "/super-admin",
     SALES_EXECUTIVE: "/salesExecutive",
     OPERATIONAL_STAFF: "/operations",
+    MANAGER: "/manager",
 };
 
 export function homeFor(user) {
