@@ -44,7 +44,9 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: ['Active', 'Inactive'],
       default: 'Active'
-    }
+    },
+    showOnWebsite: { type: Boolean, default: true },
+    imageUrl: { type: String, trim: true, match: [/^https?:\/\/\S+$/, 'Image URL must start with http:// or https://'] }
   },
   {
     timestamps: true,
@@ -56,4 +58,5 @@ productSchema.index(
   { unique: true, partialFilterExpression: { code: { $type: 'string' } } }
 )
 productSchema.index({ tenantId: 1, createdAt: -1 })
+productSchema.index({ tenantId: 1, status: 1, showOnWebsite: 1 })
 module.exports = mongoose.model('Product', productSchema)

@@ -12,6 +12,7 @@ const salesRoutes = require('./modules/sales');
 const superAdminRoutes = require('./modules/super-admin/index.js');
 const requireRole = require('./middleware/requireRole')
 const operationsRoutes = require('./modules/operations')
+const publicRoutes = require('./modules/public')
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.get('/api/health', (req, res) => {
 })
 app.use('/api', ipShield)
 app.use('/api/auth', authRoutes)
+app.use('/api/public', publicRoutes)
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api', requireSession)
 app.use('/api', userLimiter)
