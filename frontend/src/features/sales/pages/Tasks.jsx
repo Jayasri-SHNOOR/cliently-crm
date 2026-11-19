@@ -35,7 +35,7 @@ function Tasks() {
   async function loadTasks() {
     try {
       setError("");
-      const response = await api.get("/sales/tasks");
+      const response = await api.get("/api/sales/tasks");
       setTasks(response.tasks || []);
     } catch (err) {
       console.error("Tasks API error:", err);
@@ -67,13 +67,13 @@ function Tasks() {
       setSaving(true);
       setError("");
 
-      const response = await api.post("/tasks", {
-        title: newTask.title.trim(),
-        description: newTask.description.trim(),
-        dueDate: newTask.dueDate || null,
-        priority: newTask.priority,
-        status: "Pending",
-      });
+      const response = await api.post("/api/sales/tasks", {
+  title: newTask.title.trim(),
+  description: newTask.description.trim(),
+  dueDate: newTask.dueDate || null,
+  priority: newTask.priority,
+  status: "Pending",
+});
 
       if (response.task) {
         setTasks((current) => [...current, response.task]);
@@ -104,9 +104,9 @@ function Tasks() {
     try {
       setError("");
 
-      await api.put(`/tasks/${task._id}`, {
-        status: updatedStatus,
-      });
+      await api.put(`/api/sales/tasks/${task._id}`, {
+  status: updatedStatus,
+});
 
       setTasks((current) =>
         current.map((item) =>

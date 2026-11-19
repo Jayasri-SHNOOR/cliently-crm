@@ -8,9 +8,11 @@ import {
 import api from "../services/api";
 
 function Calendar() {
-  const [currentDate, setCurrentDate] = useState(
-    new Date(2026, 9, 1)
-  );
+  const [currentDate, setCurrentDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,25 +23,18 @@ function Calendar() {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Existing sample meetings
-  const sampleEvents = [
-    { day: 9, title: "Customer follow-up", time: "10:00 AM" },
-    { day: 12, title: "Sales meeting", time: "11:30 AM" },
-    { day: 15, title: "Product discussion", time: "02:00 PM" },
-    { day: 21, title: "Client review", time: "03:00 PM" },
-  ];
-
+  // Fetch actual saved tasks
   useEffect(() => {
     async function loadTasks() {
       try {
         setLoading(true);
         setError("");
 
-        const response = await api.get("/sales/tasks");
+        const response = await api.get("/api/sales/tasks");
         setTasks(response.tasks || []);
       } catch (err) {
         console.error("Calendar tasks API error:", err);
-        setError("Unable to load tasks for the calendar.");
+        setError(err.message || "Unable to load tasks for the calendar.");
       } finally {
         setLoading(false);
       }
@@ -58,19 +53,20 @@ function Calendar() {
   }
 
   function resetCalendar() {
-    setCurrentDate(new Date(2026, 9, 1));
+    const today = new Date();
+    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
   }
 
-  // Convert saved tasks into calendar events for the displayed month.
+  // Display only actual saved tasks for the selected month
   const taskEvents = tasks
     .filter((task) => task.dueDate)
     .map((task) => {
-      const dueDate = new Date(`${String(task.dueDate).slice(0, 10)}T12:00:00`);
+      const dueDate = new Date(task.dueDate);
 
       return {
         day: dueDate.getDate(),
         title: task.title,
-        time: task.status || "Pending",
+        status: task.status || "Pending",
         taskId: task._id,
         dueDate,
       };
@@ -87,7 +83,7 @@ function Calendar() {
       <div className="page-header">
         <div>
           <h1>Calendar</h1>
-          <p>View your meetings, tasks and scheduled activities.</p>
+          <p>View your saved tasks and scheduled activities.</p>
         </div>
       </div>
 
@@ -113,7 +109,7 @@ function Calendar() {
               className="calendar-today"
               onClick={resetCalendar}
             >
-              Reset
+              Today
             </button>
 
             <button
@@ -126,7 +122,11 @@ function Calendar() {
           </div>
         </div>
 
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" style={{ color: "#b42318" }}>
+            {error}
+          </p>
+        )}
 
         <div className="calendar-grid">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
@@ -147,10 +147,6 @@ function Calendar() {
           {Array.from({ length: daysInMonth }, (_, index) => {
             const day = index + 1;
 
-            const daySampleEvents = sampleEvents.filter(
-              (event) => event.day === day
-            );
-
             const dayTaskEvents = taskEvents.filter(
               (event) => event.day === day
             );
@@ -159,24 +155,14 @@ function Calendar() {
               <div className="calendar-day" key={day}>
                 <span className="calendar-date">{day}</span>
 
-                {daySampleEvents.map((event) => (
-                  <div
-                    className="calendar-event"
-                    key={`sample-${event.title}`}
-                  >
-                    <strong>{event.title}</strong>
-                    <span>{event.time}</span>
-                  </div>
-                ))}
-
                 {dayTaskEvents.map((event) => (
                   <div
                     className="calendar-event"
                     key={event.taskId}
-                    title={`Task status: ${event.time}`}
+                    title={`Task status: ${event.status}`}
                   >
                     <strong>{event.title}</strong>
-                    <span>Task · {event.time}</span>
+                    <span>Task · {event.status}</span>
                   </div>
                 ))}
               </div>
@@ -186,10 +172,16 @@ function Calendar() {
 
         {loading && <p>Loading tasks...</p>}
 
+        {!loading && !error && taskEvents.length === 0 && (
+          <p className="empty-tasks">
+            No saved tasks for this month.
+          </p>
+        )}
+
         <div className="calendar-note">
           <CalendarDays size={17} />
           <span>
-            Your saved tasks appear on their due dates alongside sample meetings.
+            Only saved tasks with due dates are displayed.
           </span>
         </div>
       </div>
@@ -198,3 +190,4 @@ function Calendar() {
 }
 
 export default Calendar;
+

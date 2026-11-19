@@ -1,22 +1,42 @@
 
+const mongoose = require("mongoose");
 const Lead = require("../../../models/Lead");
 
-// Get all leads, with optional search and status filters
+// Escape special characters in search input
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Get all leads belonging to the logged-in user's tenant
 const getLeads = async (req, res) => {
   try {
-    const { search, status } = req.query;
-    const filter = {};
+    if (!req.user?.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "Tenant information is missing",
+      });
+    }
 
-    if (search) {
+    const { search, status } = req.query;
+
+    const filter = {
+      tenantId: req.user.tenantId,
+    };
+
+    if (search?.trim()) {
+      const searchRegex = {
+        $regex: escapeRegex(search.trim()),
+        $options: "i",
+      };
+
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { company: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } },
+        { name: searchRegex },
+        { company: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
       ];
     }
 
-    if (status) {
+    if (status && status !== "All") {
       filter.status = status;
     }
 
@@ -28,6 +48,8 @@ const getLeads = async (req, res) => {
       data: leads,
     });
   } catch (error) {
+    console.error("Get leads error:", error.message);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch leads",
@@ -35,10 +57,20 @@ const getLeads = async (req, res) => {
   }
 };
 
-// Get one lead by ID
+// Get one lead
 const getLeadById = async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid lead ID",
+      });
+    }
+
+    const lead = await Lead.findOne({
+      _id: req.params.id,
+      tenantId: req.user.tenantId,
+    });
 
     if (!lead) {
       return res.status(404).json({
@@ -47,11 +79,14 @@ const getLeadById = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, data: lead });
+    res.status(200).json({
+      success: true,
+      data: lead,
+    });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      message: "Invalid lead ID",
+      message: "Failed to fetch lead",
     });
   }
 };
@@ -59,7 +94,48 @@ const getLeadById = async (req, res) => {
 // Create a lead
 const createLead = async (req, res) => {
   try {
-    const lead = await Lead.create(req.body);
+    if (!req.user?.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "Tenant information is missing",
+      });
+    }
+
+    const {
+      name,
+      email,
+      company,
+      phone,
+      status,
+      value,
+      productInterested,
+      source,
+      productId,
+      productName,
+      message,
+    } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Lead name is required",
+      });
+    }
+
+    const lead = await Lead.create({
+      tenantId: req.user.tenantId,
+      name,
+      email,
+      company,
+      phone,
+      status,
+      value,
+      productInterested,
+      source,
+      productId,
+      productName,
+      message,
+    });
 
     res.status(201).json({
       success: true,
@@ -67,6 +143,8 @@ const createLead = async (req, res) => {
       data: lead,
     });
   } catch (error) {
+    console.error("Create lead error:", error.message);
+
     res.status(400).json({
       success: false,
       message: error.message,
@@ -77,10 +155,51 @@ const createLead = async (req, res) => {
 // Update a lead
 const updateLead = async (req, res) => {
   try {
-    const lead = await Lead.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid lead ID",
+      });
+    }
+
+    const allowedFields = [
+      "name",
+      "email",
+      "company",
+      "phone",
+      "status",
+      "value",
+      "productInterested",
+      "productId",
+      "productName",
+      "message",
+    ];
+
+    const updates = {};
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields provided for update",
+      });
+    }
+
+    const lead = await Lead.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        tenantId: req.user.tenantId,
+      },
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
     );
 
     if (!lead) {
@@ -106,7 +225,17 @@ const updateLead = async (req, res) => {
 // Delete a lead
 const deleteLead = async (req, res) => {
   try {
-    const lead = await Lead.findByIdAndDelete(req.params.id);
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid lead ID",
+      });
+    }
+
+    const lead = await Lead.findOneAndDelete({
+      _id: req.params.id,
+      tenantId: req.user.tenantId,
+    });
 
     if (!lead) {
       return res.status(404).json({
@@ -120,9 +249,9 @@ const deleteLead = async (req, res) => {
       message: "Lead deleted successfully",
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      message: "Invalid lead ID",
+      message: "Failed to delete lead",
     });
   }
 };

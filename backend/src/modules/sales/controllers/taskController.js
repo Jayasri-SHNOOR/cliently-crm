@@ -2,23 +2,36 @@
 const mongoose = require("mongoose");
 const Task = require("../models/task");
 
-// GET /api/tasks - Get all tasks, with optional filters
+const getTenantId = (req, res) => {
+  const tenantId = req.user?.tenantId;
+
+  if (!tenantId || !mongoose.isValidObjectId(tenantId)) {
+    res.status(403).json({
+      success: false,
+      message: "Valid tenant information is required",
+    });
+    return null;
+  }
+
+  return tenantId;
+};
+
+// GET all tasks
 const getTasks = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { search, status, priority } = req.query;
-    const filter = {};
+    const filter = { tenantId };
 
     if (search) {
-      filter.title = { $regex: search, $options: "i" };
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.title = { $regex: safeSearch, $options: "i" };
     }
 
-    if (status) {
-      filter.status = status;
-    }
-
-    if (priority) {
-      filter.priority = priority;
-    }
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
 
     const tasks = await Task.find(filter).sort({ createdAt: -1 });
 
@@ -36,9 +49,12 @@ const getTasks = async (req, res) => {
   }
 };
 
-// GET /api/tasks/:id - Get one task
+// GET one task
 const getTaskById = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -48,7 +64,7 @@ const getTaskById = async (req, res) => {
       });
     }
 
-    const task = await Task.findById(id);
+    const task = await Task.findOne({ _id: id, tenantId });
 
     if (!task) {
       return res.status(404).json({
@@ -67,9 +83,12 @@ const getTaskById = async (req, res) => {
   }
 };
 
-// POST /api/tasks - Create a task
+// CREATE task
 const createTask = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { title, description, dueDate, priority, status } = req.body;
 
     if (!title || !title.trim()) {
@@ -80,9 +99,10 @@ const createTask = async (req, res) => {
     }
 
     const task = await Task.create({
-      title,
-      description,
-      dueDate,
+      tenantId,
+      title: title.trim(),
+      description: description || "",
+      dueDate: dueDate || null,
       priority,
       status,
     });
@@ -101,9 +121,12 @@ const createTask = async (req, res) => {
   }
 };
 
-// PUT /api/tasks/:id - Update a task
+// UPDATE task
 const updateTask = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -129,6 +152,16 @@ const updateTask = async (req, res) => {
       }
     }
 
+    if (updates.title !== undefined) {
+      if (!updates.title.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Task title cannot be empty",
+        });
+      }
+      updates.title = updates.title.trim();
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
@@ -136,10 +169,11 @@ const updateTask = async (req, res) => {
       });
     }
 
-    const task = await Task.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const task = await Task.findOneAndUpdate(
+      { _id: id, tenantId },
+      updates,
+      { new: true, runValidators: true }
+    );
 
     if (!task) {
       return res.status(404).json({
@@ -162,9 +196,12 @@ const updateTask = async (req, res) => {
   }
 };
 
-// DELETE /api/tasks/:id - Delete a task
+// DELETE task
 const deleteTask = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -174,7 +211,10 @@ const deleteTask = async (req, res) => {
       });
     }
 
-    const task = await Task.findByIdAndDelete(id);
+    const task = await Task.findOneAndDelete({
+      _id: id,
+      tenantId,
+    });
 
     if (!task) {
       return res.status(404).json({
