@@ -1,3 +1,7 @@
+﻿import Users from "./pages/Users";
+import AuditLogs from "./pages/AuditLogs";
+import UsageMonitoring from "./pages/UsageMonitoring";
+import SupportEscalations from "./pages/SupportEscalations";
 import useTenants from "./hooks/useTenants";
 import Overview from "./pages/Overview";
 import Settings from "./pages/Settings";
@@ -104,7 +108,7 @@ function scrollToSection(id) {
 
 function getTenantCreatedAt(tenant) {
   const value = tenant?.createdAt || tenant?.date;
-  if (!value || value === "—") return null;
+  if (!value || value === "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â") return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -122,12 +126,12 @@ function ProfileDialog({ onClose, onOpenSettings }) {
   const [draft, setDraft] = useState(profile);
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: "◉" },
-    { id: "security", label: "Security", icon: "⬡" },
-    { id: "access", label: "Access & Roles", icon: "▱" },
-    { id: "preferences", label: "Preferences", icon: "☷" },
-    { id: "sessions", label: "Sessions", icon: "▣" },
-    { id: "activity", label: "Activity", icon: "◷" },
+    { id: "profile", label: "Profile", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â°" },
+    { id: "security", label: "Security", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
+    { id: "access", label: "Access & Roles", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±" },
+    { id: "preferences", label: "Preferences", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
+    { id: "sessions", label: "Sessions", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£" },
+    { id: "activity", label: "Activity", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
   ];
 
   const updateDraft = (field, value) => {
@@ -177,18 +181,18 @@ function ProfileDialog({ onClose, onOpenSettings }) {
       <section className="cliently-profile-shell" role="dialog" aria-modal="true" aria-labelledby="cliently-profile-title">
         <header className="cliently-profile-top">
           <div className="cliently-profile-brand"><span className="cliently-profile-brandmark">C</span><span>CLIENTLY CRM <small style={{display:"block",fontSize:9,opacity:.65,fontWeight:600,letterSpacing:".15em"}}>PLATFORM CONTROL</small></span></div>
-          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>×</button>
+          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button>
         </header>
 
         <main className="cliently-profile-main">
           <div className="cliently-profile-heading">
             <div><div className="cliently-profile-breadcrumb">Account centre&nbsp; / &nbsp;Administrator identity</div><h2 id="cliently-profile-title">My Profile</h2><p>Manage your identity, security preferences and platform access.</p></div>
-            <span className="cliently-profile-pill">●&nbsp; SUPER ADMIN</span>
+            <span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â&nbsp; SUPER ADMIN</span>
           </div>
 
           <section className="cliently-profile-hero">
             <div className="cliently-profile-avatar">SA</div>
-            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator · Cliently Platform</p><div className="cliently-profile-meta"><span>✉ {profile.email}</span><span>◈ Platform-wide access</span><span className="cliently-profile-pill">● Active workspace</span></div></div>
+            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently Platform</p><div className="cliently-profile-meta"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â° {profile.email}</span><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â  Platform-wide access</span><span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Active workspace</span></div></div>
           </section>
 
           <nav className="cliently-profile-tabs" aria-label="Profile sections">
@@ -197,7 +201,7 @@ function ProfileDialog({ onClose, onOpenSettings }) {
 
           {tab === "profile" && <div className="cliently-profile-layout">
             <section className="cliently-profile-panel">
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : "✎ Edit profile"}</button></div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ Edit profile"}</button></div>
               <p className="cliently-profile-subtitle">Your administrator identity and contact details.</p>
               <div className="cliently-profile-fields">
                 {[["name","Full name"],["email","Email address"],["phone","Phone number"],["department","Department"]].map(([field,label]) => <div className="cliently-profile-field" key={field}><label htmlFor={`cliently-profile-${field}`}>{label}</label>{editing ? <input id={`cliently-profile-${field}`} value={draft[field]} onChange={(event) => updateDraft(field,event.target.value)} /> : <div className="cliently-profile-readonly">{profile[field]}</div>}</div>)}
@@ -205,22 +209,22 @@ function ProfileDialog({ onClose, onOpenSettings }) {
               <div className="cliently-profile-actions"><small>{saved ? "Preview updated in this dialog. Backend profile persistence is not connected yet." : "Changes are a local preview until a profile API is connected."}</small><div style={{display:"flex",gap:8}}>{editing && <><button type="button" className="cliently-profile-action secondary" onClick={cancelEdit}>Cancel</button><button type="button" className="cliently-profile-action" onClick={saveProfilePreview}>Apply preview</button></>}</div></div>
             </section>
             <aside className="cliently-profile-side">
-              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">♛</div></section>
+              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âº</div></section>
               <section className="cliently-profile-panel"><h4>Account overview</h4><p className="cliently-profile-subtitle">Account details currently available in this dashboard.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Access scope</small><strong>Platform-wide</strong><em>Administrator</em></div><div className="cliently-profile-stat"><small>Account status</small><strong>Active</strong><em>Current UI role</em></div><div className="cliently-profile-stat"><small>Email</small><strong style={{fontSize:11}}>{profile.email}</strong></div><div className="cliently-profile-stat"><small>Department</small><strong style={{fontSize:11}}>{profile.department}</strong></div></div></section>
             </aside>
           </div>}
 
-          {tab === "security" && <section className="cliently-profile-panel"><h4>Security centre</h4><p className="cliently-profile-subtitle">Security controls for the administrator account.</p><div className="cliently-profile-list"><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⌑</div><div><strong>Authentication</strong><span>Login is managed by the existing Firebase and CRM session authentication flow.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◇</div><div><strong>Multi-factor authentication</strong><span>Status is not currently exposed by the profile API. No security status is assumed.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⛨</div><div><strong>Session protection</strong><span>Refresh and access-token handling remain controlled by the backend session service.</span></div></div></div></section>}
+          {tab === "security" && <section className="cliently-profile-panel"><h4>Security centre</h4><p className="cliently-profile-subtitle">Security controls for the administrator account.</p><div className="cliently-profile-list"><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ</div><div><strong>Authentication</strong><span>Login is managed by the existing Firebase and CRM session authentication flow.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡</div><div><strong>Multi-factor authentication</strong><span>Status is not currently exposed by the profile API. No security status is assumed.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨</div><div><strong>Session protection</strong><span>Refresh and access-token handling remain controlled by the backend session service.</span></div></div></div></section>}
 
-          {tab === "access" && <section className="cliently-profile-panel"><h4>Access & roles</h4><p className="cliently-profile-subtitle">Platform role overview. Actual permissions are enforced by backend authorization.</p><div className="cliently-profile-list">{[["Platform administration","Global platform configuration and oversight"],["Tenant management","Manage tenant lifecycle and status"],["Subscriptions & plans","Review subscriptions, billing cycles and plan configuration"],["Integrations & operations","Manage integrations and monitor system health"],["Security & audit","Review security events and platform audit information"]].map(([title,desc]) => <div className="cliently-profile-row" key={title}><div className="cliently-profile-row-icon">✓</div><div><strong>{title}</strong><span>{desc}</span></div></div>)}</div><p className="cliently-profile-note" style={{marginTop:14}}>This screen is informational. It does not grant permissions or change backend roles.</p></section>}
+          {tab === "access" && <section className="cliently-profile-panel"><h4>Access & roles</h4><p className="cliently-profile-subtitle">Platform role overview. Actual permissions are enforced by backend authorization.</p><div className="cliently-profile-list">{[["Platform administration","Global platform configuration and oversight"],["Tenant management","Manage tenant lifecycle and status"],["Subscriptions & plans","Review subscriptions, billing cycles and plan configuration"],["Integrations & operations","Manage integrations and monitor system health"],["Security & audit","Review security events and platform audit information"]].map(([title,desc]) => <div className="cliently-profile-row" key={title}><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</div><div><strong>{title}</strong><span>{desc}</span></div></div>)}</div><p className="cliently-profile-note" style={{marginTop:14}}>This screen is informational. It does not grant permissions or change backend roles.</p></section>}
 
-          {tab === "preferences" && <section className="cliently-profile-panel"><h4>Workspace preferences</h4><p className="cliently-profile-subtitle">Personal display options can be connected to a user-preferences endpoint.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Interface theme</small><strong>Dark · Cliently</strong><em>Current workspace style</em></div><div className="cliently-profile-stat"><small>Language</small><strong>English</strong><em>Displayed interface language</em></div><div className="cliently-profile-stat"><small>Timezone</small><strong>Asia/Kolkata</strong><em>Suggested local setting</em></div><div className="cliently-profile-stat"><small>Notifications</small><strong>Platform defaults</strong><em>Managed in Settings</em></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Preference controls are not wired to persistent storage yet. Platform-wide defaults remain in the existing Settings module.</p></section>}
+          {tab === "preferences" && <section className="cliently-profile-panel"><h4>Workspace preferences</h4><p className="cliently-profile-subtitle">Personal display options can be connected to a user-preferences endpoint.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Interface theme</small><strong>Dark ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently</strong><em>Current workspace style</em></div><div className="cliently-profile-stat"><small>Language</small><strong>English</strong><em>Displayed interface language</em></div><div className="cliently-profile-stat"><small>Timezone</small><strong>Asia/Kolkata</strong><em>Suggested local setting</em></div><div className="cliently-profile-stat"><small>Notifications</small><strong>Platform defaults</strong><em>Managed in Settings</em></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Preference controls are not wired to persistent storage yet. Platform-wide defaults remain in the existing Settings module.</p></section>}
 
-          {tab === "sessions" && <section className="cliently-profile-panel"><h4>Active sessions</h4><p className="cliently-profile-subtitle">Signed-in devices and session controls.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">▣</div><div><strong>Session information unavailable</strong><span>The current backend does not provide a session-list endpoint to this profile view. No device count or login time is fabricated.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Connect this panel to the session-management API before enabling device revocation.</p></section>}
+          {tab === "sessions" && <section className="cliently-profile-panel"><h4>Active sessions</h4><p className="cliently-profile-subtitle">Signed-in devices and session controls.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£</div><div><strong>Session information unavailable</strong><span>The current backend does not provide a session-list endpoint to this profile view. No device count or login time is fabricated.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Connect this panel to the session-management API before enabling device revocation.</p></section>}
 
-          {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◷</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
+          {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
 
-          <footer className="cliently-profile-actions"><small>CLIENTLY CRM · PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ↗</button></div></footer>
+          <footer className="cliently-profile-actions"><small>CLIENTLY CRM ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button></div></footer>
         </main>
       </section>
     </div>
@@ -473,7 +477,7 @@ export default function SuperAdminApp({ onLogout }) {
     window.location.assign("/login");
   };
 
-  // Subscription & Billing — reads real subscription records from the existing API.
+  // Subscription & Billing ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â reads real subscription records from the existing API.
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [subscriptionsError, setSubscriptionsError] = useState("");
@@ -664,7 +668,7 @@ export default function SuperAdminApp({ onLogout }) {
     .sort((a, b) => getTenantCreatedAt(b) - getTenantCreatedAt(a))
     .slice(0, 5);
 
-  // Plans & Feature Flags — uses the existing plans API.
+  // Plans & Feature Flags ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â uses the existing plans API.
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [plansError, setPlansError] = useState("");
@@ -1097,6 +1101,8 @@ export default function SuperAdminApp({ onLogout }) {
   };
 
   const pageHeaders = {
+    support: { title: "Support & Escalations", subtitle: "Manage platform support tickets and escalations" },
+    usage: { title: "Usage Monitoring", subtitle: "Monitor tenant activity and platform usage" },
     dashboard: {
       eyebrow: "ADMINISTRATION",
       title: "Super Admin Dashboard",
@@ -1137,6 +1143,16 @@ export default function SuperAdminApp({ onLogout }) {
       title: "Announcements",
       subtitle: "Manage platform-wide announcements and updates.",
     },
+    users: {
+      eyebrow: "ADMINISTRATION",
+      title: "Users Management",
+      subtitle: "Manage platform operator accounts and privileged roles.",
+    },
+    audit: {
+      eyebrow: "SECURITY & COMPLIANCE",
+      title: "Audit Logs & Activity History",
+      subtitle: "Review recorded platform security events.",
+    },
     settings: {
       eyebrow: "ADMINISTRATION",
       title: "Settings",
@@ -1147,7 +1163,7 @@ export default function SuperAdminApp({ onLogout }) {
   return (
     <div className="super-admin-layout">
       {/* SIDEBAR */}
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <Sidebar activePage={activePage} setActivePage={setActivePage} onLogout={handleAdminLogout} />
 
       {/* MAIN */}
       <main className={`super-admin-main page-${activePage}`}>
@@ -1161,7 +1177,7 @@ export default function SuperAdminApp({ onLogout }) {
   handleAdminLogout={handleAdminLogout}
 />
 
-        {/* OVERVIEW — isolated from the other dashboard modules */}
+        {/* OVERVIEW ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â isolated from the other dashboard modules */}
         {activePage === "dashboard" && (
   <Overview
     setActivePage={setActivePage}
@@ -1363,6 +1379,10 @@ export default function SuperAdminApp({ onLogout }) {
   publishAnnouncement={publishAnnouncement}
 />
 
+{activePage === "users" && <Users />}
+{activePage === "audit" && <AuditLogs />}
+{activePage === "usage" && <UsageMonitoring />}
+        {activePage === "support" && <SupportEscalations />}
 <Settings
   activePage={activePage}
   activeSetting={activeSetting}
@@ -1392,5 +1412,8 @@ export default function SuperAdminApp({ onLogout }) {
 </div>
   );
 }
+
+
+
 
 

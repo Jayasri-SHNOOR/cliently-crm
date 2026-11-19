@@ -132,23 +132,15 @@ useEffect(() => {
   ];
 
   return (
-    <div className="dashboard">
+  <div className="dashboard">
+    <div className="page-header">
+      <div></div>
 
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1>Dashboard</h1>
-          <p>
-            Good morning, Priyanga Here's your sales activity overview for
-            today.
-          </p>
-        </div>
-
-        <div className="date-display">
-          <Clock3 size={16} />
-          <span>October 7, 2026</span>
-        </div>
+      <div className="date-display">
+        <Clock3 size={16} />
+        <span>October 7, 2026</span>
       </div>
+    </div>
 
       {/* Summary Cards */}
       <div className="summary-grid">

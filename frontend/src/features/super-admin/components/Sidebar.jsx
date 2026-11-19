@@ -1,96 +1,178 @@
-import { LayoutDashboard, Building2, CreditCard, SlidersHorizontal, Activity, Plug, Bell, Megaphone, Settings } from "lucide-react";
-import "./Sidebar.css";
-export default function Sidebar({ activePage, setActivePage }) {
-  return (
-<aside className="super-admin-sidebar">
-        <div className="sidebar-brand">
-          <div className="brand-mark">CRM</div>
+﻿
+import {
+  LayoutDashboard,
+  Building2,
+  CreditCard,
+  SlidersHorizontal,
+  Activity,
+  BarChart3,
+  Plug,
+  Bell,
+  Megaphone,
+  Users,
+  Settings,
+  LogOut,
+  ScrollText,
+  Headset,
+} from "lucide-react";
 
-          <div className="brand-text">
-            <strong>Cliently</strong>
-            <span>Administration</span>
-          </div>
+import "./Sidebar.css";
+
+// ============================================
+// SUPER ADMIN SIDEBAR NAVIGATION
+// ============================================
+
+const navigation = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    key: "tenants",
+    label: "Tenant Management",
+    icon: Building2,
+  },
+  {
+    key: "billing",
+    label: "Subscription & Billing",
+    icon: CreditCard,
+  },
+  {
+    key: "features",
+    label: "Plans & Feature Flags",
+    icon: SlidersHorizontal,
+  },
+  {
+    key: "health",
+    label: "System Health",
+    icon: Activity,
+  },
+
+  // NEW MODULE: Usage Monitoring
+  {
+    key: "usage",
+    label: "Usage Monitoring",
+    icon: BarChart3,
+  },
+
+  {
+    key: "support",
+    label: "Support & Escalations",
+    icon: Headset,
+  },
+  {
+    key: "integrations",
+    label: "Integrations",
+    icon: Plug,
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    icon: Bell,
+  },
+  {
+    key: "announcements",
+    label: "Announcements",
+    icon: Megaphone,
+  },
+  {
+    key: "users",
+    label: "Users Management",
+    icon: Users,
+  },
+  {
+    key: "audit",
+    label: "Audit Logs & Activity History",
+    icon: ScrollText,
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings,
+  },
+];
+
+// ============================================
+// SIDEBAR COMPONENT
+// ============================================
+
+export default function Sidebar({
+  activePage,
+  setActivePage,
+  onLogout,
+}) {
+  return (
+    <aside className="super-admin-sidebar">
+
+      {/* CLIENTLY BRAND */}
+      <div className="sidebar-brand">
+        <div className="brand-mark">C</div>
+
+        <div className="brand-text">
+          <strong>Cliently</strong>
+          <span>Super Admin</span>
+        </div>
+      </div>
+
+      {/* NAVIGATION */}
+      <div className="sidebar-navigation-section">
+        <div className="sidebar-section-title">
+          NAVIGATION
         </div>
 
-        <nav className="sidebar-nav">
+        <nav
+          className="sidebar-nav"
+          aria-label="Super Admin navigation"
+        >
+          {navigation.map(
+            ({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                className={`nav-item ${
+                  activePage === key ? "active" : ""
+                }`}
+                onClick={() => setActivePage(key)}
+                aria-current={
+                  activePage === key
+                    ? "page"
+                    : undefined
+                }
+              >
+                <Icon
+                  size={19}
+                  strokeWidth={1.8}
+                />
 
+                <span className="nav-item-label">
+                  {label}
+                </span>
+              </button>
+            )
+          )}
+        </nav>
+      </div>
 
-  <button
-  className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
-  onClick={() => setActivePage("dashboard")}
->
-  <span>▪</span>
-  Dashboard
-</button>
+      {/* LOGOUT */}
+      <div className="sidebar-footer">
+        <button
+          type="button"
+          className="sidebar-logout"
+          onClick={onLogout}
+          disabled={
+            typeof onLogout !== "function"
+          }
+        >
+          <LogOut
+            size={19}
+            strokeWidth={1.8}
+          />
 
-
-  <button
-    className={`nav-item ${activePage === "tenants" ? "active" : ""}`}
-    onClick={() => setActivePage("tenants")}
-  >
-    <span>▣</span>
-    Tenant Management
-  </button>
-
-  <button
-    className={`nav-item ${activePage === "billing" ? "active" : ""}`}
-    onClick={() => setActivePage("billing")}
-  >
-    <span>◫</span>
-    Subscription & Billing
-  </button>
-
-  <button
-    className={`nav-item ${activePage === "features" ? "active" : ""}`}
-    onClick={() => setActivePage("features")}
-  >
-    <span>⚙</span>
-    Plans & Feature Flags
-  </button>
-
-  <button
-    className={`nav-item ${activePage === "health" ? "active" : ""}`}
-    onClick={() => setActivePage("health")}
-  >
-    <span>◉</span>
-    System Health
-  </button>
-
-  <button
-    className={`nav-item ${activePage === "integrations" ? "active" : ""}`}
-    onClick={() => setActivePage("integrations")}
-  >
-    <span>⊞</span>
-    Integrations
-  </button>
-
-
-  <button
-    className={`nav-item ${activePage === "notifications" ? "active" : ""}`}
-    onClick={() => setActivePage("notifications")}
-  >
-    <span>♢</span>
-    Notifications
-  </button>
-
-  <button
-    className={`nav-item ${activePage === "announcements" ? "active" : ""}`}
-    onClick={() => setActivePage("announcements")}
-  >
-    <span>◌</span>
-    Announcements
-  </button>
-
-
-  <button
-    className={`nav-item ${activePage === "settings" ? "active" : ""}`}
-    onClick={() => setActivePage("settings")}
-  >
-    <span>⚙</span>
-    Settings
-  </button>
-
-</nav>
-      </aside>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
   );
 }
+

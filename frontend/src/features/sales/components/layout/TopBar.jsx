@@ -1,9 +1,13 @@
+
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, LogOut } from "lucide-react";
+import { Search, ChevronDown, LogOut, UserRound } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { logout } from "../../../../lib/auth";
+
 function TopBar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -22,14 +26,13 @@ function TopBar() {
     };
   }, []);
 
+  const handleProfile = () => {
+    setProfileOpen(false);
+    navigate("/SalesExecutive/profile");
+  };
+
   const handleLogout = async () => {
     setProfileOpen(false);
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
-    sessionStorage.clear();
-
     await logout();
     window.location.replace("/login?reason=SIGNED_OUT");
   };
@@ -68,6 +71,15 @@ function TopBar() {
               <button
                 type="button"
                 className="profile-dropdown-item"
+                onClick={handleProfile}
+              >
+                <UserRound size={17} />
+                <span>Profile</span>
+              </button>
+
+              <button
+                type="button"
+                className="profile-dropdown-item"
                 onClick={handleLogout}
               >
                 <LogOut size={17} />
@@ -82,3 +94,4 @@ function TopBar() {
 }
 
 export default TopBar;
+
