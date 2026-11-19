@@ -22,9 +22,9 @@ function App() {
       <SessionGate>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-
+          <Route path="/site/:slug" element={<PublicSite />} />
           <Route path="/login" element={<Login />} />
-
+          
           <Route
             path="/super-admin/*"
             element={
