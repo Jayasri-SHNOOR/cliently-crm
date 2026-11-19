@@ -1,7 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Search, Plus, Trash2, NotebookPen } from "lucide-react";
-
-const API_URL = "http://localhost:5000/api/sales/notes";
+import api from "../services/api";
 
 function Notes() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -13,22 +13,17 @@ function Notes() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch notes from the backend
+  // Fetch notes from MongoDB
   async function fetchNotes() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load notes.");
-      }
+      const data = await api.get("/api/sales/notes");
 
       setNotes(data.notes || []);
     } catch (err) {
-      setError(err.message || "Unable to connect to the server.");
+      setError(err.message || "Unable to load notes.");
     } finally {
       setLoading(false);
     }
@@ -39,14 +34,12 @@ function Notes() {
   }, []);
 
   const filteredNotes = notes.filter((note) =>
-    `${note.title || note.noteTitle || ""} ${
-      note.content || note.noteContent || ""
-    }`
+    `${note.title || ""} ${note.content || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
-  // Create a note in MongoDB
+  // Create a note
   async function addNote(e) {
     e.preventDefault();
 
@@ -56,22 +49,10 @@ function Notes() {
       setSaving(true);
       setError("");
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: noteTitle.trim(),
-          content: noteContent.trim(),
-        }),
+      await api.post("/api/sales/notes", {
+        title: noteTitle.trim(),
+        content: noteContent.trim(),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to save note.");
-      }
 
       setNoteTitle("");
       setNoteContent("");
@@ -85,26 +66,21 @@ function Notes() {
     }
   }
 
-  // Delete a note from MongoDB
+  // Delete a note
   async function deleteNote(id) {
-    const confirmed = window.confirm("Are you sure you want to delete this note?");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this note?"
+    );
+
     if (!confirmed) return;
 
     try {
       setError("");
 
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to delete note.");
-      }
+      await api.delete(`/api/sales/notes/${id}`);
 
       setNotes((currentNotes) =>
-        currentNotes.filter((note) => (note._id || note.id) !== id)
+        currentNotes.filter((note) => note._id !== id)
       );
     } catch (err) {
       setError(err.message || "Unable to delete note.");
@@ -112,7 +88,7 @@ function Notes() {
   }
 
   function formatDate(note) {
-    const dateValue = note.createdAt || note.date || note.updatedAt;
+    const dateValue = note.createdAt || note.updatedAt;
 
     if (!dateValue) return "Recently added";
 
@@ -217,9 +193,9 @@ function Notes() {
       ) : (
         <div className="notes-grid">
           {filteredNotes.map((note) => {
-            const id = note._id || note.id;
-            const title = note.title || note.noteTitle || "Untitled";
-            const content = note.content || note.noteContent || "";
+            const id = note._id;
+            const title = note.title || "Untitled";
+            const content = note.content || "";
 
             return (
               <article className="note-card" key={id}>
@@ -248,7 +224,9 @@ function Notes() {
 
           {filteredNotes.length === 0 && (
             <p className="empty-tasks">
-              {searchTerm ? "No matching notes found." : "No notes yet. Add your first note!"}
+              {searchTerm
+                ? "No matching notes found."
+                : "No notes yet. Add your first note!"}
             </p>
           )}
         </div>

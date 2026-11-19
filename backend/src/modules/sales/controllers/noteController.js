@@ -2,16 +2,31 @@
 const mongoose = require("mongoose");
 const Note = require("../models/note");
 
-// GET /api/notes - Fetch all notes, with optional search and category filters
+// Escape special characters in search input
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// GET /api/sales/notes
 const getNotes = async (req, res) => {
   try {
+    const tenantId = req.user.tenantId;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Tenant information is missing",
+      });
+    }
+
     const { search, category, isPinned } = req.query;
-    const filter = {};
+    const filter = { tenantId };
 
     if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), "i");
+
       filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { content: { $regex: search, $options: "i" } },
+        { title: searchRegex },
+        { content: searchRegex },
       ];
     }
 
@@ -28,24 +43,26 @@ const getNotes = async (req, res) => {
       updatedAt: -1,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: notes.length,
       notes,
     });
   } catch (error) {
     console.error("Get notes error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch notes",
     });
   }
 };
 
-// GET /api/notes/:id - Fetch one note
+// GET /api/sales/notes/:id
 const getNoteById = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.user.tenantId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -54,7 +71,7 @@ const getNoteById = async (req, res) => {
       });
     }
 
-    const note = await Note.findById(id);
+    const note = await Note.findOne({ _id: id, tenantId });
 
     if (!note) {
       return res.status(404).json({
@@ -63,20 +80,32 @@ const getNoteById = async (req, res) => {
       });
     }
 
-    res.status(200).json({ success: true, note });
+    return res.status(200).json({
+      success: true,
+      note,
+    });
   } catch (error) {
     console.error("Get note error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch note",
     });
   }
 };
 
-// POST /api/notes - Create a note
+// POST /api/sales/notes
 const createNote = async (req, res) => {
   try {
+    const tenantId = req.user.tenantId;
     const { title, content, category, isPinned } = req.body;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Tenant information is missing",
+      });
+    }
 
     if (!title?.trim() || !content?.trim()) {
       return res.status(400).json({
@@ -86,30 +115,33 @@ const createNote = async (req, res) => {
     }
 
     const note = await Note.create({
+      tenantId,
       title,
       content,
       category,
       isPinned,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Note created successfully",
       note,
     });
   } catch (error) {
     console.error("Create note error:", error.message);
-    res.status(400).json({
+
+    return res.status(400).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-// PUT /api/notes/:id - Update a note
+// PUT /api/sales/notes/:id
 const updateNote = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.user.tenantId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -118,7 +150,13 @@ const updateNote = async (req, res) => {
       });
     }
 
-    const allowedFields = ["title", "content", "category", "isPinned"];
+    const allowedFields = [
+      "title",
+      "content",
+      "category",
+      "isPinned",
+    ];
+
     const updates = {};
 
     for (const field of allowedFields) {
@@ -134,10 +172,34 @@ const updateNote = async (req, res) => {
       });
     }
 
-    const note = await Note.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    if (
+      updates.title !== undefined &&
+      !updates.title.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Note title cannot be empty",
+      });
+    }
+
+    if (
+      updates.content !== undefined &&
+      !updates.content.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Note content cannot be empty",
+      });
+    }
+
+    const note = await Note.findOneAndUpdate(
+      { _id: id, tenantId },
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!note) {
       return res.status(404).json({
@@ -146,24 +208,26 @@ const updateNote = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Note updated successfully",
       note,
     });
   } catch (error) {
     console.error("Update note error:", error.message);
-    res.status(400).json({
+
+    return res.status(400).json({
       success: false,
       message: error.message,
     });
   }
 };
 
-// DELETE /api/notes/:id - Delete a note
+// DELETE /api/sales/notes/:id
 const deleteNote = async (req, res) => {
   try {
     const { id } = req.params;
+    const tenantId = req.user.tenantId;
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -172,7 +236,10 @@ const deleteNote = async (req, res) => {
       });
     }
 
-    const note = await Note.findByIdAndDelete(id);
+    const note = await Note.findOneAndDelete({
+      _id: id,
+      tenantId,
+    });
 
     if (!note) {
       return res.status(404).json({
@@ -181,13 +248,14 @@ const deleteNote = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Note deleted successfully",
     });
   } catch (error) {
     console.error("Delete note error:", error.message);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to delete note",
     });
@@ -201,4 +269,3 @@ module.exports = {
   updateNote,
   deleteNote,
 };
-

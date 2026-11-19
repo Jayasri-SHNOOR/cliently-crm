@@ -1,10 +1,7 @@
-import { useState, useEffect } from "react";
-import {
-  Search,
-  MoreHorizontal,
-} from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/sales/leads";
+import { useState, useEffect } from "react";
+import { Search, MoreHorizontal } from "lucide-react";
+import api from "../services/api";
 
 function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -13,37 +10,37 @@ function Leads() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function fetchLeads() {
+  const fetchLeads = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL);
-      const data = await response.json();
+      const response = await api.get("/api/sales/leads");
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load leads.");
-      }
-
-      setLeads(Array.isArray(data) ? data : data.leads || []);
+      setLeads(
+        Array.isArray(response.data) ? response.data : []
+      );
     } catch (err) {
-      setError(err.message || "Unable to connect to the backend.");
+      console.error("Leads API error:", err);
+      setError(err.message || "Unable to load leads.");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     fetchLeads();
   }, []);
 
   const filteredLeads = leads.filter((lead) => {
-    const name = lead.name || lead.leadName || "";
-    const company = lead.company || lead.companyName || "";
-    const contact = lead.contact || lead.email || "";
-    const matchesSearch = `${name} ${company} ${contact}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const name = lead.name || "";
+    const company = lead.company || "";
+    const contact = `${lead.email || ""} ${lead.phone || ""}`;
+
+    const matchesSearch =
+      `${name} ${company} ${contact}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "All" || lead.status === statusFilter;
@@ -52,10 +49,11 @@ function Leads() {
   });
 
   function formatDate(value) {
-    if (!value || value === "—") return "—";
+    if (!value) return "—";
 
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
+
+    if (Number.isNaN(date.getTime())) return "—";
 
     return date.toLocaleDateString("en-IN", {
       month: "short",
@@ -71,15 +69,7 @@ function Leads() {
           <p>Manage and follow up with your assigned leads.</p>
         </div>
 
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() =>
-            window.alert("Lead creation will be enabled after verifying the backend fields.")
-          }
-        >
-          + Add Lead
-        </button>
+       
       </div>
 
       <div className="leads-card">
@@ -113,16 +103,22 @@ function Leads() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="All">All</option>
+            <option value="All">All Statuses</option>
             <option value="New">New</option>
             <option value="Contacted">Contacted</option>
             <option value="Qualified">Qualified</option>
+            <option value="Demo">Demo</option>
+            <option value="Proposal">Proposal</option>
+            <option value="Negotiation">Negotiation</option>
+            <option value="Won">Won</option>
+            <option value="Lost">Lost</option>
           </select>
         </div>
 
         {error && (
           <div role="alert" style={{ color: "#b42318", margin: "12px" }}>
             {error}
+
             <button
               type="button"
               className="filter-button"
@@ -155,6 +151,10 @@ function Leads() {
                 <tr>
                   <td colSpan="9">Loading leads...</td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="9">Unable to display leads.</td>
+                </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
                   <td colSpan="9">
@@ -164,19 +164,16 @@ function Leads() {
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map((lead, index) => {
-                  const name = lead.name || lead.leadName || "Unnamed";
-                  const company =
-                    lead.company || lead.companyName || "—";
+                filteredLeads.map((lead) => {
+                  const name = lead.name || "Unnamed";
+                  const company = lead.company || "—";
                   const contact =
-                    lead.contact || lead.email || lead.phone || "—";
+                    [lead.email, lead.phone].filter(Boolean).join(" / ") || "—";
                   const source = lead.source || "—";
                   const status = lead.status || "New";
-                  const priority = lead.priority || "Medium";
-                  const id = lead._id || lead.id || contact + index;
 
                   return (
-                    <tr key={id}>
+                    <tr key={lead._id}>
                       <td>
                         <div className="lead-name">
                           <div className="lead-avatar">
@@ -200,25 +197,9 @@ function Leads() {
                         </span>
                       </td>
 
-                      <td>
-                        <span
-                          className={`lead-priority priority-${String(
-                            priority
-                          ).toLowerCase()}`}
-                        >
-                          {priority}
-                        </span>
-                      </td>
-
-                      <td>
-                        {formatDate(lead.lastContacted)}
-                      </td>
-
-                      <td>
-                        {formatDate(
-                          lead.nextFollowUp || lead.nextFollowup
-                        )}
-                      </td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td>—</td>
 
                       <td>
                         <button
@@ -228,7 +209,7 @@ function Leads() {
                           title="More options"
                           onClick={() =>
                             window.alert(
-                              "Lead actions can be added after confirming the available backend operations."
+                              "Lead actions will be added after confirming the assignment workflow."
                             )
                           }
                         >
