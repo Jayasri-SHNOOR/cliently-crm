@@ -11,6 +11,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const settingRouter = require("./routes/settingRouter");
+const userRoutes = require("./routes/userRoutes");
+const usageRoutes = require("./routes/usageRoutes");
+const supportRoutes = require("./routes/supportRoutes");
 
 router.use('/tenants', tenantRoutes);
 router.use('/subscriptions', subscriptionRoutes);
@@ -22,7 +25,11 @@ router.use('/notifications', notificationRoutes);
 router.use('/announcements', announcementRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/settings", settingRouter);
-router.get('/test', (req, res) => {
+router.use("/users", userRoutes);
+router.use("/usage", usageRoutes);
+router.use("/support", supportRoutes);
+
+router.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'Super Admin routes working'

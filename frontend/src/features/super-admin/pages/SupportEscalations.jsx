@@ -1,0 +1,217 @@
+﻿import { useEffect, useState } from "react";
+import { apiFetch } from "../../../lib/api";
+import "./SupportEscalations.css";
+
+const statuses = ["All", "Open", "In Progress", "Waiting on Customer", "Resolved", "Closed"];
+const priorities = ["All", "Low", "Medium", "High", "Urgent"];
+
+export default function SupportEscalations() {
+  const [overview, setOverview] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All");
+  const [priority, setPriority] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [summary, result] = await Promise.all([
+        apiFetch("/api/super-admin/support/overview"),
+        apiFetch("/api/super-admin/support/tickets")
+      ]);
+
+      setOverview(summary.data);
+      setTickets(Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      setError(err.message || "Unable to load support tickets.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function openTicket(id) {
+    setDetailLoading(true);
+    setError("");
+
+    try {
+      const result = await apiFetch(`/api/super-admin/support/tickets/${id}`);
+      setSelected(result.data);
+    } catch (err) {
+      setError(err.message || "Unable to open ticket.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  const filtered = tickets.filter((ticket) => {
+    const text = [
+      ticket.ticketNumber,
+      ticket.subject,
+      ticket.category,
+      ticket.status,
+      ticket.priority
+    ].join(" ").toLowerCase();
+
+    return (
+      text.includes(search.toLowerCase()) &&
+      (status === "All" || ticket.status === status) &&
+      (priority === "All" || ticket.priority === priority)
+    );
+  });
+
+  const stats = [
+    ["Total Tickets", overview?.total ?? 0],
+    ["Open", overview?.open ?? 0],
+    ["In Progress", overview?.inProgress ?? 0],
+    ["Urgent", overview?.urgent ?? 0],
+    ["Resolved", overview?.resolved ?? 0],
+    ["Closed", overview?.closed ?? 0]
+  ];
+
+  return (
+    <div className="support-escalations">
+      <div className="support-page-heading">
+        <div>
+          <h2 className="support-section-title">Ticket Overview</h2>
+          <p>Monitor and manage platform support requests across tenants.</p>
+        </div>
+        <button onClick={loadData} disabled={loading}>
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {error && <div className="support-error">{error}</div>}
+
+      <div className="support-stats">
+        {stats.map(([label, value]) => (
+          <div className="support-stat-card" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <section className="support-table-card">
+        <div className="support-table-heading">
+          <h3>Support Tickets</h3>
+          <span>{filtered.length} of {tickets.length} loaded tickets</span>
+        </div>
+
+        <div className="support-filters">
+          <input
+            placeholder="Search tickets..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            {statuses.map((item) => <option key={item}>{item}</option>)}
+          </select>
+
+          <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+            {priorities.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </div>
+
+        <div className="support-table-scroll">
+          <table className="support-table">
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Subject</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Last Activity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="7">Loading tickets...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan="7">No matching support tickets found.</td></tr>
+              ) : filtered.map((ticket) => (
+                <tr key={ticket._id}>
+                  <td>{ticket.ticketNumber}</td>
+                  <td>{ticket.subject}</td>
+                  <td>{ticket.category}</td>
+                  <td>
+                    <span className="support-tag">{ticket.priority}</span>
+                  </td>
+                  <td>
+                    <span className="support-tag">{ticket.status}</span>
+                  </td>
+                  <td>
+                    {ticket.lastActivityAt
+                      ? new Date(ticket.lastActivityAt).toLocaleDateString("en-IN")
+                      : "-"}
+                  </td>
+                  <td>
+                    <button
+                      className="support-view-button"
+                      onClick={() => openTicket(ticket._id)}
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {detailLoading && <p>Loading ticket details...</p>}
+
+      {selected && (
+        <div className="support-modal-backdrop" onClick={() => setSelected(null)}>
+          <section
+            className="support-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Support ticket details"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="support-modal-header">
+              <h3>{selected.ticketNumber}</h3>
+              <button onClick={() => setSelected(null)}>Close</button>
+            </div>
+
+            <h4>{selected.subject}</h4>
+            <p><strong>Category:</strong> {selected.category}</p>
+            <p><strong>Priority:</strong> {selected.priority}</p>
+            <p><strong>Status:</strong> {selected.status}</p>
+            <p><strong>Created by:</strong> {selected.createdBy?.name || "-"}</p>
+
+            <h4>Conversation</h4>
+
+            {selected.messages?.length ? (
+              selected.messages.map((message, index) => (
+                <div className="support-message" key={message._id || index}>
+                  <strong>{message.authorName}</strong>
+                  <small>{message.authorRole}</small>
+                  <p>{message.text}</p>
+                </div>
+              ))
+            ) : (
+              <p>No messages available.</p>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+

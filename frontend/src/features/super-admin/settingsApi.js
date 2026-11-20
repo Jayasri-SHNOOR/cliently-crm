@@ -246,7 +246,7 @@ export const fetchSettings = () => request("GET");
 export const patchSettings = (changes) =>
   request("PATCH", changes);
 
-// Compatibility with SuperAdminDashboard.jsx
+// Compatibility with SuperAdminApp.jsx
 export const getSettings = fetchSettings;
 export const updateSettings = patchSettings;
 
