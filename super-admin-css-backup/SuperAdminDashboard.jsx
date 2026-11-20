@@ -1,0 +1,1606 @@
+import Settings from "./pages/Settings";
+import Announcements from "./pages/Announcements";
+import Notifications from "./pages/Notifications";
+import Integrations from "./pages/Integrations";
+import SystemHealth from "./pages/SystemHealth";
+import Plans from "./pages/Plans";
+import Billing from "./pages/Billing";
+import Tenants from "./pages/Tenants";
+import Topbar from "./components/Topbar";
+import Sidebar from "./components/Sidebar";
+import { useEffect, useState } from "react";
+import {
+  getSettings,
+  updateSettings,
+} from "./settingsApi";
+
+import "./SuperAdminDashboard.css";
+
+const featureAccess = [
+  {
+    feature: "Lead Management",
+    description: "Core lead management capabilities",
+    starter: "Enabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Advanced Reports",
+    description: "Advanced analytics and reporting",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "AI Leads Scraper",
+    description: "AI-powered lead discovery",
+    starter: "Disabled",
+    pro: "Disabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Global Integrations",
+    description: "Platform-level third-party integrations",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+  {
+    feature: "Custom Workflows",
+    description: "Advanced workflow automation",
+    starter: "Disabled",
+    pro: "Enabled",
+    enterprise: "Enabled",
+  },
+];
+
+
+
+
+const integrations = [
+  {
+    name: "Twilio",
+    description: "Messaging and communication services",
+    initials: "T",
+  },
+  {
+    name: "Stripe",
+    description: "Payments and subscription billing",
+    initials: "S",
+  },
+  {
+    name: "Google Workspace",
+    description: "Productivity and workspace services",
+    initials: "G",
+  },
+];
+
+const services = [
+  ["Application Server", "86 ms"],
+  ["Database", "142 ms"],
+  ["API Gateway", "94 ms"],
+  ["Background Jobs", "118 ms"],
+];
+
+function FeatureState({ state }) {
+  const enabled = state === "Enabled";
+
+  return (
+    <span className={`feature-state ${enabled ? "enabled" : "disabled"}`}>
+      <span className="state-dot"></span>
+      {state}
+    </span>
+  );
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+function getTenantCreatedAt(tenant) {
+  const value = tenant?.createdAt || tenant?.date;
+  if (!value || value === "—") return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function ProfileDialog({ onClose, onOpenSettings }) {
+  const [tab, setTab] = useState("profile");
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [profile, setProfile] = useState({
+    name: "Super Admin",
+    email: "Not connected",
+    phone: "Not provided",
+    department: "Platform Administration",
+  });
+  const [draft, setDraft] = useState(profile);
+
+  const tabs = [
+    { id: "profile", label: "Profile", icon: "◉" },
+    { id: "security", label: "Security", icon: "⬡" },
+    { id: "access", label: "Access & Roles", icon: "▱" },
+    { id: "preferences", label: "Preferences", icon: "☷" },
+    { id: "sessions", label: "Sessions", icon: "▣" },
+    { id: "activity", label: "Activity", icon: "◷" },
+  ];
+
+  const updateDraft = (field, value) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+  };
+
+  const cancelEdit = () => {
+    setDraft(profile);
+    setEditing(false);
+    setSaved(false);
+  };
+
+  const saveProfilePreview = () => {
+    // This updates the current UI only. Connect this action to a profile API
+    // before treating profile changes as persisted account data.
+    setProfile(draft);
+    setEditing(false);
+    setSaved(true);
+  };
+
+  return (
+    <div className="cliently-profile-overlay" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <style>{`
+        .cliently-profile-overlay{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:22px;background:rgba(18,60,58,.62);backdrop-filter:blur(16px)}
+        .cliently-profile-shell{width:min(1180px,100%);max-height:94vh;overflow:auto;background:#f4faf8;color:#183735;border:1px solid rgba(207,228,223,.95);border-radius:25px;box-shadow:0 35px 110px rgba(0,0,0,.55);font-family:inherit}
+        .cliently-profile-top{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid rgba(255,255,255,.12);background:linear-gradient(110deg,#123c3a,#1b514d)}
+        .cliently-profile-brand{display:flex;align-items:center;gap:11px;font-weight:850;letter-spacing:.04em}.cliently-profile-brandmark{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#75d5c5,#55b9a8);color:#123c3a;font-weight:950;box-shadow:0 0 24px rgba(31,218,207,.25)}
+        .cliently-profile-close{width:36px;height:36px;border:1px solid rgba(181,205,235,.2);border-radius:11px;background:#eaf6f3;color:#183735;font-size:22px;cursor:pointer}
+        .cliently-profile-main{padding:24px 28px 28px;background:radial-gradient(ellipse at 82% 0%,rgba(117,213,197,.16),transparent 34%),radial-gradient(ellipse at 18% 18%,rgba(85,185,168,.10),transparent 32%),#f4faf8}
+        .cliently-profile-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px}.cliently-profile-heading h2{margin:0;font-size:27px;letter-spacing:-.04em;color:#183735}.cliently-profile-heading p{margin:6px 0 0;color:#637875;font-size:13px}.cliently-profile-breadcrumb{font-size:11px;color:#637875;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase}
+        .cliently-profile-hero{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:22px 25px;border:1px solid rgba(66,203,210,.25);border-radius:20px;background:linear-gradient(105deg,#eaf6f3,#ddf6f1 55%,#f4faf8);box-shadow:inset 0 1px rgba(255,255,255,.06)}
+        .cliently-profile-hero:after{content:"";position:absolute;width:310px;height:170px;right:7%;top:-90px;border:1px solid rgba(43,224,216,.35);border-radius:50%;box-shadow:0 0 0 12px rgba(43,224,216,.035),0 0 0 28px rgba(43,224,216,.025),0 0 50px rgba(43,224,216,.12);transform:rotate(-18deg);pointer-events:none}
+        .cliently-profile-avatar{position:relative;z-index:1;display:grid;place-items:center;flex:0 0 76px;width:76px;height:76px;border-radius:23px;border:2px solid #55b9a8;background:linear-gradient(145deg,#ddf6f1,#eaf6f3);color:#123c3a;font-size:25px;font-weight:900;box-shadow:0 0 26px rgba(32,218,211,.18)}
+        .cliently-profile-hero-copy{position:relative;z-index:1;min-width:0}.cliently-profile-hero h3{margin:0 0 7px;font-size:23px;letter-spacing:-.03em}.cliently-profile-hero p{margin:0;color:#637875;font-size:12px}.cliently-profile-meta{display:flex;flex-wrap:wrap;gap:9px 18px;margin-top:12px;color:#35514e;font-size:12px}.cliently-profile-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border:1px solid rgba(42,220,193,.35);border-radius:99px;background:rgba(5,35,48,.42);color:#357f74;font-size:11px;font-weight:800}
+        .cliently-profile-tabs{display:flex;gap:6px;overflow:auto;margin:17px 0;padding:6px;border:1px solid rgba(130,163,205,.17);border-radius:16px;background:#eaf6f3}.cliently-profile-tab{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:max-content;padding:12px 14px;border:0;border-radius:11px;background:transparent;color:#637875;font:600 12px inherit;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}.cliently-profile-tab.active{background:#357f74;color:#ffffff;box-shadow:0 5px 20px rgba(0,193,190,.18)}.cliently-profile-tab span{font-size:16px}
+        .cliently-profile-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:16px}.cliently-profile-panel{min-width:0;padding:21px;border:1px solid rgba(129,164,210,.18);border-radius:19px;background:#ffffff;box-shadow:0 12px 35px rgba(0,0,0,.12)}.cliently-profile-panel h4{margin:0;color:#183735;font-size:16px}.cliently-profile-subtitle{margin:6px 0 18px;color:#637875;font-size:12px;line-height:1.55}.cliently-profile-fields{display:grid;gap:12px}.cliently-profile-field{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:center;gap:12px}.cliently-profile-field label{color:#637875;font-size:12px}.cliently-profile-field input{width:100%;min-width:0;box-sizing:border-box;padding:11px 12px;border:1px solid #cfe4df;border-radius:10px;outline:none;background:#ffffff;color:#183735;font:500 12px inherit}.cliently-profile-field input:focus{border-color:#55b9a8;box-shadow:0 0 0 3px rgba(36,201,197,.1)}.cliently-profile-readonly{padding:11px 12px;border:1px solid rgba(110,145,190,.13);border-radius:10px;background:rgba(7,18,34,.52);color:#35514e;font-size:12px;overflow-wrap:anywhere}
+        .cliently-profile-side{display:grid;gap:15px}.cliently-profile-identity{display:flex;align-items:center;justify-content:space-between;gap:14px;border-color:rgba(42,196,214,.32);background:#eaf6f3}.cliently-profile-identity strong{display:block;margin-top:5px;font-size:17px}.cliently-profile-identity small{color:#637875;font-size:11px}.cliently-profile-crown{display:grid;place-items:center;width:62px;height:62px;border:1px solid rgba(177,148,255,.32);border-radius:17px;background:rgba(132,93,205,.18);color:#357f74;font-size:27px}
+        .cliently-profile-statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cliently-profile-stat{padding:14px;border:1px solid rgba(124,157,199,.16);border-radius:14px;background:rgba(7,18,34,.45)}.cliently-profile-stat small{display:block;color:#8ea5c4;font-size:10px}.cliently-profile-stat strong{display:block;margin-top:8px;color:#183735;font-size:14px}.cliently-profile-stat em{display:block;margin-top:4px;color:#357f74;font-size:10px;font-style:normal}
+        .cliently-profile-list{display:grid;gap:10px}.cliently-profile-row{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid rgba(125,158,198,.15);border-radius:13px;background:rgba(7,18,34,.42)}.cliently-profile-row-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:rgba(36,191,194,.13);color:#357f74}.cliently-profile-row strong{display:block;color:#183735;font-size:12px}.cliently-profile-row span{display:block;margin-top:4px;color:#637875;font-size:11px;line-height:1.5}.cliently-profile-note{padding:13px;border:1px solid rgba(62,178,190,.2);border-radius:13px;background:rgba(10,73,86,.18);color:#637875;font-size:11px;line-height:1.6}
+        .cliently-profile-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:17px}.cliently-profile-actions small{color:#637875;font-size:10px}.cliently-profile-action{padding:10px 15px;border:1px solid transparent;border-radius:10px;background:linear-gradient(110deg,#75d5c5,#357f74);color:#123c3a;font-size:12px;font-weight:850;cursor:pointer}.cliently-profile-action.secondary{border-color:#cfe4df;background:#eaf6f3;color:#35514e}.cliently-profile-action:disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:760px){.cliently-profile-overlay{padding:8px}.cliently-profile-shell{max-height:97vh;border-radius:18px}.cliently-profile-main{padding:18px 14px}.cliently-profile-top{padding:0 16px}.cliently-profile-heading{align-items:flex-start;flex-direction:column}.cliently-profile-hero{padding:17px;align-items:flex-start}.cliently-profile-avatar{width:60px;height:60px;flex-basis:60px;border-radius:18px}.cliently-profile-layout{grid-template-columns:1fr}.cliently-profile-tabs{justify-content:flex-start}.cliently-profile-tab{flex:0 0 auto}.cliently-profile-field{grid-template-columns:1fr;gap:6px}.cliently-profile-actions{align-items:flex-start;flex-direction:column}}
+      `}</style>
+
+      <section className="cliently-profile-shell" role="dialog" aria-modal="true" aria-labelledby="cliently-profile-title">
+        <header className="cliently-profile-top">
+          <div className="cliently-profile-brand"><span className="cliently-profile-brandmark">C</span><span>CLIENTLY CRM <small style={{display:"block",fontSize:9,opacity:.65,fontWeight:600,letterSpacing:".15em"}}>PLATFORM CONTROL</small></span></div>
+          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>×</button>
+        </header>
+
+        <main className="cliently-profile-main">
+          <div className="cliently-profile-heading">
+            <div><div className="cliently-profile-breadcrumb">Account centre&nbsp; / &nbsp;Administrator identity</div><h2 id="cliently-profile-title">My Profile</h2><p>Manage your identity, security preferences and platform access.</p></div>
+            <span className="cliently-profile-pill">●&nbsp; SUPER ADMIN</span>
+          </div>
+
+          <section className="cliently-profile-hero">
+            <div className="cliently-profile-avatar">SA</div>
+            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator · Cliently Platform</p><div className="cliently-profile-meta"><span>✉ {profile.email}</span><span>◈ Platform-wide access</span><span className="cliently-profile-pill">● Active workspace</span></div></div>
+          </section>
+
+          <nav className="cliently-profile-tabs" aria-label="Profile sections">
+            {tabs.map((item) => <button key={item.id} type="button" className={`cliently-profile-tab ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}><span>{item.icon}</span>{item.label}</button>)}
+          </nav>
+
+          {tab === "profile" && <div className="cliently-profile-layout">
+            <section className="cliently-profile-panel">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : "✎ Edit profile"}</button></div>
+              <p className="cliently-profile-subtitle">Your administrator identity and contact details.</p>
+              <div className="cliently-profile-fields">
+                {[["name","Full name"],["email","Email address"],["phone","Phone number"],["department","Department"]].map(([field,label]) => <div className="cliently-profile-field" key={field}><label htmlFor={`cliently-profile-${field}`}>{label}</label>{editing ? <input id={`cliently-profile-${field}`} value={draft[field]} onChange={(event) => updateDraft(field,event.target.value)} /> : <div className="cliently-profile-readonly">{profile[field]}</div>}</div>)}
+              </div>
+              <div className="cliently-profile-actions"><small>{saved ? "Preview updated in this dialog. Backend profile persistence is not connected yet." : "Changes are a local preview until a profile API is connected."}</small><div style={{display:"flex",gap:8}}>{editing && <><button type="button" className="cliently-profile-action secondary" onClick={cancelEdit}>Cancel</button><button type="button" className="cliently-profile-action" onClick={saveProfilePreview}>Apply preview</button></>}</div></div>
+            </section>
+            <aside className="cliently-profile-side">
+              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">♛</div></section>
+              <section className="cliently-profile-panel"><h4>Account overview</h4><p className="cliently-profile-subtitle">Account details currently available in this dashboard.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Access scope</small><strong>Platform-wide</strong><em>Administrator</em></div><div className="cliently-profile-stat"><small>Account status</small><strong>Active</strong><em>Current UI role</em></div><div className="cliently-profile-stat"><small>Email</small><strong style={{fontSize:11}}>{profile.email}</strong></div><div className="cliently-profile-stat"><small>Department</small><strong style={{fontSize:11}}>{profile.department}</strong></div></div></section>
+            </aside>
+          </div>}
+
+          {tab === "security" && <section className="cliently-profile-panel"><h4>Security centre</h4><p className="cliently-profile-subtitle">Security controls for the administrator account.</p><div className="cliently-profile-list"><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⌑</div><div><strong>Authentication</strong><span>Login is managed by the existing Firebase and CRM session authentication flow.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◇</div><div><strong>Multi-factor authentication</strong><span>Status is not currently exposed by the profile API. No security status is assumed.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">⛨</div><div><strong>Session protection</strong><span>Refresh and access-token handling remain controlled by the backend session service.</span></div></div></div></section>}
+
+          {tab === "access" && <section className="cliently-profile-panel"><h4>Access & roles</h4><p className="cliently-profile-subtitle">Platform role overview. Actual permissions are enforced by backend authorization.</p><div className="cliently-profile-list">{[["Platform administration","Global platform configuration and oversight"],["Tenant management","Manage tenant lifecycle and status"],["Subscriptions & plans","Review subscriptions, billing cycles and plan configuration"],["Integrations & operations","Manage integrations and monitor system health"],["Security & audit","Review security events and platform audit information"]].map(([title,desc]) => <div className="cliently-profile-row" key={title}><div className="cliently-profile-row-icon">✓</div><div><strong>{title}</strong><span>{desc}</span></div></div>)}</div><p className="cliently-profile-note" style={{marginTop:14}}>This screen is informational. It does not grant permissions or change backend roles.</p></section>}
+
+          {tab === "preferences" && <section className="cliently-profile-panel"><h4>Workspace preferences</h4><p className="cliently-profile-subtitle">Personal display options can be connected to a user-preferences endpoint.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Interface theme</small><strong>Dark · Cliently</strong><em>Current workspace style</em></div><div className="cliently-profile-stat"><small>Language</small><strong>English</strong><em>Displayed interface language</em></div><div className="cliently-profile-stat"><small>Timezone</small><strong>Asia/Kolkata</strong><em>Suggested local setting</em></div><div className="cliently-profile-stat"><small>Notifications</small><strong>Platform defaults</strong><em>Managed in Settings</em></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Preference controls are not wired to persistent storage yet. Platform-wide defaults remain in the existing Settings module.</p></section>}
+
+          {tab === "sessions" && <section className="cliently-profile-panel"><h4>Active sessions</h4><p className="cliently-profile-subtitle">Signed-in devices and session controls.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">▣</div><div><strong>Session information unavailable</strong><span>The current backend does not provide a session-list endpoint to this profile view. No device count or login time is fabricated.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Connect this panel to the session-management API before enabling device revocation.</p></section>}
+
+          {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">◷</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
+
+          <footer className="cliently-profile-actions"><small>CLIENTLY CRM · PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ↗</button></div></footer>
+        </main>
+      </section>
+    </div>
+  );
+}
+
+export default function SuperAdminDashboard({ onLogout }) {
+  const [tenants, setTenants] = useState([]);
+  const [tenantError, setTenantError] = useState("");
+  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [tenantQuery, setTenantQuery] = useState("");
+  const [tenantStatusFilter, setTenantStatusFilter] = useState("All");
+  const [tenantPlanFilter, setTenantPlanFilter] = useState("All");
+  const [tenantFormOpen, setTenantFormOpen] = useState(false);
+  const [tenantFormMode, setTenantFormMode] = useState("create");
+  const tenantAdminNames = ["Jeya Karthiga", "Arun Balaji", "Priyanga", "Mounika"];
+  const [tenantDraft, setTenantDraft] = useState({ company: "", admin: "Mounika", email: "", plan: "Starter", environment: "Production", status: "Pending", date: new Date().toISOString().slice(0, 10) });
+  const [tenantSaving, setTenantSaving] = useState(false);
+  const [tenantActionError, setTenantActionError] = useState("");
+  const [tenantActionSuccess, setTenantActionSuccess] = useState("");
+
+  // Tenant summary counts are calculated from the records returned by the backend API.
+  const totalTenants = tenants.length;
+  const activeTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "active"
+  ).length;
+  const pendingTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "pending"
+  ).length;
+  const blockedTenants = tenants.filter(
+    (tenant) => String(tenant.status || "").toLowerCase() === "blocked"
+  ).length;
+
+  async function refreshTenantData(showLoader = false) {
+    if (showLoader) setTenantsLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/tenants");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      const records = Array.isArray(result.data) ? result.data : Array.isArray(result.tenants) ? result.tenants : [];
+      const formattedTenants = records.map((tenant) => ({
+        ...tenant,
+        company: tenant.company || tenant.organization || tenant.name || "Unnamed tenant",
+        admin: tenant.admin || tenant.ownerName || tenant.email || "—",
+        plan: tenant.plan || "Starter",
+        environment: tenant.environment || "Production",
+        status: tenant.status || "Pending",
+        date: tenant.date ? new Date(tenant.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+      }));
+      setTenants(formattedTenants);
+      setTenantError("");
+    } catch (error) {
+      console.error("Error fetching tenants:", error);
+      setTenantError(error.message || "Unable to load tenants. Check that the backend is running.");
+    } finally {
+      setTenantsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshTenantData(true);
+    const refreshTimer = window.setInterval(() => refreshTenantData(false), 30000);
+    return () => window.clearInterval(refreshTimer);
+  }, []);
+
+  const filteredTenants = tenants.filter((tenant) => {
+    const query = tenantQuery.trim().toLowerCase();
+    const matchesQuery = !query || [tenant.company, tenant.admin, tenant.email].some((value) => String(value || "").toLowerCase().includes(query));
+    const matchesStatus = tenantStatusFilter === "All" || String(tenant.status).toLowerCase() === tenantStatusFilter.toLowerCase();
+    const matchesPlan = tenantPlanFilter === "All" || String(tenant.plan).toLowerCase() === tenantPlanFilter.toLowerCase();
+    return matchesQuery && matchesStatus && matchesPlan;
+  });
+
+  function openTenantForm(mode, tenant = null) {
+    setTenantFormMode(mode);
+    setTenantActionError("");
+    setTenantActionSuccess("");
+    setTenantDraft(tenant ? {
+      company: tenant.company || "", admin: tenant.admin || "", email: tenant.email || "",
+      plan: tenant.plan || "Starter", environment: tenant.environment || "Production",
+      status: tenant.status || "Pending",
+      date: tenant.date && tenant.date !== "—" ? new Date(tenant.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    } : { company: "", admin: "Mounika", email: "", plan: "Starter", environment: "Production", status: "Pending", date: new Date().toISOString().slice(0, 10) });
+    setSelectedTenant(mode === "edit" ? tenant : null);
+    setTenantFormOpen(true);
+  }
+
+  async function saveTenant(event) {
+    event.preventDefault();
+    setTenantSaving(true);
+    setTenantActionError("");
+    setTenantActionSuccess("");
+    try {
+      const editing = tenantFormMode === "edit" && selectedTenant?._id;
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants${editing ? `/${selectedTenant._id}` : ""}`, {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tenantDraft),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Unable to save tenant");
+      await refreshTenantData(false);
+      setTenantFormOpen(false);
+      setSelectedTenant(null);
+      setTenantActionSuccess(editing ? "Tenant updated successfully." : "Tenant created successfully.");
+    } catch (error) {
+      setTenantActionError(error.message || "Unable to save tenant.");
+    } finally {
+      setTenantSaving(false);
+    }
+  }
+
+  async function updateTenantStatus(tenant, status) {
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants/${tenant._id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Status update failed");
+      await refreshTenantData(false);
+      setSelectedTenant(result.data || tenant);
+      setTenantActionSuccess(`${tenant.company} status updated to ${status}.`);
+      setTenantActionError("");
+    } catch (error) { setTenantActionError(error.message); }
+  }
+
+  async function deleteTenantRecord(tenant) {
+    if (!window.confirm(`Delete ${tenant.company}? This action cannot be undone.`)) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/tenants/${tenant._id}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || "Tenant deletion failed");
+      setSelectedTenant(null);
+      await refreshTenantData(false);
+      setTenantActionSuccess("Tenant deleted successfully.");
+      setTenantActionError("");
+    } catch (error) { setTenantActionError(error.message); }
+  }
+
+
+  // Keep activePage initialized before notification effects use it.
+  const [activePage, setActivePage] = useState("dashboard");
+
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationFilter, setNotificationFilter] = useState("All");
+  const [notificationSort, setNotificationSort] = useState("latest");
+  const [notificationQuery, setNotificationQuery] = useState("");
+  const [notificationDraft, setNotificationDraft] = useState({ title: "", message: "", type: "System", audience: "All" });
+  const [showNotificationForm, setShowNotificationForm] = useState(false);
+
+  const refreshNotifications = async () => {
+    setNotificationsLoading(true);
+    setNotificationError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/notifications");
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setNotifications(Array.isArray(result.data) ? result.data : []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotificationError(error.message || "Unable to load notifications from MongoDB.");
+    } finally { setNotificationsLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activePage === "notifications") refreshNotifications();
+  }, [activePage]);
+
+  const markNotificationRead = async (notification) => {
+    if (!notification?._id) return setNotificationError("Notification database ID is missing.");
+    setNotificationError(""); setNotificationMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/notifications/${notification._id}/read`, { method: "PATCH" });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setNotifications((current) => current.map((item) => String(item._id) === String(notification._id) ? { ...item, ...(result.data || {}), isRead: true } : item));
+      setNotificationMessage("Notification marked as read and saved to MongoDB.");
+    } catch (error) { setNotificationError(error.message || "Could not update notification."); }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unread = notifications.filter((item) => !item.isRead);
+    for (const item of unread) await markNotificationRead(item);
+  };
+
+  const createNotification = async (event) => {
+    event.preventDefault();
+    if (!notificationDraft.title.trim() || !notificationDraft.message.trim()) return setNotificationError("Enter both a title and message.");
+    setNotificationSaving(true); setNotificationError(""); setNotificationMessage("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/notifications", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...notificationDraft, title: notificationDraft.title.trim(), message: notificationDraft.message.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      if (result.data) setNotifications((current) => [result.data, ...current]); else await refreshNotifications();
+      setNotificationDraft({ title: "", message: "", type: "System", audience: "All" });
+      setShowNotificationForm(false); setNotificationMessage("Notification created and saved to MongoDB.");
+    } catch (error) { setNotificationError(error.message || "Unable to create notification."); }
+    finally { setNotificationSaving(false); }
+  };
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementError, setAnnouncementError] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementFilter, setAnnouncementFilter] = useState("All");
+  const [announcementTypeFilter, setAnnouncementTypeFilter] = useState("All");
+  const [announcementQuery, setAnnouncementQuery] = useState("");
+  const [announcementSort, setAnnouncementSort] = useState("latest");
+  const [announcementFormOpen, setAnnouncementFormOpen] = useState(false);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState({
+    title: "", message: "", type: "General", status: "Draft",
+  });
+  const [publishingAnnouncementId, setPublishingAnnouncementId] = useState("");
+  const [overviewRange, setOverviewRange] = useState(6);
+
+  const refreshAnnouncements = async () => {
+    setAnnouncementsLoading(true);
+    setAnnouncementError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/announcements");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Announcements API returned HTTP ${response.status}`);
+      }
+      const records = Array.isArray(result.data) ? result.data : [];
+      setAnnouncements(records);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activePage !== "announcements") return;
+    let cancelled = false;
+    async function loadAnnouncements() {
+      setAnnouncementsLoading(true);
+      setAnnouncementError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/announcements");
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Announcements API returned HTTP ${response.status}`);
+        }
+        const records = Array.isArray(result.data) ? result.data : [];
+        if (!cancelled) setAnnouncements(records);
+      } catch (error) {
+        console.error("Error fetching announcements:", error);
+        if (!cancelled) setAnnouncementError(error.message || "Unable to load announcements. Check the backend connection.");
+      } finally {
+        if (!cancelled) setAnnouncementsLoading(false);
+      }
+    }
+    loadAnnouncements();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const createAnnouncement = async (event) => {
+    event.preventDefault();
+    const payload = {
+      title: announcementDraft.title.trim(),
+      message: announcementDraft.message.trim(),
+      type: announcementDraft.type,
+      status: announcementDraft.status,
+    };
+    if (!payload.title || !payload.message) {
+      setAnnouncementError("Enter both a title and message.");
+      return;
+    }
+    setAnnouncementSaving(true);
+    setAnnouncementError("");
+    setAnnouncementMessage("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      if (result.data) setAnnouncements((current) => [result.data, ...current]);
+      else await refreshAnnouncements();
+      setAnnouncementDraft({ title: "", message: "", type: "General", status: "Draft" });
+      setAnnouncementFormOpen(false);
+      setAnnouncementMessage("Announcement saved to the database.");
+    } catch (error) {
+      setAnnouncementError(error.message || "Unable to save announcement.");
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  };
+
+  const publishAnnouncement = async (item) => {
+    if (!item?._id) {
+      setAnnouncementError("This announcement has no database ID and cannot be published.");
+      return;
+    }
+    if (!window.confirm(`Publish "${item.title}" now?`)) return;
+    setPublishingAnnouncementId(String(item._id));
+    setAnnouncementError("");
+    setAnnouncementMessage("");
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/super-admin/announcements/${item._id}/publish`,
+        { method: "PATCH" }
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      if (result.data) {
+        setAnnouncements((current) => current.map((entry) =>
+          String(entry._id) === String(item._id) ? result.data : entry
+        ));
+      } else {
+        await refreshAnnouncements();
+      }
+      setAnnouncementMessage("Announcement published successfully.");
+    } catch (error) {
+      setAnnouncementError(error.message || "Unable to publish announcement.");
+    } finally {
+      setPublishingAnnouncementId("");
+    }
+  };
+
+  const [activeSetting, setActiveSetting] = useState("General");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  // If the parent app supplies its existing logout handler, use it.
+  // Otherwise return to the login route without clearing unrelated browser data.
+  const handleAdminLogout = () => {
+    setProfileMenuOpen(false);
+    if (typeof onLogout === "function") {
+      onLogout();
+      return;
+    }
+    window.location.assign("/login");
+  };
+
+  // Subscription & Billing — reads real subscription records from the existing API.
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
+  const [subscriptionsError, setSubscriptionsError] = useState("");
+  const [subscriptionQuery, setSubscriptionQuery] = useState("");
+  const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState("All");
+  const [subscriptionPlanFilter, setSubscriptionPlanFilter] = useState("All");
+  const [subscriptionCycleFilter, setSubscriptionCycleFilter] = useState("All");
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [subscriptionDialogMode, setSubscriptionDialogMode] = useState("create");
+  const [subscriptionDraft, setSubscriptionDraft] = useState({ company: "", plan: "Starter", status: "Active", billingCycle: "Monthly", amount: "", startDate: new Date().toISOString().slice(0, 10), endDate: "" });
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [subscriptionActionMessage, setSubscriptionActionMessage] = useState("");
+  const [subscriptionActionError, setSubscriptionActionError] = useState("");
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+
+  useEffect(() => {
+    if (!["dashboard", "billing"].includes(activePage)) return;
+    let cancelled = false;
+
+    async function loadSubscriptions() {
+      setSubscriptionsLoading(true);
+      setSubscriptionsError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/subscriptions?limit=100");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.subscriptions)
+            ? result.subscriptions
+            : [];
+        if (!cancelled) setSubscriptions(records);
+      } catch (error) {
+        console.error("Error loading subscriptions:", error);
+        if (!cancelled) setSubscriptionsError(error.message || "Unable to load subscriptions from the backend.");
+      } finally {
+        if (!cancelled) setSubscriptionsLoading(false);
+      }
+    }
+
+    loadSubscriptions();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const refreshSubscriptions = async () => {
+    setSubscriptionsLoading(true);
+    setSubscriptionsError("");
+    try {
+      const response = await fetch("http://localhost:5000/api/super-admin/subscriptions?limit=100");
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+      const records = Array.isArray(result.data)
+        ? result.data
+        : Array.isArray(result.subscriptions)
+          ? result.subscriptions
+          : [];
+      setSubscriptions(records);
+    } catch (error) {
+      console.error("Error refreshing subscriptions:", error);
+      setSubscriptionsError(error.message || "Unable to refresh subscriptions.");
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  };
+
+  const formatINR = (value) => new Intl.NumberFormat("en-IN", {
+    style: "currency", currency: "INR", maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+
+  const activeSubscriptions = subscriptions.filter((item) => String(item.status || "Pending").toLowerCase() === "active");
+  const attentionSubscriptions = subscriptions.filter((item) => ["trial", "past due"].includes(String(item.status || "").toLowerCase()));
+  const monthlyRecurringRevenue = activeSubscriptions.reduce((total, item) => {
+    const amount = Number(item.amount) || 0;
+    return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
+  }, 0);
+  const billingPlanSummary = ["Starter", "Pro", "Enterprise"]
+    .map((planName) => {
+      const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
+      const monthlyRevenue = matching.reduce((total, item) => {
+        const amount = Number(item.amount) || 0;
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
+      }, 0);
+      const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+      const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly")
+        ? "Yearly"
+        : "Monthly";
+      return { name: planName, subscribers: matching.length, monthlyRevenue, averageAmount: matching.length ? totalAmount / matching.length : 0, cycle };
+    })
+    .concat([...new Set(activeSubscriptions.map((item) => String(item.plan || "").trim()).filter((name) => name && !["Starter", "Pro", "Enterprise"].some((known) => known.toLowerCase() === name.toLowerCase())))].map((planName) => {
+      const matching = activeSubscriptions.filter((item) => String(item.plan || "").toLowerCase() === planName.toLowerCase());
+      const monthlyRevenue = matching.reduce((total, item) => {
+        const amount = Number(item.amount) || 0;
+        return total + (String(item.billingCycle || "Monthly").toLowerCase() === "yearly" ? amount / 12 : String(item.billingCycle || "Monthly").toLowerCase() === "quarterly" ? amount / 3 : amount);
+      }, 0);
+      const totalAmount = matching.reduce((total, item) => total + (Number(item.amount) || 0), 0);
+      const cycle = matching.length && matching.every((item) => String(item.billingCycle || "Monthly").toLowerCase() === "yearly") ? "Yearly" : "Monthly";
+      return { name: planName, subscribers: matching.length, monthlyRevenue, averageAmount: matching.length ? totalAmount / matching.length : 0, cycle };
+    }));
+
+
+  const filteredSubscriptions = subscriptions.filter((item) => {
+    const query = subscriptionQuery.trim().toLowerCase();
+    const matchesQuery = !query || [item.company, item.plan, item.status, item.billingCycle].some((value) => String(value || "").toLowerCase().includes(query));
+    const matchesStatus = subscriptionStatusFilter === "All" || String(item.status || "Active") === subscriptionStatusFilter;
+    const matchesPlan = subscriptionPlanFilter === "All" || String(item.plan || "") === subscriptionPlanFilter;
+    const matchesCycle = subscriptionCycleFilter === "All" || String(item.billingCycle || "Monthly") === subscriptionCycleFilter;
+    return matchesQuery && matchesStatus && matchesPlan && matchesCycle;
+  });
+
+  const openSubscriptionForm = (mode, item = null) => {
+    setSubscriptionDialogMode(mode);
+    setSubscriptionActionError("");
+    setSubscriptionActionMessage("");
+    setSubscriptionDraft(item ? {
+      company: item.company || "", plan: item.plan || "Starter", status: item.status || "Active",
+      billingCycle: item.billingCycle || "Monthly", amount: String(item.amount ?? ""),
+      startDate: item.startDate ? new Date(item.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      endDate: item.endDate ? new Date(item.endDate).toISOString().slice(0, 10) : "",
+    } : { company: "", plan: "Starter", status: "Active", billingCycle: "Monthly", amount: "", startDate: new Date().toISOString().slice(0, 10), endDate: "" });
+    setSubscriptionDialogOpen(true);
+  };
+
+  const saveSubscription = async (event) => {
+    event.preventDefault();
+    setSubscriptionSaving(true);
+    setSubscriptionActionError("");
+    setSubscriptionActionMessage("");
+    try {
+      const payload = { ...subscriptionDraft, company: subscriptionDraft.company.trim(), amount: Number(subscriptionDraft.amount), startDate: subscriptionDraft.startDate || undefined, endDate: subscriptionDraft.endDate || undefined };
+      if (!payload.company || !Number.isFinite(payload.amount) || payload.amount < 0) throw new Error("Enter a company name and a valid non-negative amount.");
+      const editingId = subscriptionDialogMode === "edit" ? selectedSubscription?._id : null;
+      if (subscriptionDialogMode === "edit" && !editingId) throw new Error("The subscription ID is missing. Refresh the list and try again.");
+      const response = await fetch(editingId ? `http://localhost:5000/api/super-admin/subscriptions/${editingId}` : "http://localhost:5000/api/super-admin/subscriptions", {
+        method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setSubscriptionDialogOpen(false);
+      setSelectedSubscription(null);
+      setSubscriptionActionMessage(editingId ? "Subscription updated successfully." : "Subscription created successfully.");
+      await refreshSubscriptions();
+    } catch (error) {
+      setSubscriptionActionError(error.message || "Unable to save subscription.");
+    } finally { setSubscriptionSaving(false); }
+  };
+
+  const cancelSubscription = async (item) => {
+    if (!item?._id) { setSubscriptionActionError("Subscription ID is missing."); return; }
+    if (!window.confirm(`Cancel the subscription for ${item.company || "this company"}?`)) return;
+    setSubscriptionActionError(""); setSubscriptionActionMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/subscriptions/${item._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "Cancelled" }) });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setSelectedSubscription(null);
+      setSubscriptionActionMessage("Subscription cancelled successfully.");
+      await refreshSubscriptions();
+    } catch (error) { setSubscriptionActionError(error.message || "Unable to cancel subscription."); }
+  };
+
+  // Overview analytics are derived only from records returned by the existing APIs.
+  const overviewMonthlyRegistrations = Array.from({ length: overviewRange }, (_, index) => {
+    const month = new Date();
+    month.setDate(1);
+    month.setHours(0, 0, 0, 0);
+    month.setMonth(month.getMonth() - (overviewRange - 1 - index));
+
+    const count = tenants.filter((tenant) => {
+      const createdAt = getTenantCreatedAt(tenant);
+      return createdAt &&
+        createdAt.getFullYear() === month.getFullYear() &&
+        createdAt.getMonth() === month.getMonth();
+    }).length;
+
+    return {
+      key: `${month.getFullYear()}-${month.getMonth()}`,
+      label: month.toLocaleDateString("en-IN", { month: "short" }),
+      count,
+    };
+  });
+
+  const latestOverviewTenants = [...tenants]
+    .filter((tenant) => getTenantCreatedAt(tenant))
+    .sort((a, b) => getTenantCreatedAt(b) - getTenantCreatedAt(a))
+    .slice(0, 5);
+
+  // Plans & Feature Flags — uses the existing plans API.
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState("");
+  const [plansMessage, setPlansMessage] = useState("");
+  const [plansSaving, setPlansSaving] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [planDraft, setPlanDraft] = useState({ name: "", price: "", billingCycle: "Monthly", description: "", isActive: true });
+  const [featureDrafts, setFeatureDrafts] = useState({});
+
+  const featureDefinitions = featureAccess.map(({ feature, description }) => ({ feature, description }));
+
+  useEffect(() => {
+    if (activePage !== "features") return;
+    let cancelled = false;
+    async function loadPlans() {
+      setPlansLoading(true);
+      setPlansError("");
+      setPlansMessage("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/plans");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data) ? result.data : Array.isArray(result.plans) ? result.plans : [];
+        if (!cancelled) {
+          setPlans(records);
+          const drafts = {};
+          records.forEach((plan) => {
+            drafts[String(plan._id || plan.name)] = Array.isArray(plan.features) ? [...plan.features] : [];
+          });
+          setFeatureDrafts(drafts);
+        }
+      } catch (error) {
+        console.error("Error loading plans:", error);
+        if (!cancelled) setPlansError(error.message || "Unable to load plans from the backend.");
+      } finally {
+        if (!cancelled) setPlansLoading(false);
+      }
+    }
+    loadPlans();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const openPlanEditor = (plan) => {
+    setEditingPlan(plan || {});
+    setPlanDraft({
+      name: plan?.name || "",
+      price: plan?.price == null ? "" : String(plan.price),
+      billingCycle: plan?.billingCycle || "Monthly",
+      description: plan?.description || "",
+      isActive: plan?.isActive !== false,
+    });
+    setPlansError("");
+    setPlansMessage("");
+  };
+
+  const savePlan = async () => {
+    if (!planDraft.name.trim()) {
+      setPlansError("Enter a plan name.");
+      return;
+    }
+    if (planDraft.price === "" || !Number.isFinite(Number(planDraft.price)) || Number(planDraft.price) < 0) {
+      setPlansError("Enter a valid non-negative plan price.");
+      return;
+    }
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      const isEdit = Boolean(editingPlan?._id);
+      const response = await fetch(isEdit ? `http://localhost:5000/api/super-admin/plans/${editingPlan._id}` : "http://localhost:5000/api/super-admin/plans", {
+        method: isEdit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...planDraft, name: planDraft.name.trim(), price: Number(planDraft.price) }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      const saved = result.data || result.plan;
+      if (isEdit) {
+        const updated = saved || { ...editingPlan, ...planDraft, price: Number(planDraft.price) };
+        setPlans((current) => current.map((plan) => String(plan._id) === String(editingPlan._id) ? { ...plan, ...updated } : plan));
+      } else if (saved) {
+        setPlans((current) => [...current, saved].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)));
+        setFeatureDrafts((current) => ({ ...current, [String(saved._id || saved.name)]: Array.isArray(saved.features) ? saved.features : [] }));
+      }
+      setEditingPlan(null);
+      setPlansMessage(isEdit ? "Plan updated successfully." : "Plan created successfully.");
+    } catch (error) {
+      console.error("Error saving plan:", error);
+      setPlansError(error.message || "Unable to save plan changes.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  const deletePlan = async (plan) => {
+    if (!plan?._id) return setPlansError("This plan has no database ID and cannot be deleted.");
+    if (!window.confirm(`Delete the ${plan.name} plan? This cannot be undone.`)) return;
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      const response = await fetch(`http://localhost:5000/api/super-admin/plans/${plan._id}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || `Request failed: ${response.status}`);
+      setPlans((current) => current.filter((item) => String(item._id) !== String(plan._id)));
+      setFeatureDrafts((current) => { const next = { ...current }; delete next[String(plan._id)]; return next; });
+      if (String(editingPlan?._id) === String(plan._id)) setEditingPlan(null);
+      setPlansMessage(`${plan.name} plan deleted successfully.`);
+    } catch (error) {
+      setPlansError(error.message || "Unable to delete plan.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  const togglePlanFeature = (plan, feature, checked) => {
+    const key = String(plan._id || plan.name);
+    setFeatureDrafts((current) => {
+      const existing = current[key] || (Array.isArray(plan.features) ? plan.features : []);
+      return { ...current, [key]: checked ? [...new Set([...existing, feature])] : existing.filter((item) => item !== feature) };
+    });
+  };
+
+  const saveFeatureFlags = async () => {
+    const unsavedPlans = plans.filter((plan) => plan._id);
+    if (unsavedPlans.length === 0) {
+      setPlansError("No saved plan records with database IDs were found.");
+      return;
+    }
+    setPlansSaving(true);
+    setPlansError("");
+    setPlansMessage("");
+    try {
+      for (const plan of unsavedPlans) {
+        const key = String(plan._id || plan.name);
+        const features = featureDrafts[key] || (Array.isArray(plan.features) ? plan.features : []);
+        const response = await fetch(`http://localhost:5000/api/super-admin/plans/${plan._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ features }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.success === false) throw new Error(result.message || `Could not save ${plan.name}: ${response.status}`);
+        const updated = result.data || result.plan || { ...plan, features };
+        setPlans((current) => current.map((item) => String(item._id) === String(plan._id) ? { ...item, ...updated, features } : item));
+      }
+      setPlansMessage("Feature flags saved successfully.");
+    } catch (error) {
+      console.error("Error saving feature flags:", error);
+      setPlansError(error.message || "Unable to save feature flags.");
+    } finally {
+      setPlansSaving(false);
+    }
+  };
+
+  // Super Admin settings mapped directly to the PlatformSettings MongoDB schema.
+  const defaultSettings = {
+    organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
+    regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
+    security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
+    notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
+  };
+
+  const normalizeDashboardSettings = (saved = {}) => {
+    const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
+    return {
+      organization: { ...defaultSettings.organization, ...(source.organization || {}) },
+      regional: { ...defaultSettings.regional, ...(source.regional || {}) },
+      security: { ...defaultSettings.security, ...(source.security || {}) },
+      notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
+    };
+  };
+
+  const [settings, setSettings] = useState(defaultSettings);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState("");
+
+  useEffect(() => {
+    if (activePage !== "settings") return;
+    let cancelled = false;
+    async function loadSettings() {
+      setSettingsLoading(true);
+      setSettingsError("");
+      setSettingsMessage("");
+      try {
+        const saved = await getSettings();
+        if (!cancelled) setSettings(normalizeDashboardSettings(saved));
+      } catch (error) {
+        console.error("Error loading Super Admin settings:", error);
+        if (!cancelled) setSettingsError(error.message || "Unable to load settings.");
+      } finally {
+        if (!cancelled) setSettingsLoading(false);
+      }
+    }
+    loadSettings();
+    return () => { cancelled = true; };
+  }, [activePage]);
+
+  const updateSettingsSection = (section, field, value) => {
+    setSettings((current) => ({ ...current, [section]: { ...current[section], [field]: value } }));
+    setSettingsError("");
+    setSettingsMessage("");
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsError("");
+    setSettingsMessage("");
+    try {
+      const saved = await updateSettings(settings);
+      if (saved && typeof saved === "object") setSettings(normalizeDashboardSettings(saved));
+      setSettingsMessage("Settings saved successfully.");
+    } catch (error) {
+      console.error("Error saving Super Admin settings:", error);
+      setSettingsError(error.message || "Unable to save settings.");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [integrationRecords, setIntegrationRecords] = useState([]);
+  const [integrationQuery, setIntegrationQuery] = useState("");
+  const [integrationsLoading, setIntegrationsLoading] = useState(false);
+  const [integrationError, setIntegrationError] = useState("");
+  const [integrationMessage, setIntegrationMessage] = useState("");
+  const [integrationSaving, setIntegrationSaving] = useState(false);
+  const [integrationDraft, setIntegrationDraft] = useState({
+    name: "",
+    description: "",
+    enabled: false,
+  });
+
+  useEffect(() => {
+    if (activePage !== "integrations") return;
+
+    let cancelled = false;
+    async function loadIntegrations() {
+      setIntegrationsLoading(true);
+      setIntegrationError("");
+      setIntegrationMessage("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/integrations");
+        const result = await response.json();
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Request failed: ${response.status}`);
+        }
+
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.integrations)
+            ? result.integrations
+            : [];
+
+        if (!cancelled) setIntegrationRecords(records);
+      } catch (error) {
+        console.error("Error fetching integrations:", error);
+        if (!cancelled) {
+          setIntegrationError(
+            error.message || "Unable to load integrations. Check the backend connection."
+          );
+        }
+      } finally {
+        if (!cancelled) setIntegrationsLoading(false);
+      }
+    }
+
+    loadIntegrations();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage]);
+
+  const openIntegrationConfig = (integration) => {
+    setSelectedIntegration(integration);
+    setIntegrationDraft({
+      name: integration.name || "",
+      description: integration.description || "",
+      enabled: Boolean(integration.enabled),
+    });
+    setIntegrationError("");
+    setIntegrationMessage("");
+  };
+
+  const saveIntegration = async () => {
+    if (!selectedIntegration?._id) {
+      setIntegrationError("This integration has no database ID and cannot be saved.");
+      return;
+    }
+
+    setIntegrationSaving(true);
+    setIntegrationError("");
+    setIntegrationMessage("");
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/super-admin/integrations/${selectedIntegration._id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(integrationDraft),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || `Request failed: ${response.status}`);
+      }
+
+      const updated = result.data || result.integration || {
+        ...selectedIntegration,
+        ...integrationDraft,
+      };
+      const savedIntegration = { ...selectedIntegration, ...updated, ...integrationDraft };
+      setIntegrationRecords((current) =>
+        current.map((item) => String(item._id) === String(selectedIntegration._id) ? savedIntegration : item)
+      );
+      setSelectedIntegration(savedIntegration);
+      setIntegrationMessage("Integration updated successfully.");
+    } catch (error) {
+      console.error("Error saving integration:", error);
+      setIntegrationError(error.message || "Unable to save integration changes.");
+    } finally {
+      setIntegrationSaving(false);
+    }
+  };
+
+  // System Health: read genuine server and MongoDB metrics from the backend.
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthError, setSystemHealthError] = useState("");
+  const [systemHealthCheckedAt, setSystemHealthCheckedAt] = useState(null);
+  const [healthRefreshKey, setHealthRefreshKey] = useState(0);
+  const [securityLogs, setSecurityLogs] = useState([]);
+  const [securityLogsError, setSecurityLogsError] = useState("");
+
+  useEffect(() => {
+    if (activePage !== "health") return;
+    let cancelled = false;
+
+    async function loadSystemHealth(showLoader = true) {
+      if (showLoader) setSystemHealthLoading(true);
+      setSystemHealthError("");
+
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/system-health", {
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+        const healthData = result.data || result.health || result.systemHealth || null;
+
+        // The API intentionally returns HTTP 503 with its real metrics when MongoDB
+        // is disconnected. Keep and display those metrics instead of discarding them.
+        if (healthData) {
+          if (!cancelled) {
+            setSystemHealth(healthData);
+            setSystemHealthCheckedAt(
+              healthData.checkedAt ? new Date(healthData.checkedAt) : new Date()
+            );
+            setSystemHealthError("");
+          }
+        } else if (!response.ok || result.success === false) {
+          throw new Error(result.message || `System Health request failed: ${response.status}`);
+        } else {
+          throw new Error("The System Health API returned no health data.");
+        }
+      } catch (error) {
+        console.error("Error fetching system health:", error);
+        if (!cancelled) {
+          setSystemHealthError(error.message || "Unable to load system health.");
+          setSystemHealthCheckedAt(new Date());
+        }
+      } finally {
+        if (!cancelled && showLoader) setSystemHealthLoading(false);
+      }
+    }
+
+    async function loadSecurityLogs() {
+      setSecurityLogsError("");
+      try {
+        const response = await fetch("http://localhost:5000/api/super-admin/security-logs", {
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || `Security Logs request failed: ${response.status}`);
+        }
+        const records = Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.logs)
+            ? result.logs
+            : Array.isArray(result.securityLogs)
+              ? result.securityLogs
+              : [];
+        if (!cancelled) setSecurityLogs(records);
+      } catch (error) {
+        console.error("Error fetching security logs:", error);
+        if (!cancelled) {
+          setSecurityLogs([]);
+          setSecurityLogsError(error.message || "Unable to load security logs.");
+        }
+      }
+    }
+
+    loadSystemHealth(true);
+    loadSecurityLogs();
+    const timer = window.setInterval(() => loadSystemHealth(false), 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activePage, healthRefreshKey]);
+
+  const refreshSystemHealth = () => {
+    setHealthRefreshKey((current) => current + 1);
+  };
+
+  const readHealthValue = (...values) => {
+    const value = values.find((item) => item !== undefined && item !== null && item !== "");
+    return value === undefined ? "Not reported by API" : value;
+  };
+
+  const formatSecurityEventTime = (item) => {
+    const value = item.createdAt || item.timestamp || item.date || item.time;
+    if (!value) return "Time not provided";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  };
+
+  const pageHeaders = {
+    dashboard: {
+      eyebrow: "ADMINISTRATION",
+      title: "Super Admin Dashboard",
+      subtitle: "Platform overview and administration controls.",
+    },
+    tenants: {
+      eyebrow: "PLATFORM MANAGEMENT",
+      title: "Tenant Management",
+      subtitle: "Manage subscribed companies and their environments.",
+    },
+    billing: {
+      eyebrow: "FINANCIAL MANAGEMENT",
+      title: "Subscription & Billing",
+      subtitle: "Manage subscription plans, revenue and tenant billing.",
+    },
+    features: {
+      eyebrow: "PLATFORM CONFIGURATION",
+      title: "Plans & Feature Flags",
+      subtitle: "Control plan access and platform feature availability.",
+    },
+    health: {
+      eyebrow: "SYSTEM MONITORING",
+      title: "System Health",
+      subtitle: "Monitor platform performance, infrastructure and security.",
+    },
+    integrations: {
+      eyebrow: "PLATFORM SERVICES",
+      title: "Integrations",
+      subtitle: "Manage global integrations and connected services.",
+    },
+    notifications: {
+      eyebrow: "COMMUNICATION",
+      title: "Notifications",
+      subtitle: "Review important platform alerts and system activity.",
+    },
+    announcements: {
+      eyebrow: "COMMUNICATION",
+      title: "Announcements",
+      subtitle: "Manage platform-wide announcements and updates.",
+    },
+    settings: {
+      eyebrow: "ADMINISTRATION",
+      title: "Settings",
+      subtitle: "Configure Cliently platform administration and security.",
+    },
+  };
+
+  return (
+    <div className="super-admin-layout">
+      {/* SIDEBAR */}
+      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+
+      {/* MAIN */}
+      <main className={`super-admin-main page-${activePage}`}>
+        {/* HEADER */}
+        <Topbar
+  activePage={activePage}
+  pageHeaders={pageHeaders}
+  profileMenuOpen={profileMenuOpen}
+  setProfileMenuOpen={setProfileMenuOpen}
+  setProfileDialogOpen={setProfileDialogOpen}
+  handleAdminLogout={handleAdminLogout}
+/>
+
+        {/* OVERVIEW — isolated from the other dashboard modules */}
+        {activePage === "dashboard" && (
+          <section className="dashboard-section page-active" id="overview">
+            <style>{`
+              .sa-overview-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+              .sa-overview-live{display:inline-flex;align-items:center;gap:7px;color:var(--muted-text);font-size:11px}
+              .sa-overview-live:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--mint-dark);box-shadow:0 0 0 4px var(--pale-mint)}
+              .sa-overview-kpi{width:100%;text-align:left;font:inherit;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
+              .sa-overview-kpi:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(18,60,58,.11)}
+              .sa-overview-kpi:focus-visible,.sa-overview-link:focus-visible{outline:2px solid var(--mint-dark);outline-offset:3px}
+              .sa-overview-panel{margin-top:18px;padding:21px}
+              .sa-overview-panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+              .sa-overview-panel-head h3{margin:0;color:var(--deep-teal);font-size:15px}
+              .sa-overview-panel-head p{margin:5px 0 0;color:var(--muted-text);font-size:11px}
+              .sa-overview-range{display:flex;gap:4px;padding:4px;background:var(--soft-bg);border-radius:9px}
+              .sa-overview-range button{border:0;border-radius:6px;padding:8px 12px;background:transparent;color:var(--muted-text);font-size:11px;cursor:pointer}
+              .sa-overview-range button.active{background:var(--deep-teal);color:#fff}
+              .sa-overview-chart{height:190px;display:grid;gap:10px;align-items:end}
+              .sa-overview-bar-col{height:100%;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:7px}
+              .sa-overview-bar-col strong{font-size:10px;color:var(--deep-teal)}
+              .sa-overview-bar-track{height:135px;width:min(30px,75%);display:flex;align-items:flex-end;overflow:hidden;border-radius:7px;background:var(--soft-bg)}
+              .sa-overview-bar{width:100%;min-height:3px;border-radius:7px;background:linear-gradient(180deg,var(--mint),var(--deep-teal));transition:height .25s ease}
+              .sa-overview-bar-col small{font-size:10px;color:var(--muted-text)}
+              .sa-overview-note,.sa-overview-empty{font-size:11px;color:var(--muted-text)}
+              .sa-overview-lower{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+              .sa-overview-plan{margin:15px 0}
+              .sa-overview-plan-label{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:11px}
+              .sa-overview-plan-label strong{color:var(--deep-teal)}.sa-overview-plan-label span{color:var(--muted-text)}
+              .sa-overview-plan-track{height:8px;border-radius:10px;background:var(--soft-bg);overflow:hidden}
+              .sa-overview-plan-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--mint),var(--deep-teal))}
+              .sa-overview-recent{display:flex;align-items:center;gap:11px;width:100%;padding:10px 0;border:0;border-bottom:1px solid var(--border);background:transparent;text-align:left;cursor:pointer}
+              .sa-overview-avatar{width:35px;height:35px;flex:0 0 35px;display:grid;place-items:center;border-radius:10px;background:var(--pale-mint);color:var(--deep-teal);font-weight:800}
+              .sa-overview-recent-copy{display:grid;gap:4px;min-width:0;flex:1}.sa-overview-recent-copy strong{font-size:11px;color:var(--dark-text)}.sa-overview-recent-copy small{font-size:10px;color:var(--muted-text)}
+              .sa-overview-error{color:#b54747;font-size:12px}
+              @media(max-width:760px){.sa-overview-lower{grid-template-columns:1fr}.sa-overview-panel{padding:16px}.sa-overview-chart{gap:5px}}
+            `}</style>
+
+            <div className="section-heading section-heading-row">
+              <div>
+                <p className="section-eyebrow">PLATFORM ANALYTICS</p>
+                <h2>Platform Overview</h2>
+                <p>Live insights calculated from your Cliently platform records.</p>
+              </div>
+              <div className="sa-overview-toolbar">
+                <span className="sa-overview-live">Live API data</span>
+                <button type="button" className="secondary-button" onClick={() => { refreshSubscriptions(); }} disabled={subscriptionsLoading}>
+                  {subscriptionsLoading ? "Refreshing…" : "↻ Refresh billing"}
+                </button>
+              </div>
+            </div>
+
+            {(tenantError || subscriptionsError) && (
+              <p role="alert" className="sa-overview-error">
+                {tenantError || subscriptionsError}
+              </p>
+            )}
+
+            <div className="overview-grid">
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("tenants")}>
+                <div className="overview-card-top"><span>Total Tenants</span><span className="metric-icon">▣</span></div>
+                <strong>{tenantsLoading ? "…" : tenantError ? "—" : totalTenants}</strong>
+                <small>Registered companies · View tenants ↗</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("tenants")}>
+                <div className="overview-card-top"><span>Active Tenants</span><span className="metric-icon">✓</span></div>
+                <strong>{tenantsLoading ? "…" : tenantError ? "—" : activeTenants}</strong>
+                <small>Currently active companies</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("billing")}>
+                <div className="overview-card-top"><span>Active Subscriptions</span><span className="metric-icon">◇</span></div>
+                <strong>{subscriptionsLoading ? "…" : subscriptionsError ? "—" : activeSubscriptions.length}</strong>
+                <small>Currently active plans · View billing ↗</small>
+              </button>
+              <button type="button" className="overview-card sa-overview-kpi" onClick={() => setActivePage("billing")}>
+                <div className="overview-card-top"><span>Monthly Recurring Revenue</span><span className="metric-icon">₹</span></div>
+                <strong>{subscriptionsLoading ? "…" : subscriptionsError ? "—" : formatINR(monthlyRecurringRevenue)}</strong>
+                <small>Calculated from active subscriptions</small>
+              </button>
+            </div>
+
+            <div className="dashboard-card sa-overview-panel">
+              <div className="sa-overview-panel-head">
+                <div><h3>Tenant Registration Trends</h3><p>Monthly registrations based on recorded tenant creation dates.</p></div>
+                <div className="sa-overview-range" aria-label="Tenant growth chart range">
+                  {[6, 12].map((range) => (
+                    <button key={range} type="button" className={overviewRange === range ? "active" : ""} onClick={() => setOverviewRange(range)} aria-pressed={overviewRange === range}>{range} months</button>
+                  ))}
+                </div>
+              </div>
+              {tenantsLoading ? <p className="sa-overview-empty">Loading tenant records…</p> : tenantError ? <p className="sa-overview-empty">Tenant growth is unavailable until the tenant API responds.</p> : (
+                <div className="sa-overview-chart" style={{ gridTemplateColumns: `repeat(${overviewRange}, minmax(0, 1fr))` }}>
+                  {overviewMonthlyRegistrations.map((month) => {
+                    const maxCount = Math.max(1, ...overviewMonthlyRegistrations.map((item) => item.count));
+                    return (
+                      <div className="sa-overview-bar-col" key={month.key}>
+                        <strong>{month.count}</strong>
+                        <div className="sa-overview-bar-track"><div className="sa-overview-bar" style={{ height: `${Math.max(3, (month.count / maxCount) * 100)}%` }} title={`${month.label}: ${month.count} registrations`} /></div>
+                        <small>{month.label}</small>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="sa-overview-note">Only tenant records with valid creation dates are included. No historical data is generated.</p>
+            </div>
+
+            <div className="sa-overview-lower">
+              <div className="dashboard-card sa-overview-panel">
+                <div className="sa-overview-panel-head"><div><h3>Subscription Plan Distribution</h3><p>Active subscriptions grouped by plan.</p></div></div>
+                {subscriptionsLoading ? <p className="sa-overview-empty">Loading subscriptions…</p> : subscriptionsError ? <p className="sa-overview-empty">Subscription data unavailable.</p> : activeSubscriptions.length === 0 ? <p className="sa-overview-empty">No active subscriptions found.</p> : billingPlanSummary.filter((plan) => plan.subscribers > 0).map((plan) => (
+                  <div className="sa-overview-plan" key={plan.name}>
+                    <div className="sa-overview-plan-label"><strong>{plan.name}</strong><span>{plan.subscribers} subscriptions</span></div>
+                    <div className="sa-overview-plan-track"><div className="sa-overview-plan-fill" style={{ width: `${(plan.subscribers / activeSubscriptions.length) * 100}%` }} /></div>
+                  </div>
+                ))}
+                <button type="button" className="text-button sa-overview-link" onClick={() => setActivePage("billing")}>View subscription details →</button>
+              </div>
+
+              <div className="dashboard-card sa-overview-panel">
+                <div className="sa-overview-panel-head"><div><h3>Latest Tenants</h3><p>Recently registered companies.</p></div><button type="button" className="text-button" onClick={() => setActivePage("tenants")}>View all →</button></div>
+                {tenantsLoading ? <p className="sa-overview-empty">Loading tenants…</p> : tenantError ? <p className="sa-overview-empty">Tenant records unavailable.</p> : latestOverviewTenants.length === 0 ? <p className="sa-overview-empty">No tenant records with valid creation dates.</p> : latestOverviewTenants.map((tenant) => (
+                  <button type="button" className="sa-overview-recent" key={tenant._id || tenant.company} onClick={() => { setSelectedTenant(tenant); setActivePage("tenants"); }}>
+                    <span className="sa-overview-avatar">{tenant.company?.charAt(0)?.toUpperCase() || "T"}</span>
+                    <span className="sa-overview-recent-copy"><strong>{tenant.company}</strong><small>{tenant.plan} · {tenant.status}</small></span>
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TENANTS */}
+        <Tenants
+  activePage={activePage}
+  tenants={tenants}
+  tenantsLoading={tenantsLoading}
+  tenantError={tenantError}
+  totalTenants={totalTenants}
+  activeTenants={activeTenants}
+  pendingTenants={pendingTenants}
+  blockedTenants={blockedTenants}
+  refreshTenantData={refreshTenantData}
+  openTenantForm={openTenantForm}
+  tenantActionError={tenantActionError}
+  tenantActionSuccess={tenantActionSuccess}
+  tenantQuery={tenantQuery}
+  setTenantQuery={setTenantQuery}
+  tenantStatusFilter={tenantStatusFilter}
+  setTenantStatusFilter={setTenantStatusFilter}
+  tenantPlanFilter={tenantPlanFilter}
+  setTenantPlanFilter={setTenantPlanFilter}
+  filteredTenants={filteredTenants}
+  selectedTenant={selectedTenant}
+  setSelectedTenant={setSelectedTenant}
+  tenantFormOpen={tenantFormOpen}
+  setTenantFormOpen={setTenantFormOpen}
+  tenantFormMode={tenantFormMode}
+  tenantDraft={tenantDraft}
+  setTenantDraft={setTenantDraft}
+  tenantAdminNames={tenantAdminNames}
+  tenantSaving={tenantSaving}
+  saveTenant={saveTenant}
+  updateTenantStatus={updateTenantStatus}
+  deleteTenantRecord={deleteTenantRecord}
+/>
+
+<Billing
+  activePage={activePage}
+  subscriptions={subscriptions}
+  subscriptionsLoading={subscriptionsLoading}
+  subscriptionsError={subscriptionsError}
+  refreshSubscriptions={refreshSubscriptions}
+  activeSubscriptions={activeSubscriptions}
+  attentionSubscriptions={attentionSubscriptions}
+  monthlyRecurringRevenue={monthlyRecurringRevenue}
+  formatINR={formatINR}
+  subscriptionActionError={subscriptionActionError}
+  subscriptionActionMessage={subscriptionActionMessage}
+  subscriptionQuery={subscriptionQuery}
+  setSubscriptionQuery={setSubscriptionQuery}
+  subscriptionStatusFilter={subscriptionStatusFilter}
+  setSubscriptionStatusFilter={setSubscriptionStatusFilter}
+  subscriptionPlanFilter={subscriptionPlanFilter}
+  setSubscriptionPlanFilter={setSubscriptionPlanFilter}
+  subscriptionCycleFilter={subscriptionCycleFilter}
+  setSubscriptionCycleFilter={setSubscriptionCycleFilter}
+  filteredSubscriptions={filteredSubscriptions}
+  openSubscriptionForm={openSubscriptionForm}
+  selectedSubscription={selectedSubscription}
+  setSelectedSubscription={setSelectedSubscription}
+  subscriptionDialogOpen={subscriptionDialogOpen}
+  setSubscriptionDialogOpen={setSubscriptionDialogOpen}
+  subscriptionDialogMode={subscriptionDialogMode}
+  subscriptionDraft={subscriptionDraft}
+  setSubscriptionDraft={setSubscriptionDraft}
+  subscriptionSaving={subscriptionSaving}
+  saveSubscription={saveSubscription}
+  cancelSubscription={cancelSubscription}
+/>
+
+<Plans
+  activePage={activePage}
+  setActivePage={setActivePage}
+  plans={plans}
+  setPlans={setPlans}
+  plansLoading={plansLoading}
+  plansError={plansError}
+  setPlansError={setPlansError}
+  plansMessage={plansMessage}
+  setPlansMessage={setPlansMessage}
+  plansSaving={plansSaving}
+  editingPlan={editingPlan}
+  setEditingPlan={setEditingPlan}
+  planDraft={planDraft}
+  setPlanDraft={setPlanDraft}
+  openPlanEditor={openPlanEditor}
+  savePlan={savePlan}
+  deletePlan={deletePlan}
+  featureDefinitions={featureDefinitions}
+  featureDrafts={featureDrafts}
+  setFeatureDrafts={setFeatureDrafts}
+  togglePlanFeature={togglePlanFeature}
+  saveFeatureFlags={saveFeatureFlags}
+  FeatureState={FeatureState}
+/>
+
+<SystemHealth
+  activePage={activePage}
+  systemHealth={systemHealth}
+  systemHealthCheckedAt={systemHealthCheckedAt}
+  systemHealthLoading={systemHealthLoading}
+  systemHealthError={systemHealthError}
+  refreshSystemHealth={refreshSystemHealth}
+  readHealthValue={readHealthValue}
+  securityLogs={securityLogs}
+  securityLogsError={securityLogsError}
+  formatSecurityEventTime={formatSecurityEventTime}
+/>
+
+<Integrations
+  activePage={activePage}
+  integrationsLoading={integrationsLoading}
+  setIntegrationsLoading={setIntegrationsLoading}
+  integrationError={integrationError}
+  setIntegrationError={setIntegrationError}
+  integrationMessage={integrationMessage}
+  setIntegrationMessage={setIntegrationMessage}
+  integrationRecords={integrationRecords}
+  setIntegrationRecords={setIntegrationRecords}
+  integrationQuery={integrationQuery}
+  setIntegrationQuery={setIntegrationQuery}
+  selectedIntegration={selectedIntegration}
+  setSelectedIntegration={setSelectedIntegration}
+  integrationDraft={integrationDraft}
+  setIntegrationDraft={setIntegrationDraft}
+  integrationSaving={integrationSaving}
+  openIntegrationConfig={openIntegrationConfig}
+  saveIntegration={saveIntegration}
+/>
+
+<Notifications
+  activePage={activePage}
+  refreshNotifications={refreshNotifications}
+  notificationsLoading={notificationsLoading}
+  notifications={notifications}
+  setShowNotificationForm={setShowNotificationForm}
+  showNotificationForm={showNotificationForm}
+  markAllNotificationsRead={markAllNotificationsRead}
+  notificationError={notificationError}
+  notificationMessage={notificationMessage}
+  createNotification={createNotification}
+  notificationDraft={notificationDraft}
+  setNotificationDraft={setNotificationDraft}
+  notificationSaving={notificationSaving}
+  notificationFilter={notificationFilter}
+  setNotificationFilter={setNotificationFilter}
+  notificationQuery={notificationQuery}
+  setNotificationQuery={setNotificationQuery}
+  notificationSort={notificationSort}
+  setNotificationSort={setNotificationSort}
+  markNotificationRead={markNotificationRead}
+/>
+
+<Announcements
+  activePage={activePage}
+  announcements={announcements}
+  announcementsLoading={announcementsLoading}
+  announcementError={announcementError}
+  setAnnouncementError={setAnnouncementError}
+  announcementMessage={announcementMessage}
+  setAnnouncementMessage={setAnnouncementMessage}
+  refreshAnnouncements={refreshAnnouncements}
+  announcementFormOpen={announcementFormOpen}
+  setAnnouncementFormOpen={setAnnouncementFormOpen}
+  announcementDraft={announcementDraft}
+  setAnnouncementDraft={setAnnouncementDraft}
+  announcementSaving={announcementSaving}
+  createAnnouncement={createAnnouncement}
+  announcementFilter={announcementFilter}
+  setAnnouncementFilter={setAnnouncementFilter}
+  announcementQuery={announcementQuery}
+  setAnnouncementQuery={setAnnouncementQuery}
+  announcementTypeFilter={announcementTypeFilter}
+  setAnnouncementTypeFilter={setAnnouncementTypeFilter}
+  announcementSort={announcementSort}
+  setAnnouncementSort={setAnnouncementSort}
+  publishingAnnouncementId={publishingAnnouncementId}
+  publishAnnouncement={publishAnnouncement}
+/>
+
+<Settings
+  activePage={activePage}
+  activeSetting={activeSetting}
+  setActiveSetting={setActiveSetting}
+  settings={settings}
+  setSettings={setSettings}
+  settingsLoading={settingsLoading}
+  setSettingsLoading={setSettingsLoading}
+  settingsSaving={settingsSaving}
+  settingsError={settingsError}
+  setSettingsError={setSettingsError}
+  settingsMessage={settingsMessage}
+  setSettingsMessage={setSettingsMessage}
+  saveSettings={saveSettings}
+  updateSettingsSection={updateSettingsSection}
+  normalizeDashboardSettings={normalizeDashboardSettings}
+  getSettings={getSettings}
+/>
+
+</main>
+      {profileDialogOpen && (
+        <ProfileDialog
+          onClose={() => setProfileDialogOpen(false)}
+          onOpenSettings={() => { setProfileDialogOpen(false); setActivePage("settings"); }}
+        />
+      )}
+</div>
+  );
+}
+
+

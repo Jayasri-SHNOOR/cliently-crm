@@ -1,0 +1,24 @@
+﻿.support-escalations {
+  padding: 28px;
+  color: #173f39;
+}
+
+.support-escalations h2 {
+  margin: 0 0 8px;
+}
+
+.support-escalations > p {
+  color: #647e76;
+}
+
+.support-welcome-card {
+  margin-top: 24px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #d9eae5;
+  border-radius: 14px;
+}
+
+.support-welcome-card h3 {
+  color: #173f39;
+}

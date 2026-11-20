@@ -1,0 +1,304 @@
+/* Existing Super Admin Plans styles */
+
+.data-table,
+.billing-table,
+.feature-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.billing-table th,
+.feature-table th {
+  padding: 11px 16px;
+  background: #f8fcfb;
+  color: #71827f;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table td,
+.billing-table td,
+.feature-table td {
+  padding: 13px 16px;
+  border-top: 1px solid #e5efed;
+  color: var(--muted-text);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.plan-badge,
+.status-badge,
+.billing-status,
+.plan-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 12px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.plan-badge {
+  background: #f0f5f4;
+  color: var(--muted-text);
+}
+
+.plan-badge.enterprise {
+  background: #e5f4f1;
+  color: #357f74;
+}
+
+.plan-badge.pro {
+  background: #edf6f4;
+  color: #4c7770;
+}
+
+.plan-badge.starter {
+  background: #f2f4f4;
+  color: #6d7c79;
+}
+
+.plan-overview,
+.feature-access-card {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  margin-bottom: 20px;
+}
+
+.plan-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+}
+
+.plan-column {
+  padding: 20px;
+  border-right: 1px solid var(--border);
+  min-height: 140px;
+}
+
+.plan-column:last-child {
+  border-right: none;
+}
+
+.plan-column strong,
+.plan-column small,
+.plan-column span {
+  display: block;
+}
+
+.plan-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--deep-teal);
+  margin-bottom: 8px;
+}
+
+.plan-column strong {
+  font-size: 15px;
+  color: var(--dark-text);
+  margin-bottom: 6px;
+}
+
+.plan-column small {
+  color: var(--muted-text);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.plan-active {
+  display: inline-block !important;
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 12px;
+  background: var(--pale-mint);
+  color: var(--mint-dark);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.feature-access-card {
+  margin-top: 13px;
+}
+
+.feature-information {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.feature-information strong {
+  color: var(--dark-text);
+  font-size: 10px;
+}
+
+.feature-information span {
+  color: #899895;
+  font-size: 8px;
+}
+
+.feature-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.feature-state.disabled .state-dot {
+  background: #b8c3c1;
+}
+
+.features-page .plan-overview,
+.features-page .feature-access-card {
+  display: block;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.features-page .plan-overview {
+  margin-top: 20px;
+}
+
+.features-page .feature-access-card {
+  margin-top: 20px;
+}
+
+.features-page .plan-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.features-page .plan-column {
+  padding: 20px;
+  border-right: 1px solid var(--border);
+}
+
+.features-page .plan-column:last-child {
+  border-right: none;
+}
+
+.features-page .plan-number {
+  display: block;
+  color: var(--deep-teal);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.features-page .plan-column strong {
+  display: block;
+  color: var(--dark-text);
+  font-size: 15px;
+}
+
+.features-page .plan-column small {
+  display: block;
+  color: var(--muted-text);
+  margin-top: 6px;
+}
+
+.features-page .plan-active {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 9px;
+  border-radius: 12px;
+  background: var(--pale-mint);
+  color: var(--mint-dark);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.features-page .feature-access-card {
+  overflow: hidden;
+}
+
+.dashboard-section .dashboard-card,
+.dashboard-section .health-overview-bar,
+.dashboard-section .health-content-grid,
+.dashboard-section .health-metrics-grid,
+.dashboard-section .billing-revenue-grid,
+.dashboard-section .plan-overview-grid,
+.dashboard-section .feature-access-card {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+}
+
+.plan-overview-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.feature-access-card {
+  display: block !important;
+}
+
+.subscription-plan-card {
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #cfe4df;
+  border-radius: 10px;
+}
+
+.subscription-plan-card.highlighted {
+  border-color: #75d5c5;
+  box-shadow: 0 0 0 2px #eaf6f3;
+}
+
+.plan-label {
+  color: #55b9a8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.subscription-plan-card strong {
+  display: block;
+  margin: 9px 0 5px;
+  color: #183735;
+  font-size: 20px;
+}
+
+.subscription-plan-card p {
+  min-height: 32px;
+  margin: 0 0 13px;
+  color: #8a9a97;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.settings-feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e8f0ee;
+  color: #35514e;
+  font-size: 11px;
+}
+
+.settings-feature-row:last-child {
+  border-bottom: none;
+}
+
+.feature-enabled,
+.feature-enterprise {
+  padding: 5px 9px;
+  border-radius: 12px;
+  background: #ddf6f1;
+  color: #357f74;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.feature-enterprise {
+  background: #eaf6f3;
+}

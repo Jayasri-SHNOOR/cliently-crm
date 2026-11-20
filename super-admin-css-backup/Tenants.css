@@ -1,0 +1,32 @@
+/* Existing Super Admin Tenants styles */
+
+.tenant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.tenant-summary-grid > div {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.tenant-summary-grid span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.tenant-summary-grid strong {
+  color: var(--deep-teal);
+  font-size: 18px;
+}
+
+.notification-item-icon.tenant {
+  background: var(--mint-card);
+  color: var(--mint-dark);
+}
