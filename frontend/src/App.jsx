@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./features/login/pages/Login";
 import LandingPage from "./features/landing/LandingPage";
-import SuperAdminDashboard from "./features/super-admin/SuperAdminDashboard";
+import SuperAdminDashboard from "./features/super-admin/SuperAdminApp";
 import ClientAdmin from "./features/client-admin/clientadmin";
 import SalesExecutive from "./features/sales/SalesExecutive";
 import OperationsApp from "./features/operations/OperationsApp";
@@ -22,9 +22,9 @@ function App() {
       <SessionGate>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-
+          <Route path="/site/:slug" element={<PublicSite />} />
           <Route path="/login" element={<Login />} />
-
+          
           <Route
             path="/super-admin/*"
             element={

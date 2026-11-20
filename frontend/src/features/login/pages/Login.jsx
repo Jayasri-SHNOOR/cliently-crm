@@ -36,18 +36,17 @@ function Login(){
 
     const currentUser = useCurrentUser();
     const location = useLocation();
-    const [searchParams] = useSearchParams();
-    const reasonMessage = REASON_MESSAGES[searchParams.get("reason")] || "";
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [reason] = useState(() => searchParams.get("reason"));
+    const reasonMessage = REASON_MESSAGES[reason] || "";
 
     useEffect(() => {
-        if (cooldown <= 0) {
-            return undefined;
+        if (searchParams.has("reason")) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("reason");
+            setSearchParams(next, { replace: true });
         }
-        const timer = setTimeout(() => {
-            setCooldown((seconds) => seconds - 1);
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [cooldown]);
+    }, [searchParams, setSearchParams]);
 
     const home = homeFor(currentUser);
     if (home) {
@@ -85,7 +84,7 @@ function Login(){
         setLoading(true);
 
         try{
-            await login(email, password,);
+            await login(email, password);
             clearAttempts(email);
             setPassword("");
         } catch (err) {
@@ -118,6 +117,10 @@ function Login(){
     return(
         <main className="login-page">
             <section className="login-section">
+            <div className="login-bg-shape login-bg-shape-one" aria-hidden="true"></div>
+                <div className="login-bg-shape login-bg-shape-two" aria-hidden="true"></div>
+                <div className="login-card">
+                <div className="login-card-corner" aria-hidden="true"></div>
                 <div className="login-content">
                     <div className="brand">
                         <div className="brand-logo">
@@ -144,7 +147,7 @@ function Login(){
 
                     {reasonMessage && !error && !currentUser && (
                         <div
-                            className={`login-alert ${searchParams.get("reason") === "SIGNED_OUT" ? "login-success" : "login-error"}`}
+                        className={`login-alert ${reason === "SIGNED_OUT" ? "login-success" : "login-error"}`}
                             role="status"
                         >
                             {reasonMessage}
@@ -216,8 +219,8 @@ function Login(){
                             </div>
 
                             <div className="input-wrapper">
-                                <span className="input-icon">
-                                    ℗
+                                <span className="input-icon" aria-hidden="true">
+                                    <span className="input-icon-circle">P</span>
                                 </span>
                                 <input
                                     id="password"
@@ -237,8 +240,10 @@ function Login(){
                                     onClick={() =>
                                         setShowPassword(!showPassword)
                                     }
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
                                     {showPassword ? "Hide" : "Show"}
+                                
                                 </button>
                             </div>
                         </div>
@@ -262,11 +267,11 @@ function Login(){
                 <div className="login-footer">
                     © 2026 Cliently. All rights reserved.
                 </div>
+                </div>
             </section>
             <section className="crm-showcase">
                 <div className="showcase-content">
                     <div className="showcase-label">
-                        <span className="label-dot"></span>
                         SMART CRM FOR MODERN ORGANIZATIONS
                     </div>
                     <h2>
@@ -286,7 +291,7 @@ function Login(){
                             <div className="feature-number">
                                 01
                             </div>
-                            <div>
+                            <div className="feature-text">
                                 <h3>
                                     Customer Management
                                 </h3>
@@ -301,7 +306,7 @@ function Login(){
                             <div className="feature-number">
                                 02
                             </div>
-                            <div>
+                            <div className="feature-text">
                                 <h3>
                                     Sales & Lead Tracking
                                 </h3>
@@ -316,7 +321,7 @@ function Login(){
                             <div className="feature-number">
                                 03
                             </div>
-                            <div>
+                            <div className="feature-text">
                                 <h3>
                                     Organization Insights
                                 </h3>
@@ -339,9 +344,11 @@ function Login(){
                         </div>
                     </div>
                 </div>
-                <div className="decorative-circle circle-one"></div>
-                <div className="decorative-circle circle-two"></div>
-                <div className="decorative-grid"></div>
+                <div className="showcase-arc showcase-arc-top" aria-hidden="true"></div>
+                <div className="showcase-arc showcase-arc-bottom" aria-hidden="true"></div>
+                <div className="showcase-spark showcase-spark-top" aria-hidden="true"></div>
+                <div className="showcase-spark showcase-spark-bottom" aria-hidden="true"></div>
+                <div className="decorative-grid" aria-hidden="true"></div>
             </section>
         </main>
     );
