@@ -1,8 +1,16 @@
-
 const mongoose = require("mongoose");
 
 const customerSchema = new mongoose.Schema(
   {
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      index: true,
+    },
+    customerCode: {
+      type: String,
+      trim: true,
+    },
     userId: {
       type: String,
       default: "",
@@ -59,5 +67,9 @@ const customerSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Customer", customerSchema);
+customerSchema.index(
+  { tenantId: 1, customerCode: 1 },
+  { unique: true, partialFilterExpression: { customerCode: { $type: "string" } } }
+);
 
+module.exports = mongoose.models.Customer || mongoose.model("Customer", customerSchema);

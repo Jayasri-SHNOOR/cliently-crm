@@ -1,13 +1,30 @@
-const Sale = require("../models/sale");
-
 const mongoose = require("mongoose");
+const Sale = require("../models/sale");
 const Customer = require("../models/Customer");
+const nextSequence = require("../../../utils/nextSequence");
 
-// GET /api/customers - Get all customers and search
+const STATUSES = ["Active", "Inactive", "Prospect"];
+
+// every query below is scoped to the logged-in user's tenant
+const requireTenant = (req, res) => {
+  if (!req.user?.tenantId) {
+    res.status(403).json({
+      success: false,
+      message: "Tenant information is missing",
+    });
+    return null;
+  }
+  return req.user.tenantId;
+};
+
+// GET /api/sales/customers - Get all customers and search
 const getCustomers = async (req, res) => {
   try {
+    const tenantId = requireTenant(req, res);
+    if (!tenantId) return;
+
     const { search, status } = req.query;
-    const filter = {};
+    const filter = { tenantId };
 
     if (search) {
       const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -22,7 +39,7 @@ const getCustomers = async (req, res) => {
     }
 
     if (status) {
-      if (!["Active", "Inactive", "Prospect"].includes(status)) {
+      if (!STATUSES.includes(status)) {
         return res.status(400).json({
           success: false,
           message: "Invalid customer status",
@@ -33,39 +50,39 @@ const getCustomers = async (req, res) => {
     }
 
     const customers = await Customer.find(filter)
-  .sort({ createdAt: -1 })
-  .lean();
+      .sort({ createdAt: -1 })
+      .lean();
 
-const customersWithSales = await Promise.all(
-  customers.map(async (customer) => {
-    const customerKey = String(customer.userId || "");
+    const customersWithSales = await Promise.all(
+      customers.map(async (customer) => {
+        const customerKey = String(customer.userId || "");
 
-    const sales = customerKey
-      ? await Sale.find({ customerId: customerKey })
-          .sort({ saleDate: -1 })
-          .lean()
-      : [];
+        const sales = customerKey
+          ? await Sale.find({ customerId: customerKey })
+              .sort({ saleDate: -1 })
+              .lean()
+          : [];
 
-    const totalSales = sales.reduce(
-      (sum, sale) => sum + Number(sale.totalAmount || 0),
-      0
+        const totalSales = sales.reduce(
+          (sum, sale) => sum + Number(sale.totalAmount || 0),
+          0
+        );
+
+        return {
+          ...customer,
+          totalSales,
+          salesCount: sales.length,
+          latestSaleDate: sales[0]?.saleDate || null,
+          latestSaleStatus: sales[0]?.saleStatus || null,
+          latestPaymentStatus: sales[0]?.paymentStatus || null,
+        };
+      })
     );
-
-    return {
-      ...customer,
-      totalSales,
-      salesCount: sales.length,
-      latestSaleDate: sales[0]?.saleDate || null,
-      latestSaleStatus: sales[0]?.saleStatus || null,
-      latestPaymentStatus: sales[0]?.paymentStatus || null,
-    };
-  })
-);
 
     res.status(200).json({
       success: true,
       count: customersWithSales.length,
-customers: customersWithSales,
+      customers: customersWithSales,
     });
   } catch (error) {
     console.error("Get customers error:", error.message);
@@ -76,9 +93,12 @@ customers: customersWithSales,
   }
 };
 
-// GET /api/customers/:id - Get one customer
+// GET /api/sales/customers/:id - Get one customer
 const getCustomerById = async (req, res) => {
   try {
+    const tenantId = requireTenant(req, res);
+    if (!tenantId) return;
+
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -86,7 +106,7 @@ const getCustomerById = async (req, res) => {
       });
     }
 
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne({ _id: req.params.id, tenantId });
 
     if (!customer) {
       return res.status(404).json({
@@ -108,9 +128,12 @@ const getCustomerById = async (req, res) => {
   }
 };
 
-// POST /api/customers - Create a customer
+// POST /api/sales/customers - Create a customer
 const createCustomer = async (req, res) => {
   try {
+    const tenantId = requireTenant(req, res);
+    if (!tenantId) return;
+
     const { name, company, email, phone, address, status } = req.body;
 
     if (typeof name !== "string" || !name.trim()) {
@@ -120,7 +143,11 @@ const createCustomer = async (req, res) => {
       });
     }
 
+    const seq = await nextSequence(`customer:${tenantId}`);
+
     const customer = await Customer.create({
+      tenantId,
+      customerCode: `CUST-${String(seq).padStart(4, "0")}`,
       name,
       company,
       email,
@@ -151,9 +178,12 @@ const createCustomer = async (req, res) => {
   }
 };
 
-// PUT /api/customers/:id - Update a customer
+// PUT /api/sales/customers/:id - Update a customer
 const updateCustomer = async (req, res) => {
   try {
+    const tenantId = requireTenant(req, res);
+    if (!tenantId) return;
+
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -195,8 +225,8 @@ const updateCustomer = async (req, res) => {
       });
     }
 
-    const customer = await Customer.findByIdAndUpdate(
-      req.params.id,
+    const customer = await Customer.findOneAndUpdate(
+      { _id: req.params.id, tenantId },
       updates,
       {
         new: true,
@@ -233,9 +263,12 @@ const updateCustomer = async (req, res) => {
   }
 };
 
-// DELETE /api/customers/:id - Delete a customer
+// DELETE /api/sales/customers/:id - Delete a customer
 const deleteCustomer = async (req, res) => {
   try {
+    const tenantId = requireTenant(req, res);
+    if (!tenantId) return;
+
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
@@ -243,7 +276,10 @@ const deleteCustomer = async (req, res) => {
       });
     }
 
-    const customer = await Customer.findByIdAndDelete(req.params.id);
+    const customer = await Customer.findOneAndDelete({
+      _id: req.params.id,
+      tenantId,
+    });
 
     if (!customer) {
       return res.status(404).json({

@@ -13,6 +13,7 @@ const superAdminRoutes = require('./modules/super-admin/index.js');
 const requireRole = require('./middleware/requireRole')
 const operationsRoutes = require('./modules/operations')
 const publicRoutes = require('./modules/public')
+const managerRoutes = require('./modules/manager')
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use('/api', userLimiter)
 app.use('/api', clientAdminRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/operations', operationsRoutes)
+app.use('/api/manager', managerRoutes)
 app.use(notFound);
 app.use(errorHandler);
 
