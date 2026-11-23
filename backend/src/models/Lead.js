@@ -45,6 +45,9 @@ const leadSchema = new mongoose.Schema(
         type: String, 
         trim: true 
     },
+    priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
+    nextFollowUp: { type: Date },
+    assignedAt: { type: Date },
     source: { type: String, enum: ['Manual', 'Website', 'Import'], default: 'Manual' },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
     productName: { type: String, trim: true, maxlength: 120 },

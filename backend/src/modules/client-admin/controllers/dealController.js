@@ -4,6 +4,7 @@ const {CLOSED_STATUSES} = require('../../../models/Deal')
 const AppError = require('../../../utils/AppError')
 const escapeRegex = require('../../../utils/escapeRegex')
 const pick = require('../../../utils/pick')
+const { onDealWon } = require('../../../services/dealWonService')
 const ALLOWED_FIELDS = ['name', 'customer', 'product', 'value', 'status', 'assignedTo', 'expectedClose']
 function formatDeal(deal) {
   return{
@@ -102,6 +103,7 @@ async function createDeal(req, res, next) {
       activities: ['Deal created'],
       tenantId: req.user.tenantId
     })
+        await onDealWon(deal)
     res.status(201).json(formatDeal(deal))
   }catch(err){
     next(err)
@@ -131,6 +133,7 @@ async function updateDeal(req, res, next) {
     if(!deal){
       throw new AppError('Deal not found', 404)
     }
+        await onDealWon(deal)
 
     res.json(formatDeal(deal))
   }catch(err) {
