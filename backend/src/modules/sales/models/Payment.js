@@ -1,8 +1,12 @@
-
 const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema(
   {
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      index: true,
+    },
     customerId: {
       type: String,
       required: true,
@@ -47,4 +51,3 @@ const paymentSchema = new mongoose.Schema(
 module.exports =
   mongoose.models.Payment ||
   mongoose.model("Payment", paymentSchema);
-

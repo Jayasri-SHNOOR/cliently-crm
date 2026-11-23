@@ -1,8 +1,12 @@
-
 const mongoose = require("mongoose");
 
 const saleSchema = new mongoose.Schema(
   {
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      index: true,
+    },
     customerId: {
       type: String,
       required: true,
@@ -35,7 +39,8 @@ const saleSchema = new mongoose.Schema(
   {
     collection: "sales",
     versionKey: false,
+    timestamps: true,
   }
 );
 
-module.exports = mongoose.model("Sale", saleSchema);
+module.exports = mongoose.models.Sale || mongoose.model("Sale", saleSchema);

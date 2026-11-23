@@ -39,7 +39,8 @@ const dealSchema = new mongoose.Schema(
     },
     expectedClose:{ 
         type: Date 
-    },                
+    },      
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null },          
     activities: [
         { type: String, trim: true }
     ]     
