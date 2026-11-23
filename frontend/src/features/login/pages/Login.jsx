@@ -281,11 +281,7 @@ function Login(){
                             Grow your business.
                         </span>
                     </h2>
-                    <p className="showcase-description">
-                        Bring your teams, customers, sales activities,
-                        and business operations together in one
-                        organized workspace.
-                    </p>
+                    
                     <div className="crm-features">
                         <div className="feature-card">
                             <div className="feature-number">
