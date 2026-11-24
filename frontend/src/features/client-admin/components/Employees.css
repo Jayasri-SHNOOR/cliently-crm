@@ -680,3 +680,24 @@
     padding: 18px;
   }
 }
+.employee-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.employee-tab {
+  padding: 8px 16px;
+  border: 1px solid #d9dce3;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.employee-tab.active {
+  background:var(--deep-teal);
+  color: #fff;
+  border-color:var(--deep-teal);
+}

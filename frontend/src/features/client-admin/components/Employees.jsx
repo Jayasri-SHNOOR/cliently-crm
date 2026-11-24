@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
 import './Employees.css'
 
+const ROLES = ['Sales Executive', 'Operational Staff', 'Manager']
+
+const ROLE_DEPARTMENT = {
+  'Sales Executive': 'Sales',
+  'Operational Staff': 'Operations',
+  Manager: 'Management'
+}
+
 const emptyForm = {
   name: '',
   email: '',
@@ -21,6 +29,7 @@ const normalizeEmployee = (employee) => ({
   id: employee._id || employee.id,
   name: employee.name || '',
   email: employee.email || '',
+  role: employee.role || 'Sales Executive',
   deals: employee.deals ?? 0,
   won: employee.won ?? 0,
   lost: employee.lost ?? 0,
@@ -42,6 +51,7 @@ function Employees() {
   const [employees, setEmployees] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [activeRole, setActiveRole] = useState('Sales Executive')
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState(emptyForm)
@@ -85,6 +95,7 @@ function Employees() {
 
     return () => clearInterval(timer)
   }, [loadEmployees])
+
   useEffect(() => {
     setSelectedEmployee((current) =>
       current
@@ -116,8 +127,13 @@ function Employees() {
     const matchesStatus =
       statusFilter === 'All' || employee.status === statusFilter
 
-    return matchesSearch && matchesStatus
+    const matchesRole = employee.role === activeRole
+
+    return matchesSearch && matchesStatus && matchesRole
   })
+
+  const roleCount = (role) =>
+    employees.filter((employee) => employee.role === role).length
 
   const activeUsers = employees.filter(
     (employee) => employee.status === 'Active'
@@ -125,7 +141,11 @@ function Employees() {
 
   const openAddForm = () => {
     setEditingId(null)
-    setFormData(emptyForm)
+    setFormData({
+      ...emptyForm,
+      role: activeRole,
+      department: ROLE_DEPARTMENT[activeRole]
+    })
     setFormError('')
     setShowForm(true)
   }
@@ -135,8 +155,9 @@ function Employees() {
     setFormData({
       name: employee.name,
       email: employee.email,
-      role: 'Sales Executive',
-      department: employee.department || 'Sales',
+      role: employee.role || 'Sales Executive',
+      department:
+        ROLE_DEPARTMENT[employee.role] || employee.department || 'Sales',
       phone: employee.phone || '',
       status: employee.status
     })
@@ -180,7 +201,8 @@ function Employees() {
     const payload = {
       name: formData.name.trim(),
       email: normalizedEmail,
-      department: formData.department.trim() || 'Sales',
+      role: formData.role,
+      department: ROLE_DEPARTMENT[formData.role],
       phone: formData.phone.trim()
     }
 
@@ -203,14 +225,14 @@ function Employees() {
           )
         )
         setSelectedEmployee(updatedEmployee)
+        setActiveRole(updatedEmployee.role)
         setEditingId(null)
         setFormData(emptyForm)
         setShowForm(false)
-        loadEmployees(true) 
+        loadEmployees(true)
       } else {
         const response = await api.post('/employees', {
           ...payload,
-          role: 'Sales Executive',
           status: formData.status
         })
 
@@ -220,6 +242,7 @@ function Employees() {
 
         setEmployees((previous) => [...previous, createdEmployee])
         setSelectedEmployee(createdEmployee)
+        setActiveRole(createdEmployee.role)
         setSearchTerm('')
         setStatusFilter('All')
         setFormData(emptyForm)
@@ -239,8 +262,7 @@ function Employees() {
   }
 
   const handleDeactivate = async (employee) => {
-    const newStatus =
-      employee.status === 'Active' ? 'Inactive' : 'Active'
+    const newStatus = employee.status === 'Active' ? 'Inactive' : 'Active'
 
     try {
       setUpdatingStatus(true)
@@ -291,15 +313,14 @@ function Employees() {
       ? ((employee.won / employee.deals) * 100).toFixed(1)
       : '0.0'
 
-  const getPercent = (part, total) =>
-    total ? (part / total) * 100 : 0
+  const getPercent = (part, total) => (total ? (part / total) * 100 : 0)
 
   return (
     <main className="employees-page">
       <section className="employees-header">
         <div>
           <h1>Employees</h1>
-          <p>Manage sales executives and monitor their performance.</p>
+          <p>Manage your team and monitor their performance.</p>
         </div>
 
         <button
@@ -337,6 +358,19 @@ function Employees() {
       </section>
 
       <section className="employees-table-card">
+        <div className="employee-tabs">
+          {ROLES.map((role) => (
+            <button
+              key={role}
+              type="button"
+              className={`employee-tab ${activeRole === role ? 'active' : ''}`}
+              onClick={() => setActiveRole(role)}
+            >
+              {role} ({roleCount(role)})
+            </button>
+          ))}
+        </div>
+
         <div className="employees-toolbar">
           <div className="employee-search">
             <span>⌕</span>
@@ -398,9 +432,7 @@ function Employees() {
                     </td>
 
                     <td>
-                      <span className="employee-role">
-                        {employee.role}
-                      </span>
+                      <span className="employee-role">{employee.role}</span>
                     </td>
 
                     <td>{employee.deals}</td>
@@ -482,15 +514,19 @@ function Employees() {
               required
             />
 
-            <label htmlFor="employee-department">Department</label>
-            <input
-              id="employee-department"
-              name="department"
-              type="text"
-              placeholder="Enter department"
-              value={formData.department}
+            <label htmlFor="employee-role">Role / Department *</label>
+            <select
+              id="employee-role"
+              name="role"
+              value={formData.role}
               onChange={handleInputChange}
-            />
+            >
+              {ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
 
             <label htmlFor="employee-phone">Phone Number</label>
             <input
@@ -504,16 +540,16 @@ function Employees() {
 
             {!editingId && (
               <>
-              <label htmlFor="employee-status">Status</label>
-              <select
-                id="employee-status"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+                <label htmlFor="employee-status">Status</label>
+                <select
+                  id="employee-status"
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </>
             )}
 

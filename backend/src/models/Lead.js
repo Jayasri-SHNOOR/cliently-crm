@@ -45,7 +45,11 @@ const leadSchema = new mongoose.Schema(
         type: String, 
         trim: true 
     },
-    priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
+    priority: {
+  type: String,
+  enum: ['High', 'Medium', 'Low'],
+  default: undefined
+},
     nextFollowUp: { type: Date },
     assignedAt: { type: Date },
     source: { type: String, enum: ['Manual', 'Website', 'Import'], default: 'Manual' },

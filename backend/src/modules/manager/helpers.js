@@ -24,7 +24,7 @@ function formatLead(l) {
     message: l.message,
     executive: l.executive || null,
     executiveId: l.executiveId || null,
-    priority: l.priority || 'Medium',
+    priority: l.priority || null,
     nextFollowUp: l.nextFollowUp || null,
     assignedAt: l.assignedAt || null,
     createdAt: l.createdAt
