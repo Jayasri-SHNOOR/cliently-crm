@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose')
 const Lead = require('../../../models/Lead')
 const Employee = require('../../../models/Employee')
@@ -163,12 +162,12 @@ async function listAssignableExecutives(req, res, next) {
           $match: {
             tenantId: toId(tenantId),
             status: { $nin: CLOSED },
-            executive: { $nin: [null, ''] }
+            executiveId: { $ne: null }
           }
         },
         {
           $group: {
-            _id: '$executive',
+            _id: '$executiveId',
             count: { $sum: 1 }
           }
         }
@@ -176,7 +175,7 @@ async function listAssignableExecutives(req, res, next) {
     ])
 
     const load = Object.fromEntries(
-      workload.map(w => [w._id, w.count])
+      workload.map(w => [String(w._id), w.count])
     )
 
     res.json({
@@ -185,7 +184,7 @@ async function listAssignableExecutives(req, res, next) {
           id: e._id,
           name: e.name,
           email: e.email,
-          activeLeads: load[e.name] ?? 0
+          activeLeads: load[String(e._id)] ?? 0
         }))
         .sort((a, b) => a.activeLeads - b.activeLeads)
     })
@@ -198,6 +197,12 @@ async function assignLead(req, res, next) {
   try {
     const { tenantId } = req.user
     const { id } = req.params
+
+    const executiveId =
+      typeof req.body.executiveId === 'string'
+        ? req.body.executiveId.trim()
+        : ''
+
     const executive =
       typeof req.body.executive === 'string'
         ? req.body.executive.trim()
@@ -209,8 +214,12 @@ async function assignLead(req, res, next) {
       throw new AppError('Invalid lead ID', 400)
     }
 
-    if (!executive) {
+    if (!executiveId && !executive) {
       throw new AppError('Executive is required', 400)
+    }
+
+    if (executiveId && !mongoose.isValidObjectId(executiveId)) {
+      throw new AppError('Invalid executive ID', 400)
     }
 
     if (priority && !PRIORITIES.includes(priority)) {
@@ -227,12 +236,19 @@ async function assignLead(req, res, next) {
       }
     }
 
-    const exec = await Employee.findOne({
+    const execFilter = {
       tenantId,
-      name: executive,
       status: 'Active',
       role: SALES_ROLE
-    }).lean()
+    }
+
+    if (executiveId) {
+      execFilter._id = executiveId
+    } else {
+      execFilter.name = executive
+    }
+
+    const exec = await Employee.findOne(execFilter).lean()
 
     if (!exec) {
       throw new AppError('Executive not found or inactive', 400)
@@ -251,7 +267,8 @@ async function assignLead(req, res, next) {
       throw new AppError('Closed leads cannot be reassigned', 400)
     }
 
-    if (lead.executive !== exec.name) {
+    if (String(lead.executiveId || '') !== String(exec._id)) {
+      lead.executiveId = exec._id
       lead.executive = exec.name
       lead.assignedAt = new Date()
     }

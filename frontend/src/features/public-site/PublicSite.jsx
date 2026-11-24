@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link,useParams } from "react-router-dom";
 import { getPublicSite, sendEnquiry } from "./publicSiteApi";
 import "./PublicSite.css";
 
@@ -510,6 +510,13 @@ export default function PublicSite() {
             <a href="#products">Products</a>
             <a href="#contact">Contact</a>
           </nav>
+
+          <Link
+            to={`/site/${slug}/login`}
+            className="ps-button ps-button-small ps-button-ghost"
+          >
+            Customer login
+          </Link>
 
           <button
             type="button"

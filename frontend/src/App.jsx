@@ -9,6 +9,9 @@ import ManagerApp from "./features/manager/ManagerApp";
 import SessionGate from "./components/SessionGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicSite from "./features/public-site/PublicSite";
+import CustomerLogin from "./features/customer-portal/CustomerLogin";
+import ActivateAccount from "./features/customer-portal/ActivateAccount";
+import CustomerPortal from "./features/customer-portal/CustomerPortal";
 import { logout } from "./lib/auth";
 
 async function handleLogout() {
@@ -22,7 +25,11 @@ function App() {
       <SessionGate>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/site/:slug/portal" element={<CustomerPortal />} />
           <Route path="/site/:slug" element={<PublicSite />} />
+          <Route path="/site/:slug/login" element={<CustomerLogin />} />
+          <Route path="/site/:slug/activate" element={<ActivateAccount />} />
+          
           <Route path="/login" element={<Login />} />
           
           <Route

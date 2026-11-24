@@ -1,15 +1,13 @@
-
-const mongoose = require("mongoose");
 const User = require("../../../models/User");
 const Employee = require("../../../models/Employee");
 
 const getProfile = async (req, res) => {
   try {
-    // Temporarily fetch the first user until login
-    // identifies the currently logged-in user.
-    const user = await User.findOne()
-      .select("-password")
-      .sort({ createdAt: -1 })
+    const user = await User.findOne({
+      _id: req.user.id,
+      tenantId: req.user.tenantId,
+    })
+      .select("name email mobileNumber role status tenantId employeeId lastLoginAt createdAt")
       .lean();
 
     if (!user) {
@@ -19,21 +17,21 @@ const getProfile = async (req, res) => {
       });
     }
 
-    let employee = null;
-
-    if (mongoose.isValidObjectId(user._id)) {
-      employee = await Employee.findOne({
-        userId: user._id,
-      }).lean();
-    }
+    const employee = user.employeeId
+      ? await Employee.findOne({ _id: user.employeeId, tenantId: req.user.tenantId })
+          .select("role department phone createdAt")
+          .lean()
+      : null;
 
     res.status(200).json({
       success: true,
       data: {
         ...user,
-        designation: employee?.designation || "",
+        company: req.user.company || null,
+        designation: employee?.role || "",
         department: employee?.department || "",
-        joiningDate: employee?.joiningDate || null,
+        phone: employee?.phone || user.mobileNumber || "",
+        joiningDate: employee?.createdAt || null,
       },
     });
   } catch (error) {
