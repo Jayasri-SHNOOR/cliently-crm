@@ -1,24 +1,49 @@
-
 const mongoose = require("mongoose");
 const Notification = require("../models/notification");
 
-// GET /api/notifications - Fetch notifications
+const getTenantId = (req, res) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    res.status(403).json({
+      success: false,
+      message: "Tenant information is missing",
+    });
+    return null;
+  }
+  return tenantId;
+};
+
+const invalidId = (res) =>
+  res.status(400).json({
+    success: false,
+    message: "Invalid notification ID",
+  });
+
+const notFound = (res) =>
+  res.status(404).json({
+    success: false,
+    message: "Notification not found",
+  });
+
 const getNotifications = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { isRead, type } = req.query;
-    const filter = {};
+    const filter = { tenantId };
 
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
     }
 
     if (type) {
-      filter.type = type;
+      filter.type = String(type);
     }
 
-    const notifications = await Notification.find(filter).sort({
-      createdAt: -1,
-    });
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(200);
 
     res.status(200).json({
       success: true,
@@ -34,26 +59,16 @@ const getNotifications = async (req, res) => {
   }
 };
 
-// GET /api/notifications/:id - Fetch one notification
 const getNotificationById = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return invalidId(res);
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid notification ID",
-      });
-    }
-
-    const notification = await Notification.findById(id);
-
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      });
-    }
+    const notification = await Notification.findOne({ _id: id, tenantId });
+    if (!notification) return notFound(res);
 
     res.status(200).json({
       success: true,
@@ -68,12 +83,14 @@ const getNotificationById = async (req, res) => {
   }
 };
 
-// POST /api/notifications - Create a notification
 const createNotification = async (req, res) => {
   try {
-    const { title, message, type, isRead } = req.body;
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
 
-    if (!title?.trim() || !message?.trim()) {
+    const { title, message, type } = req.body;
+
+    if (typeof title !== "string" || !title.trim() || typeof message !== "string" || !message.trim()) {
       return res.status(400).json({
         success: false,
         message: "Title and message are required",
@@ -81,10 +98,10 @@ const createNotification = async (req, res) => {
     }
 
     const notification = await Notification.create({
+      tenantId,
       title,
       message,
       type,
-      isRead,
     });
 
     res.status(201).json({
@@ -101,30 +118,20 @@ const createNotification = async (req, res) => {
   }
 };
 
-// PATCH /api/notifications/:id/read - Mark as read
 const markNotificationAsRead = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return invalidId(res);
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid notification ID",
-      });
-    }
-
-    const notification = await Notification.findByIdAndUpdate(
-      id,
-      { isRead: true },
-      { new: true, runValidators: true }
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, tenantId },
+      { $set: { isRead: true } },
+      { returnDocument: "after" }
     );
-
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      });
-    }
+    if (!notification) return notFound(res);
 
     res.status(200).json({
       success: true,
@@ -140,26 +147,16 @@ const markNotificationAsRead = async (req, res) => {
   }
 };
 
-// DELETE /api/notifications/:id - Delete a notification
 const deleteNotification = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return invalidId(res);
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid notification ID",
-      });
-    }
-
-    const notification = await Notification.findByIdAndDelete(id);
-
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: "Notification not found",
-      });
-    }
+    const notification = await Notification.findOneAndDelete({ _id: id, tenantId });
+    if (!notification) return notFound(res);
 
     res.status(200).json({
       success: true,

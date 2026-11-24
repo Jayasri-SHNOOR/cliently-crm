@@ -83,15 +83,15 @@ async function listAssignableExecutives(req, res, next) {
     const [employees, workload] = await Promise.all([
       Employee.find({ tenantId, status: 'Active', role: SALES_ROLE }).select('name email').lean(),
       Lead.aggregate([
-        { $match: { tenantId: toId(tenantId), status: { $nin: CLOSED }, executive: { $nin: [null, ''] } } },
-        { $group: { _id: '$executive', count: { $sum: 1 } } }
+        { $match: { tenantId: toId(tenantId), status: { $nin: CLOSED }, executiveId: { $ne: null } } },
+        { $group: { _id: '$executiveId', count: { $sum: 1 } } }
       ])
     ])
-    const load = Object.fromEntries(workload.map((w) => [w._id, w.count]))
+    const load = Object.fromEntries(workload.map((w) => [String(w._id), w.count]))
 
     res.json({
       executives: employees
-        .map((e) => ({ id: e._id, name: e.name, email: e.email, activeLeads: load[e.name] ?? 0 }))
+        .map((e) => ({ id: e._id, name: e.name, email: e.email, activeLeads: load[String(e._id)] ?? 0 }))
         .sort((a, b) => a.activeLeads - b.activeLeads)
     })
   } catch (err) {
@@ -102,11 +102,13 @@ async function assignLead(req, res, next) {
   try {
     const { tenantId } = req.user
     const { id } = req.params
+    const executiveId = typeof req.body.executiveId === 'string' ? req.body.executiveId.trim() : ''
     const executive = typeof req.body.executive === 'string' ? req.body.executive.trim() : ''
     const { priority, followUpDate } = req.body
 
     if (!mongoose.isValidObjectId(id)) throw new AppError('Invalid lead ID', 400)
-    if (!executive) throw new AppError('Executive is required', 400)
+    if (!executiveId && !executive) throw new AppError('Executive is required', 400)
+    if (executiveId && !mongoose.isValidObjectId(executiveId)) throw new AppError('Invalid executive ID', 400)
     if (priority && !PRIORITIES.includes(priority)) throw new AppError('Invalid priority', 400)
 
     let followUp
@@ -115,12 +117,22 @@ async function assignLead(req, res, next) {
       if (Number.isNaN(followUp.getTime())) throw new AppError('Invalid follow-up date', 400)
     }
 
-    const exec = await Employee.findOne({ tenantId, name: executive, status: 'Active', role: SALES_ROLE }).lean()
+    const execFilter = { tenantId, status: 'Active', role: SALES_ROLE }
+    if (executiveId) execFilter._id = executiveId
+    else execFilter.name = executive
+
+    const exec = await Employee.findOne(execFilter).lean()
     if (!exec) throw new AppError('Executive not found or inactive', 400)
 
     const lead = await Lead.findOne({ _id: id, tenantId })
     if (!lead) throw new AppError('Lead not found', 404)
     if (CLOSED.includes(lead.status)) throw new AppError('Closed leads cannot be reassigned', 400)
+
+    if (String(lead.executiveId || '') !== String(exec._id)) {
+      lead.executiveId = exec._id
+      lead.executive = exec.name
+      lead.assignedAt = new Date()
+    }('Closed leads cannot be reassigned', 400)
 
     if (lead.executive !== exec.name) {
       lead.executive = exec.name

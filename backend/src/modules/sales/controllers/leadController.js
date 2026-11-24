@@ -1,30 +1,60 @@
-
 const mongoose = require("mongoose");
 const Lead = require("../../../models/Lead");
+const Employee = require("../../../models/Employee");
 
-// Escape special characters in search input
 const escapeRegex = (value) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Get all leads belonging to the logged-in user's tenant
+const getOwner = (req, res) => {
+  const tenantId = req.user?.tenantId;
+  const employeeId = req.user?.employeeId;
+
+  if (!tenantId) {
+    res.status(403).json({
+      success: false,
+      message: "Tenant information is missing",
+    });
+    return null;
+  }
+
+  if (!employeeId) {
+    res.status(403).json({
+      success: false,
+      message: "Your login is not linked to an employee record. Please contact your admin.",
+    });
+    return null;
+  }
+
+  return { tenantId, employeeId };
+};
+
+const invalidId = (res) =>
+  res.status(400).json({
+    success: false,
+    message: "Invalid lead ID",
+  });
+
+const notFound = (res) =>
+  res.status(404).json({
+    success: false,
+    message: "Lead not found",
+  });
+
 const getLeads = async (req, res) => {
   try {
-    if (!req.user?.tenantId) {
-      return res.status(403).json({
-        success: false,
-        message: "Tenant information is missing",
-      });
-    }
+    const owner = getOwner(req, res);
+    if (!owner) return;
 
     const { search, status } = req.query;
 
     const filter = {
-      tenantId: req.user.tenantId,
+      tenantId: owner.tenantId,
+      executiveId: owner.employeeId,
     };
 
     if (search?.trim()) {
       const searchRegex = {
-        $regex: escapeRegex(search.trim()),
+        $regex: escapeRegex(search.trim().slice(0, 50)),
         $options: "i",
       };
 
@@ -37,10 +67,10 @@ const getLeads = async (req, res) => {
     }
 
     if (status && status !== "All") {
-      filter.status = status;
+      filter.status = String(status);
     }
 
-    const leads = await Lead.find(filter).sort({ createdAt: -1 });
+    const leads = await Lead.find(filter).sort({ createdAt: -1 }).limit(500);
 
     res.status(200).json({
       success: true,
@@ -57,27 +87,20 @@ const getLeads = async (req, res) => {
   }
 };
 
-// Get one lead
 const getLeadById = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid lead ID",
-      });
-    }
+    const owner = getOwner(req, res);
+    if (!owner) return;
+
+    if (!mongoose.isValidObjectId(req.params.id)) return invalidId(res);
 
     const lead = await Lead.findOne({
       _id: req.params.id,
-      tenantId: req.user.tenantId,
+      tenantId: owner.tenantId,
+      executiveId: owner.employeeId,
     });
 
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
-    }
+    if (!lead) return notFound(res);
 
     res.status(200).json({
       success: true,
@@ -91,15 +114,10 @@ const getLeadById = async (req, res) => {
   }
 };
 
-// Create a lead
 const createLead = async (req, res) => {
   try {
-    if (!req.user?.tenantId) {
-      return res.status(403).json({
-        success: false,
-        message: "Tenant information is missing",
-      });
-    }
+    const owner = getOwner(req, res);
+    if (!owner) return;
 
     const {
       name,
@@ -109,21 +127,27 @@ const createLead = async (req, res) => {
       status,
       value,
       productInterested,
-      source,
       productId,
       productName,
       message,
     } = req.body;
 
-    if (!name?.trim()) {
+    if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({
         success: false,
         message: "Lead name is required",
       });
     }
 
+    const employee = await Employee.findOne({
+      _id: owner.employeeId,
+      tenantId: owner.tenantId,
+    })
+      .select("name")
+      .lean();
+
     const lead = await Lead.create({
-      tenantId: req.user.tenantId,
+      tenantId: owner.tenantId,
       name,
       email,
       company,
@@ -131,10 +155,13 @@ const createLead = async (req, res) => {
       status,
       value,
       productInterested,
-      source,
-      productId,
+      source: "Manual",
+      productId: mongoose.isValidObjectId(productId) ? productId : null,
       productName,
       message,
+      executiveId: owner.employeeId,
+      executive: employee?.name || req.user.name || "",
+      assignedAt: new Date(),
     });
 
     res.status(201).json({
@@ -152,15 +179,12 @@ const createLead = async (req, res) => {
   }
 };
 
-// Update a lead
 const updateLead = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid lead ID",
-      });
-    }
+    const owner = getOwner(req, res);
+    if (!owner) return;
+
+    if (!mongoose.isValidObjectId(req.params.id)) return invalidId(res);
 
     const allowedFields = [
       "name",
@@ -193,21 +217,17 @@ const updateLead = async (req, res) => {
     const lead = await Lead.findOneAndUpdate(
       {
         _id: req.params.id,
-        tenantId: req.user.tenantId,
+        tenantId: owner.tenantId,
+        executiveId: owner.employeeId,
       },
-      updates,
+      { $set: updates },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
 
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
-    }
+    if (!lead) return notFound(res);
 
     res.status(200).json({
       success: true,
@@ -222,27 +242,21 @@ const updateLead = async (req, res) => {
   }
 };
 
-// Delete a lead
 const deleteLead = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid lead ID",
-      });
-    }
+    const owner = getOwner(req, res);
+    if (!owner) return;
+
+    if (!mongoose.isValidObjectId(req.params.id)) return invalidId(res);
 
     const lead = await Lead.findOneAndDelete({
       _id: req.params.id,
-      tenantId: req.user.tenantId,
+      tenantId: owner.tenantId,
+      executiveId: owner.employeeId,
+      source: "Manual",
     });
 
-    if (!lead) {
-      return res.status(404).json({
-        success: false,
-        message: "Lead not found",
-      });
-    }
+    if (!lead) return notFound(res);
 
     res.status(200).json({
       success: true,

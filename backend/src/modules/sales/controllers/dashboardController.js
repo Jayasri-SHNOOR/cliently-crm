@@ -1,11 +1,16 @@
-
 const Task = require("../models/task");
-const mongoose = require("mongoose");
+const Customer = require("../models/Customer");
 
-// GET /api/dashboard
 const getDashboard = async (req, res) => {
   try {
-    console.log("Connected database:", mongoose.connection.name);
+    const tenantId = req.user?.tenantId;
+
+    if (!tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "Tenant information is missing",
+      });
+    }
 
     const [
       totalCustomers,
@@ -14,17 +19,12 @@ const getDashboard = async (req, res) => {
       completedTasks,
       inProgressTasks,
     ] = await Promise.all([
-      mongoose.connection.db
-        .collection("customers")
-        .countDocuments(),
-
-      Task.countDocuments(),
-      Task.countDocuments({ status: "Pending" }),
-      Task.countDocuments({ status: "Completed" }),
-      Task.countDocuments({ status: "In Progress" }),
+      Customer.countDocuments({ tenantId }),
+      Task.countDocuments({ tenantId }),
+      Task.countDocuments({ tenantId, status: "Pending" }),
+      Task.countDocuments({ tenantId, status: "Completed" }),
+      Task.countDocuments({ tenantId, status: "In Progress" }),
     ]);
-
-    console.log("Customers found:", totalCustomers);
 
     res.status(200).json({
       success: true,
@@ -38,7 +38,7 @@ const getDashboard = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Dashboard error:", error.stack || error);
+    console.error("Dashboard error:", error.message);
 
     res.status(500).json({
       success: false,

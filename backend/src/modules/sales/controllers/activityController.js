@@ -1,11 +1,25 @@
-
 const mongoose = require("mongoose");
 const Activity = require("../models/activity");
 
-// GET /api/activities - Fetch meetings
+const getTenantId = (req, res) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    res.status(403).json({
+      success: false,
+      message: "Tenant information is missing",
+    });
+    return null;
+  }
+  return tenantId;
+};
+
 const getActivities = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const activities = await Activity.find({
+      tenantId,
       activityType: "Meeting",
     }).sort({ activityDate: 1 });
 
@@ -23,9 +37,11 @@ const getActivities = async (req, res) => {
   }
 };
 
-// PUT /api/activities/:id - Edit a meeting
 const updateActivity = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -35,12 +51,7 @@ const updateActivity = async (req, res) => {
       });
     }
 
-    const allowedFields = [
-      "description",
-      "activityDate",
-      "status",
-    ];
-
+    const allowedFields = ["description", "activityDate", "status"];
     const updates = {};
 
     for (const field of allowedFields) {
@@ -58,7 +69,7 @@ const updateActivity = async (req, res) => {
 
     if (
       updates.description !== undefined &&
-      !updates.description.trim()
+      (typeof updates.description !== "string" || !updates.description.trim())
     ) {
       return res.status(400).json({
         success: false,
@@ -67,9 +78,9 @@ const updateActivity = async (req, res) => {
     }
 
     const meeting = await Activity.findOneAndUpdate(
-      { _id: id, activityType: "Meeting" },
-      updates,
-      { new: true, runValidators: true }
+      { _id: id, tenantId, activityType: "Meeting" },
+      { $set: updates },
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!meeting) {
@@ -93,9 +104,11 @@ const updateActivity = async (req, res) => {
   }
 };
 
-// DELETE /api/activities/:id - Delete a meeting
 const deleteActivity = async (req, res) => {
   try {
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) return;
+
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -107,6 +120,7 @@ const deleteActivity = async (req, res) => {
 
     const meeting = await Activity.findOneAndDelete({
       _id: id,
+      tenantId,
       activityType: "Meeting",
     });
 

@@ -1,8 +1,14 @@
-
 const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: true,
+      index: true,
+    },
+
     title: {
       type: String,
       required: [true, "Notification title is required"],
@@ -32,4 +38,6 @@ const notificationSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Notification", notificationSchema);
+notificationSchema.index({ tenantId: 1, createdAt: -1 });
+
+module.exports = mongoose.models.Notification || mongoose.model("Notification", notificationSchema);
