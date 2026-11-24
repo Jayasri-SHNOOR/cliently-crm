@@ -23,7 +23,7 @@ function formatLead(l) {
     source: l.source,
     message: l.message,
     executive: l.executive || null,
-    priority: l.priority || 'Medium',
+    priority: l.priority || null,
     nextFollowUp: l.nextFollowUp || null,
     assignedAt: l.assignedAt || null,
     createdAt: l.createdAt

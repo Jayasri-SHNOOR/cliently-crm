@@ -1,8 +1,9 @@
-
 const razorpay = require("../../../config/razorpay");
 const Payment = require("../models/Payment");
 const Sale = require("../models/sale");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
+
 // Create a Razorpay order for an existing sale
 const createRazorpayOrder = async (req, res) => {
   try {
@@ -14,13 +15,17 @@ const createRazorpayOrder = async (req, res) => {
       });
     }
 
-    if (!require("mongoose").isValidObjectId(saleId)) {
+    if (!mongoose.isValidObjectId(saleId)) {
       return res.status(400).json({
         message: "Invalid sale ID",
       });
     }
 
-    const sale = await Sale.findById(saleId);
+    // only sales of the logged-in user's company can be paid
+    const sale = await Sale.findOne({
+      _id: saleId,
+      tenantId: req.user.tenantId,
+    });
 
     if (!sale) {
       return res.status(404).json({
@@ -55,6 +60,7 @@ const createRazorpayOrder = async (req, res) => {
     });
 
     await Payment.create({
+      tenantId: sale.tenantId,
       customerId: String(sale.customerId),
       saleId: String(sale._id),
       orderId: order.id,
