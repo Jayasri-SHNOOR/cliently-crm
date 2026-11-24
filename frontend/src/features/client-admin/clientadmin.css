@@ -1,0 +1,267 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+.client-admin {
+  --deep-teal: #123C3A;
+  --mint-accent: #75D5C5;
+  --teal-accent-dark: #55B9A8;
+  --soft-background: #F4FAF8;
+  --light-mint-card: #EAF6F3;
+  --pale-mint: #DDF6F1;
+  --soft-border: #CFE4DF;
+  --dark-text: #183735;
+  --muted-text: #637875;
+  --white: #FFFFFF;
+
+  font-family: 'Manrope', sans-serif;
+  background-color: var(--soft-background);
+  color: var(--dark-text);
+}
+
+:where(.client-admin) * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:where(.client-admin) button,
+:where(.client-admin) input,
+:where(.client-admin) textarea,
+:where(.client-admin) select {
+  font-family: inherit;
+}
+
+:where(.client-admin) button {
+  cursor: pointer;
+}
+
+:where(.client-admin) a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.client-admin .app {
+  min-height: 100vh;
+  background-color: var(--soft-background);
+}
+
+.client-admin .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  min-width: 250px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--deep-teal);
+  border-right: 1px solid #1D514D;
+  color: var(--white);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.client-admin .sidebar-logo {
+  height: 85px;
+  min-height: 85px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  border-bottom: 1px solid #1D514D;
+}
+
+.client-admin .logo-box {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mint-accent);
+  color: var(--deep-teal);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.client-admin .logo-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.client-admin .logo-text {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.client-admin .logo-powered {
+  font-size: 10px;
+  color: #9BB5B1;
+  white-space: nowrap;
+}
+
+.client-admin .sidebar-content {
+  flex: 1;
+  min-height: 0;
+  padding: 22px 13px 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.client-admin .nav-title {
+  margin: 0 9px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1.4;
+  color: #82A9A3;
+}
+
+.client-admin .nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.client-admin .nav-item {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #B8CFCC;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.client-admin .nav-item span {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.client-admin .nav-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.client-admin .nav-item:hover {
+  background: #1D514D;
+  color: var(--white);
+}
+
+.client-admin .nav-item.active {
+  background: #1D514D;
+  color: var(--mint-accent);
+  border-left: 3px solid var(--mint-accent);
+  padding-left: 9px;
+  font-weight: 600;
+}
+
+.client-admin .sidebar-bottom {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 14px 13px 20px;
+  border-top: 1px solid #1D514D;
+}
+
+.client-admin .sidebar-bottom .nav-item {
+  margin: 0;
+}
+
+.client-admin .sidebar-bottom .nav-item:hover {
+  background: #713D3D;
+  color: white;
+}
+
+.client-admin .sidebar-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.client-admin .sidebar-content::-webkit-scrollbar-thumb {
+  background: #39716B;
+  border-radius: 10px;
+}
+
+.client-admin .main-area {
+  margin-left: 250px;
+  min-height: 100vh;
+}
+
+@media (max-width: 700px) {
+  .client-admin .sidebar {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .client-admin .sidebar-logo {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .client-admin .logo-brand,
+  .client-admin .nav-title,
+  .client-admin .nav-item span {
+    display: none;
+  }
+
+  .client-admin .sidebar-content {
+    padding: 15px 9px;
+  }
+
+  .client-admin .nav-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .client-admin .nav-item.active {
+    padding: 0;
+    border-left: 3px solid var(--mint-accent);
+  }
+
+  .client-admin .sidebar-bottom {
+    padding: 12px 9px;
+  }
+
+  .client-admin .main-area {
+    margin-left: 72px;
+  }
+}
+
+.client-admin .sidebar .nav-item {
+  justify-content: flex-start !important;
+  gap: 12px !important;
+}
+
+.client-admin .sidebar .nav-item span {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.client-admin .sidebar-logo {
+  gap: 6px !important;
+}

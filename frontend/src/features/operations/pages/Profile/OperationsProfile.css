@@ -1,0 +1,261 @@
+
+.ops-profile {
+  padding: 28px;
+  max-width: 1150px;
+  margin: 0 auto;
+  color: #103f3d;
+}
+
+.ops-profile-heading {
+  margin-bottom: 24px;
+}
+
+.ops-profile-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #287c74;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ops-profile-heading h1 {
+  font-size: 30px;
+  margin: 12px 0 6px;
+}
+
+.ops-profile-heading p,
+.ops-profile-section > p {
+  color: #66817e;
+  margin: 0;
+}
+
+.ops-profile-card {
+  background: #fff;
+  border: 1px solid #d5e7e2;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(16, 63, 61, 0.05);
+}
+
+.ops-profile-cover {
+  height: 115px;
+  background: linear-gradient(
+    115deg,
+    #103f3d,
+    #287c74,
+    #61b8a9
+  );
+}
+
+.ops-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 30px 28px;
+  flex-wrap: wrap;
+}
+
+.ops-profile-avatar {
+  width: 88px;
+  height: 88px;
+  border: 5px solid #fff;
+  border-radius: 24px;
+  background: #e4f4ef;
+  color: #185b56;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  margin-top: -35px;
+  flex-shrink: 0;
+}
+
+.ops-profile-user {
+  flex: 1;
+  min-width: 180px;
+  padding-top: 15px;
+}
+
+.ops-profile-user h2 {
+  font-size: 23px;
+  margin: 0 0 6px;
+}
+
+.ops-profile-user p {
+  color: #66817e;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+
+.ops-profile-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eaf7f4;
+  color: #185b56;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ops-profile-edit,
+.ops-profile-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #185b56;
+  color: #fff;
+  border: 1px solid #185b56;
+  border-radius: 10px;
+  padding: 11px 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ops-profile-edit:hover,
+.ops-profile-save:hover {
+  background: #103f3d;
+}
+
+.ops-profile-section {
+  padding: 28px 30px;
+  border-top: 1px solid #e5efec;
+}
+
+.ops-profile-section h3 {
+  font-size: 19px;
+  margin: 0 0 7px;
+}
+
+.ops-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 26px;
+}
+
+.ops-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.ops-profile-field > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #345c58;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ops-profile-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid #d5e7e2;
+  border-radius: 10px;
+  font: inherit;
+  color: #103f3d;
+  background: #fff;
+  outline: none;
+}
+
+.ops-profile-field input:focus {
+  border-color: #40a89a;
+  box-shadow: 0 0 0 3px rgba(64, 168, 154, 0.12);
+}
+
+.ops-profile-field input:disabled {
+  background: #f5faf8;
+  color: #55736f;
+  cursor: default;
+}
+
+.ops-profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 30px 28px;
+}
+
+.ops-profile-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d5e7e2;
+  background: #fff;
+  color: #345c58;
+  padding: 11px 17px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ops-profile-cancel:hover {
+  background: #eaf7f4;
+}
+
+.ops-profile-message {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 30px 22px;
+  padding: 13px;
+  background: #eaf7f4;
+  border-radius: 10px;
+  color: #185b56;
+  font-size: 14px;
+}
+
+.ops-profile-note {
+  color: #66817e;
+  font-size: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 700px) {
+  .ops-profile {
+    padding: 16px;
+  }
+
+  .ops-profile-heading h1 {
+    font-size: 25px;
+  }
+
+  .ops-profile-identity {
+    padding: 0 18px 22px;
+    gap: 12px;
+  }
+
+  .ops-profile-user {
+    padding-top: 0;
+  }
+
+  .ops-profile-edit {
+    width: 100%;
+  }
+
+  .ops-profile-section {
+    padding: 22px 18px;
+  }
+
+  .ops-profile-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .ops-profile-actions {
+    padding: 0 18px 22px;
+  }
+
+  .ops-profile-actions button {
+    flex: 1;
+  }
+}
