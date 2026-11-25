@@ -25,6 +25,8 @@ const customerSchema = new mongoose.Schema(
     leadId: { type: ObjectId, ref: 'Lead', default: null },
     ownerId: { type: ObjectId, ref: 'Employee', default: null },
     ownerName: { type: String, trim: true, maxlength: 100 },
+        salesExecId: { type: ObjectId, ref: 'User', default: null },
+    salesExecName: { type: String, default: '', trim: true, maxlength: 100 },
     notes: { type: String, trim: true, maxlength: 1000 }
   },
   { timestamps: true, collection: 'customers' }
@@ -41,6 +43,7 @@ customerSchema.index(
   { tenantId: 1, leadId: 1 },
   { unique: true, partialFilterExpression: { leadId: { $type: 'objectId' } } }
 )
+customerSchema.index({ tenantId: 1, salesExecId: 1, createdAt: -1 })
 
 module.exports = mongoose.model('Customer', customerSchema)
 module.exports.CUSTOMER_STATUSES = CUSTOMER_STATUSES
