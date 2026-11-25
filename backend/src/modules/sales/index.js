@@ -13,7 +13,5 @@ router.use('/notes', salesExecutiveOnly, require('./routes/noteRoutes'));
 router.use('/products', salesExecutiveOnly, require('./routes/productRoutes'));
 router.use('/notifications', salesExecutiveOnly, require('./routes/notificationRoutes'));
 router.use('/profile', salesExecutiveOnly, require('./routes/profileRoutes'));
-router.use('/quotations', salesExecutiveOnly, require('./routes/quotationRoutes'));
-router.use('/portal-access', salesExecutiveOnly, require('./routes/portalAccessRoutes'));
 
 module.exports = router;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
 import PortalLayout from "./PortalLayout";
-import { formatLoginId, getSite, loginCustomer, restoreSession } from "./portalApi";
+import { formatLoginId, getSite, loginCustomer, logoutCustomer, restoreSession } from "./portalApi";
 
 const REASON_MESSAGES = {
     SIGNED_OUT: "You have been signed out.",
@@ -20,11 +20,11 @@ function formatCountdown(totalSeconds) {
 
 function CustomerLogin() {
     const { slug } = useParams();
-    const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [reason] = useState(() => searchParams.get("reason"));
+    const [reason, setReason] = useState(() => searchParams.get("reason"));
     const [site, setSite] = useState({ slug: null, company: null, missing: false });
+    const [signedIn, setSignedIn] = useState(null);
     const [loginId, setLoginId] = useState(() => location.state?.loginId || "");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -52,15 +52,13 @@ function CustomerLogin() {
             });
         restoreSession()
             .then((profile) => {
-                if (active && profile?.company?.slug === slug) {
-                    navigate(`/site/${slug}/portal`, { replace: true });
-                }
+                if (active && profile?.company?.slug === slug) setSignedIn(profile);
             })
             .catch(() => {});
         return () => {
             active = false;
         };
-    }, [slug, navigate]);
+    }, [slug]);
 
     useEffect(() => {
         if (cooldown <= 0) return undefined;
@@ -86,11 +84,12 @@ function CustomerLogin() {
         if (cooldown > 0) return;
         setError("");
         setNotice("");
+        setReason(null);
         setLoading(true);
         try {
-            await loginCustomer(slug, loginId, password);
+            const profile = await loginCustomer(slug, loginId, password);
             setPassword("");
-            navigate(`/site/${slug}/portal`, { replace: true });
+            setSignedIn(profile);
         } catch (err) {
             if (err.status === 429 && err.retryAfter > 0) {
                 setCooldown(err.retryAfter);
@@ -102,6 +101,17 @@ function CustomerLogin() {
         }
     };
 
+    const handleSignOut = async () => {
+        setLoading(true);
+        try {
+            await logoutCustomer();
+        } finally {
+            setSignedIn(null);
+            setReason("SIGNED_OUT");
+            setLoading(false);
+        }
+    };
+
     const handleForgot = () => {
         setError("");
         const contact = company?.phone || company?.email;
@@ -109,6 +119,22 @@ function CustomerLogin() {
             `Please contact ${company?.companyName || "us"}${contact ? ` at ${contact}` : ""} and ask your sales executive for a new password link.`
         );
     };
+
+    if (signedIn) {
+        return (
+            <PortalLayout slug={slug} company={company}>
+                <div className="login-heading">
+                    <h1>Signed in</h1>
+                    <p>
+                        Welcome, {signedIn.name}. Your login ID is <strong>{signedIn.loginId}</strong>.
+                    </p>
+                </div>
+                <button type="button" className="sign-in-button" onClick={handleSignOut} disabled={loading}>
+                    <span>{loading ? "Signing out..." : "Sign out"}</span>
+                </button>
+            </PortalLayout>
+        );
+    }
 
     const reasonMessage = REASON_MESSAGES[reason] || "";
 

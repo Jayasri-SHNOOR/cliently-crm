@@ -1,0 +1,44 @@
+const express = require('express')
+const requireRole = require('../../middleware/requireRole')
+const sales = require('./controllers/salesController')
+const manager = require('./controllers/managerController')
+const ops = require('./controllers/opsController')
+
+const salesRouter = express.Router()
+salesRouter.use(requireRole('SALES_EXECUTIVE'))
+salesRouter.get('/customers', sales.listCustomers)
+salesRouter.post('/customers', sales.createCustomer)
+salesRouter.get('/customers/:id', sales.getCustomer)
+salesRouter.patch('/customers/:id', sales.updateCustomer)
+salesRouter.post('/customers/:id/products', sales.addProduct)
+salesRouter.delete('/customers/:id/products/:productItemId', sales.removeProduct)
+salesRouter.post('/customers/:id/portal-link', sales.newPortalLink)
+salesRouter.get('/service-requests', sales.listRequests)
+salesRouter.post('/service-requests/:id/assign', sales.assign)
+salesRouter.get('/staff', sales.listStaff)
+
+const managerRouter = express.Router()
+managerRouter.use(requireRole('MANAGER'))
+managerRouter.get('/customers', manager.listCustomers)
+managerRouter.patch('/customers/:id/sales-exec', manager.setSalesExec)
+managerRouter.get('/sales-executives', manager.listSalesExecs)
+managerRouter.get('/service-requests', manager.listRequests)
+managerRouter.post('/service-requests/:id/assign', manager.assign)
+managerRouter.get('/staff', manager.listStaff)
+
+const opsRouter = express.Router()
+opsRouter.use(requireRole('OPERATIONAL_STAFF'))
+opsRouter.get('/service-requests', ops.listMyJobs)
+opsRouter.get('/service-requests/:id', ops.getJob)
+opsRouter.patch('/service-requests/:id/status', ops.updateStatus)
+
+const router = express.Router()
+router.use((req, res, next) => {
+    req.body = req.body || {}
+    next()
+  })
+router.use('/sales', salesRouter)
+router.use('/manager', managerRouter)
+router.use('/ops', opsRouter)
+
+module.exports = router
