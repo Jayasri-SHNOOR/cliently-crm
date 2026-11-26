@@ -1,5 +1,5 @@
-
 const User = require('../../../models/User')
+const Employee = require('../../../models/Employee')
 const ManagerSettings = require('../../../models/ManagerSettings')
 const AppError = require('../../../utils/AppError')
 
@@ -90,10 +90,15 @@ async function getContext(req) {
     }
   )
 
-  return { user, settings }
+  // Employment details live on the Employee record (managed by Client Admin)
+  const employee = user.employeeId
+    ? await Employee.findOne({ _id: user.employeeId, tenantId }).lean()
+    : null
+
+  return { user, settings, employee }
 }
 
-function buildProfile(user, settings) {
+function buildProfile(user, settings, employee) {
   const saved = plainProfile(settings)
   const nameParts = getNameParts(user.name)
 
@@ -104,17 +109,23 @@ function buildProfile(user, settings) {
     lastName: saved.lastName || nameParts.lastName,
     email: user.email,
     role: user.role,
-    employeeId: user.employeeId || null
+
+    // Employment Information (read-only here)
+    employeeId: employee?.employeeCode || '',
+    designation: employee?.designation || '',
+    department: employee?.department || '',
+    employmentType: employee?.employmentType || 'Full-time',
+    joiningDate: employee?.dateOfJoining || ''
   }
 }
 
 async function getProfile(req, res, next) {
   try {
-    const { user, settings } = await getContext(req)
+    const { user, settings, employee } = await getContext(req)
 
     res.json({
       success: true,
-      profile: buildProfile(user, settings)
+      profile: buildProfile(user, settings, employee)
     })
   } catch (error) {
     next(error)
@@ -123,7 +134,7 @@ async function getProfile(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { user, settings } = await getContext(req)
+    const { user, settings, employee } = await getContext(req)
     const body = req.body || {}
     const updates = {}
 
@@ -192,12 +203,20 @@ async function updateProfile(req, res, next) {
 
       user.name = fullName
       await user.save()
+
+      // keep the Client Admin's Employees list in step with the new name
+      if (user.employeeId) {
+        await Employee.updateOne(
+          { _id: user.employeeId, tenantId: user.tenantId },
+          { $set: { name: fullName } }
+        )
+      }
     }
 
     res.json({
       success: true,
       message: 'Profile updated successfully.',
-      profile: buildProfile(user, settingsDoc)
+      profile: buildProfile(user, settingsDoc, employee)
     })
   } catch (error) {
     next(error)
