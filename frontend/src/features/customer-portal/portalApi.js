@@ -116,12 +116,69 @@ export async function logoutCustomer() {
     }
 }
 
-export function listOrders() {
-    return portalFetch("/api/portal/orders");
+export function listMyProducts() {
+    return portalFetch("/api/portal/products");
 }
 
-export function getOrder(orderId) {
-    return portalFetch(`/api/portal/orders/${encodeURIComponent(orderId)}`);
+export function getServiceTypes() {
+    return portalFetch("/api/portal/service-types");
+}
+
+export function listMyRequests() {
+    return portalFetch("/api/portal/service-requests");
+}
+
+export function getMyRequest(id) {
+    return portalFetch(`/api/portal/service-requests/${encodeURIComponent(id)}`);
+}
+
+export function createServiceRequest(body) {
+    return portalFetch("/api/portal/service-requests", { method: "POST", body });
+}
+
+export function cancelServiceRequest(id, reason) {
+    return portalFetch(`/api/portal/service-requests/${encodeURIComponent(id)}/cancel`, { method: "POST", body: { reason } });
+}
+
+export function startPayment(id) {
+    return portalFetch(`/api/portal/service-requests/${encodeURIComponent(id)}/pay`, { method: "POST", body: {} });
+}
+
+export function verifyPayment(details) {
+    return portalFetch("/api/portal/payments/verify", { method: "POST", body: details });
+}
+
+export function reportPaymentFailure(details) {
+    return portalFetch("/api/portal/payments/failed", { method: "POST", body: details }).catch(() => null);
+}
+
+export async function updateProfile(body) {
+    const data = await portalFetch("/api/portal/profile", { method: "PATCH", body });
+    if (data?.customer) currentProfile = data.customer;
+    return data;
+}
+
+export function changePassword(currentPassword, newPassword) {
+    return portalFetch("/api/portal/change-password", { method: "POST", body: { currentPassword, newPassword } });
+}
+
+let razorpayLoading = null;
+
+export function loadRazorpay() {
+    if (window.Razorpay) return Promise.resolve();
+    if (!razorpayLoading) {
+        razorpayLoading = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve();
+            script.onerror = () => {
+                razorpayLoading = null;
+                reject(new PortalError("Could not open the payment window. Check your internet connection.", 0));
+            };
+            document.body.appendChild(script);
+        });
+    }
+    return razorpayLoading;
 }
 
 export function checkPasswordRules(password) {
@@ -158,4 +215,7 @@ export function formatDate(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+export function statusClass(status) {
+    return String(status || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }

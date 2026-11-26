@@ -1,0 +1,27 @@
+.operations .ops-job-page{display:flex;flex-direction:column;gap:18px;color:#153f3a}
+.operations .ops-job-page *{box-sizing:border-box}
+.operations .ops-job-back{display:inline-flex;align-items:center;gap:6px;width:fit-content;color:#147a6d;font-size:13px;font-weight:700;text-decoration:none}
+.operations .ops-job-header h1{margin:4px 0 10px;font-size:24px;color:#103d3a}
+.operations .ops-job-number{color:#168578;font-size:12px;font-weight:800;letter-spacing:1px}
+.operations .ops-job-alert{padding:12px 15px;border-radius:10px;font-size:13px}
+.operations .ops-job-alert--success{border:1px solid #bfe5dc;background:#ddf6f1;color:#123c3a}
+.operations .ops-job-alert--error{border:1px solid #f0c7c3;background:#fff4f3;color:#a12b24}
+.operations .ops-job-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:18px;align-items:start}
+.operations .ops-job-left,.operations .ops-job-right{display:flex;flex-direction:column;gap:18px;min-width:0}
+.operations .ops-job-card{padding:20px;background:#fff;border:1px solid #d7e8e3;border-radius:15px}
+.operations .ops-job-card h2{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:16px;color:#103d3a}
+.operations .ops-job-card label{display:block;margin-bottom:8px;font-size:12px;font-weight:700;color:#355c55}
+.operations .ops-job-card textarea{width:100%;padding:11px 12px;border:1px solid #d7e7e2;border-radius:9px;font:inherit;font-size:13px;color:#153f3a;resize:vertical;outline:none}
+.operations .ops-job-card textarea:focus{border-color:#21a28e}
+.operations .ops-job-text{margin:0;font-size:13px;line-height:1.6;color:#375c55;white-space:pre-wrap}
+.operations .ops-job-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.operations .ops-job-actions button{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:10px 16px;border:1px solid #127d70;border-radius:9px;background:#137f72;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.operations .ops-job-actions button:disabled{opacity:.6;cursor:wait}
+.operations .ops-job-info{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.operations .ops-job-info span{color:#7c9590;font-size:12px}
+.operations .ops-job-info a{display:inline-flex;align-items:center;gap:6px;color:#147a6d;font-weight:700;text-decoration:none}
+.operations .ops-job-dates p{display:flex;justify-content:space-between;gap:10px;margin:0 0 10px;font-size:13px}
+.operations .ops-job-dates span{color:#7c9590}
+.operations .ops-job-message{padding:55px 20px;text-align:center;color:#708981;font-size:14px}
+.operations .ops-job-message a{color:#147a6d;font-weight:700}
+@media(max-width:900px){.operations .ops-job-grid{grid-template-columns:1fr}}

@@ -39,19 +39,19 @@ function PortalLayout({ slug, company, children }) {
                 <div className="showcase-content">
                     <div className="showcase-label">{name.toUpperCase()}</div>
                     <h2>
-                        Your orders and service,
+                        Your products and service,
                         <br />
                         <span>in one place.</span>
                     </h2>
                     <p className="showcase-description">
-                        {company?.tagline || "Track what you bought, book service visits and pay online."}
+                        {company?.tagline || "See what you bought, book service visits and pay online."}
                     </p>
                     <div className="crm-features">
                         <div className="feature-card">
                             <div className="feature-number">01</div>
                             <div className="feature-text">
-                                <h3>My orders</h3>
-                                <p>See your products and their delivery status.</p>
+                                <h3>My products</h3>
+                                <p>See the products you bought and their warranty.</p>
                             </div>
                         </div>
                         <div className="feature-card">
@@ -73,7 +73,7 @@ function PortalLayout({ slug, company, children }) {
                         {company?.phone ? (
                             <>Need help? <strong>Call {company.phone}</strong></>
                         ) : (
-                            <>New customer? <strong>Your login ID is shared after your order.</strong></>
+                            <>New customer? <strong>Your login ID is emailed to you.</strong></>
                         )}
                     </p>
                 </div>
