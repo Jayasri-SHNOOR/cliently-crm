@@ -116,6 +116,14 @@ export async function logoutCustomer() {
     }
 }
 
+export function listOrders() {
+    return portalFetch("/api/portal/orders");
+}
+
+export function getOrder(orderId) {
+    return portalFetch(`/api/portal/orders/${encodeURIComponent(orderId)}`);
+}
+
 export function checkPasswordRules(password) {
     if (password.length < 8) return "Password must be at least 8 characters";
     if (password.length > 128) return "Password must be 128 characters or less";
@@ -137,4 +145,17 @@ export function initials(name) {
         .slice(0, 2)
         .map((word) => word[0].toUpperCase())
         .join("");
+}
+
+const MONEY = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
+
+export function formatMoney(value) {
+    return MONEY.format(Number(value) || 0);
+}
+
+export function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
