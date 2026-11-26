@@ -1,8 +1,14 @@
-
 const mongoose = require("mongoose");
 
 const activitySchema = new mongoose.Schema(
   {
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: true,
+      index: true,
+    },
+
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
@@ -46,4 +52,6 @@ const activitySchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Activity", activitySchema);
+activitySchema.index({ tenantId: 1, activityType: 1, activityDate: 1 });
+
+module.exports = mongoose.models.Activity || mongoose.model("Activity", activitySchema);

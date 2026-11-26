@@ -43,7 +43,7 @@ async function refresh(req, res, next){
   try{
     const presented = req.cookies?.[sessionConfig.refreshCookieName]
     if(!presented){
-      throw new AppError('Please log in.', 401, 'NO_SESSION')
+      return res.status(204).end()
     }
 
     const session = await sessionService.findSessionByRefreshToken(presented)

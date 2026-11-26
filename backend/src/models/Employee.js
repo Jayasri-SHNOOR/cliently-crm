@@ -25,9 +25,9 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Employee role is required'],
       trim: true,
+      enum: ['Sales Executive', 'Operational Staff', 'Manager'],
       default: 'Sales Executive'
     },
-
     department: {
       type: String,
       trim: true,

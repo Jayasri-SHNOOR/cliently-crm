@@ -15,31 +15,42 @@ function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api
-      .get("/sales/products")
-      .then((response) => {
-        const items = response.products || [];
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        setProducts(
-          items.map((item) => ({
-            id: item._id,
-            name: item.name || "Unnamed Product",
-            code: item.code || item._id,
-            category: item.category || "Uncategorized",
-            type: item.type || "Product",
-            price: Number(item.price ?? 0),
-            status: item.status || "Inactive",
-          }))
-        );
-      })
-      .catch((err) => {
-        console.error("Products API error:", err);
-        setError("Unable to load products. Please try again.");
-      })
-      .finally(() => setLoading(false));
+      // Fetch products from MongoDB through the backend API
+      const response = await api.get("/api/sales/products");
+
+      const items = Array.isArray(response.products)
+        ? response.products
+        : [];
+
+      setProducts(
+        items.map((item) => ({
+          id: item._id,
+          name: item.name || "Unnamed Product",
+          code: item.code || item._id,
+          category: item.category || "Uncategorized",
+          type: item.type || "Product",
+          price: Number(item.price ?? 0),
+          status: item.status || "Inactive",
+        }))
+      );
+    } catch (err) {
+      console.error("Products API error:", err);
+      setError(err.message || "Unable to load products. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
 
+  // Get categories from the fetched database records
   const categories = [
     "All",
     ...new Set(products.map((product) => product.category)),
@@ -47,7 +58,7 @@ function Products() {
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      `${product.name} ${product.code} ${product.category}`
+      `${product.name} ${product.code} ${product.category} ${product.type}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
@@ -58,6 +69,7 @@ function Products() {
     return matchesSearch && matchesCategory;
   });
 
+  // Calculate summary values from fetched database records
   const activeProducts = products.filter(
     (product) => product.status === "Active"
   ).length;
@@ -104,7 +116,9 @@ function Products() {
         <div className="product-summary-card">
           <span>Inactive Products</span>
           <h2>{inactiveProducts}</h2>
-          <span className="product-summary-note">Currently unavailable</span>
+          <span className="product-summary-note">
+            Currently unavailable
+          </span>
         </div>
       </div>
 
@@ -146,7 +160,12 @@ function Products() {
           {loading ? (
             <p>Loading products...</p>
           ) : error ? (
-            <p>{error}</p>
+            <div>
+              <p>{error}</p>
+              <button type="button" onClick={fetchProducts}>
+                Try Again
+              </button>
+            </div>
           ) : (
             <table className="leads-table products-table">
               <thead>
@@ -212,3 +231,4 @@ function Products() {
 }
 
 export default Products;
+

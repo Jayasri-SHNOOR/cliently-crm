@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const ROLES = ['SUPER_ADMIN', 'CLIENT_ADMIN', 'SALES_EXECUTIVE', 'OPERATIONAL_STAFF']
+const ROLES = ['SUPER_ADMIN', 'CLIENT_ADMIN', 'MANAGER', 'SALES_EXECUTIVE', 'OPERATIONAL_STAFF']
 const STATUSES = ['Active', 'Inactive']
 
 const userSchema = new mongoose.Schema(

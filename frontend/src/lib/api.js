@@ -61,6 +61,9 @@ export function refreshSession() {
     if (!refreshInFlight) {
         refreshInFlight = send("/api/auth/refresh", { method: "POST" })
             .then((data) => {
+                if (!data?.accessToken) {
+                    throw new ApiError("Please log in.", 401, { code: "NO_SESSION" });
+                }
                 setSession(data);
                 return data;
             })

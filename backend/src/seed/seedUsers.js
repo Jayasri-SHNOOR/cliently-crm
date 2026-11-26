@@ -26,6 +26,12 @@ const accounts = [
     companySlug: 'devhub'
   },
   {
+    name: 'Meena',
+    email: process.env.SEED_MANAGER_EMAIL || 'meena@devhub.com',
+    role: 'MANAGER',
+    companySlug: 'devhub'
+  },
+  {
     name: 'Divya',
     email: process.env.SEED_OPS_USER_EMAIL || 'divya@devhub.com',
     role: 'OPERATIONAL_STAFF',

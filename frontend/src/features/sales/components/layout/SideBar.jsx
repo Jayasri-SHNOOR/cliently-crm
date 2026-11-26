@@ -7,6 +7,7 @@ import {
   CalendarDays,
   NotebookPen,
   Package,
+  CreditCard,
   Bell,
   CircleHelp,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export default function Sidebar() {
   { label: "Calendar", path: "/SalesExecutive/calendar", icon: CalendarDays },
   { label: "Notes", path: "/SalesExecutive/notes", icon: NotebookPen },
   { label: "Products", path: "/SalesExecutive/products", icon: Package },
+  { label: "Payments", path: "/SalesExecutive/payments", icon: CreditCard },
   { label: "Notifications", path: "/SalesExecutive/notifications", icon: Bell },
   { label: "Help", path: "/SalesExecutive/help", icon: CircleHelp },
 ];

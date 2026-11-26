@@ -45,13 +45,21 @@ const leadSchema = new mongoose.Schema(
         type: String, 
         trim: true 
     },
+    priority: {
+  type: String,
+  enum: ['High', 'Medium', 'Low'],
+  default: undefined
+},
+    nextFollowUp: { type: Date },
+    assignedAt: { type: Date },
     source: { type: String, enum: ['Manual', 'Website', 'Import'], default: 'Manual' },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
     productName: { type: String, trim: true, maxlength: 120 },
     message: { type: String, trim: true, maxlength: 1000 },
     enquiryCount: { type: Number, default: 0, min: 0 },
     lastEnquiryAt: { type: Date },
-    consentAt: { type: Date }
+    consentAt: { type: Date },
+    executiveId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', default: null }
   },
   { 
     timestamps: true,
@@ -60,5 +68,6 @@ const leadSchema = new mongoose.Schema(
 )
 leadSchema.index({ tenantId: 1, createdAt: -1 })
 leadSchema.index({ tenantId: 1, email: 1 })
+leadSchema.index({ tenantId: 1, executiveId: 1, createdAt: -1 })
 module.exports = mongoose.model('Lead', leadSchema)
 module.exports.LEAD_STATUSES = LEAD_STATUSES
