@@ -28,7 +28,7 @@ app.use(cors({
     'RateLimit-Remaining'
   ]
 }));
-
+app.use('/api/webhooks', require('./modules/webhooks/razorpayWebhook'))
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -60,6 +60,7 @@ app.use('/api', clientAdminRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/operations', operationsRoutes)
 app.use('/api/manager', managerRoutes)
+app.use('/api/customer-care', require('./modules/customer-care'))
 app.use(notFound);
 app.use(errorHandler);
 
