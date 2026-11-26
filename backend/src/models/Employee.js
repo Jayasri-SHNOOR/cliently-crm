@@ -38,6 +38,22 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    employeeCode: {
+      type: String,
+      trim: true
+    },
+    designation: {
+      type: String,
+      trim: true
+    },
+    employmentType: {
+      type: String,
+      enum: ['Full-time', 'Part-time', 'Contract', 'Intern'],
+      default: 'Full-time'
+    },
+    dateOfJoining: {
+      type: Date
+    },
 
     status: {
       type: String,

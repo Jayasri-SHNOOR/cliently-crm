@@ -2,6 +2,7 @@ const Employee = require('../../../models/Employee')
 const { ROLES, PERMISSIONS } = require('../../../config/roles')
 const AppError = require('../../../utils/AppError')
 const { getSeatUsage, assertSeatAvailable } = require('../../../utils/seats')
+const { ROLE_MAP, DISPLAY_ROLE, syncLinkedUser } = require('../../../utils/employeeSync')
 
 function formatUser(employee) {
   return {
@@ -69,12 +70,16 @@ async function updateRole(req, res, next) {
   try {
     const { role } = req.body
 
-    if (typeof role !== 'string' || !ROLES[role]) {
-      throw new AppError(`Role must be one of: ${Object.keys(ROLES).join(', ')}`, 400)
+    // body carries the User role constant (MANAGER / SALES_EXECUTIVE / OPERATIONAL_STAFF)
+    const displayRole = typeof role === 'string' ? DISPLAY_ROLE[role] : undefined
+    if (!displayRole) {
+      throw new AppError(`Role must be one of: ${Object.values(ROLE_MAP).join(', ')}`, 400)
     }
 
     const employee = await findUser(req)
-    employee.role = role
+
+    await syncLinkedUser(employee, { role: displayRole })   // User + sessions
+    employee.role = displayRole
     await employee.save()
 
     res.json(formatUser(employee))
@@ -91,6 +96,7 @@ async function deactivateUser(req, res, next) {
       throw new AppError('User is already inactive', 409)
     }
 
+    await syncLinkedUser(employee, { status: 'Inactive' })  // Firebase disable + User + sessions
     employee.status = 'Inactive'
     await employee.save()
 
@@ -110,6 +116,7 @@ async function activateUser(req, res, next) {
 
     await assertSeatAvailable(req.user.tenantId)
 
+    await syncLinkedUser(employee, { status: 'Active' })    // Firebase enable + User
     employee.status = 'Active'
     await employee.save()
 
@@ -119,4 +126,4 @@ async function activateUser(req, res, next) {
   }
 }
 
-module.exports = {listUsers,listRoles,updateRole,deactivateUser,activateUser }
+module.exports = { listUsers, listRoles, updateRole, deactivateUser, activateUser }
