@@ -1,203 +1,271 @@
-
 import { useEffect, useState } from "react";
-import api from "../services/api";
+import { useNavigate } from "react-router-dom";
+import { Eye, Plus, Search, Send } from "lucide-react";
+import { salesCare } from "../../customer-care/careApi";
+import { InviteResult, Modal, Notice, PortalBadge } from "../../customer-care/CareParts";
+import { errorText, formatDate } from "../../customer-care/careFormat";
 
-function formatDate(dateValue) {
-  if (!dateValue) return "—";
+const EMPTY_FORM = { leadId: "", name: "", email: "", phone: "", company: "", address: "", city: "" };
 
-  const date = new Date(dateValue);
+function AddCustomerDialog({ onClose, onCreated }) {
+    const [leads, setLeads] = useState([]);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+    const [result, setResult] = useState(null);
 
-  if (Number.isNaN(date.getTime())) return dateValue;
+    useEffect(() => {
+        let active = true;
+        salesCare
+            .listLeads()
+            .then((response) => {
+                const list = Array.isArray(response?.data) ? response.data : [];
+                if (active) setLeads(list.filter((lead) => lead.status !== "Won" && lead.status !== "Lost"));
+            })
+            .catch(() => {
+                if (active) setLeads([]);
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
 
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+    const change = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
-function formatCurrency(amount) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(amount) || 0);
+    const pickLead = (event) => {
+        const lead = leads.find((item) => item._id === event.target.value);
+        setForm(
+            lead
+                ? { ...EMPTY_FORM, leadId: lead._id, name: lead.name || "", email: lead.email || "", phone: lead.phone || "", company: lead.company || "" }
+                : EMPTY_FORM
+        );
+    };
+
+    const submit = async (event) => {
+        event.preventDefault();
+        if (!form.name.trim()) {
+            setError("Customer name is required");
+            return;
+        }
+        setSaving(true);
+        setError("");
+        const body = Object.fromEntries(
+            Object.entries(form)
+                .map(([key, value]) => [key, value.trim()])
+                .filter(([, value]) => value)
+        );
+        try {
+            const data = await salesCare.createCustomer(body);
+            setResult(data);
+            onCreated();
+        } catch (err) {
+            setError(errorText(err, "Could not create the customer."));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Modal title="Add customer" subtitle="The login ID and activation link are emailed to the customer." onClose={onClose} wide>
+            {result ? (
+                <div className="cc-form">
+                    <InviteResult result={result} />
+                    <div className="cc-actions">
+                        <button type="button" className="cc-btn cc-btn--primary" onClick={onClose}>Done</button>
+                    </div>
+                </div>
+            ) : (
+                <form className="cc-form" onSubmit={submit}>
+                    <label>
+                        From one of my leads
+                        <select value={form.leadId} onChange={pickLead} disabled={saving}>
+                            <option value="">No lead, enter details below</option>
+                            {leads.map((lead) => (
+                                <option key={lead._id} value={lead._id}>
+                                    {lead.name}{lead.company ? ` · ${lead.company}` : ""}{lead.email ? ` · ${lead.email}` : ""}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <div className="cc-form-grid">
+                        <label>Name *<input name="name" value={form.name} onChange={change} maxLength={120} disabled={saving} /></label>
+                        <label>Email<input name="email" type="email" value={form.email} onChange={change} maxLength={120} placeholder="Login details are sent here" disabled={saving} /></label>
+                        <label>Phone<input name="phone" value={form.phone} onChange={change} maxLength={20} disabled={saving} /></label>
+                        <label>Company<input name="company" value={form.company} onChange={change} maxLength={120} disabled={saving} /></label>
+                        <label className="cc-full">Address<textarea name="address" rows={2} value={form.address} onChange={change} maxLength={300} disabled={saving} /></label>
+                        <label>City<input name="city" value={form.city} onChange={change} maxLength={80} disabled={saving} /></label>
+                    </div>
+                    {error && <Notice notice={{ type: "error", text: error }} />}
+                    <div className="cc-actions">
+                        <button type="button" className="cc-btn" onClick={onClose} disabled={saving}>Cancel</button>
+                        <button type="submit" className="cc-btn cc-btn--primary" disabled={saving}>{saving ? "Creating..." : "Create customer"}</button>
+                    </div>
+                </form>
+            )}
+        </Modal>
+    );
 }
 
 function Customers() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+    const navigate = useNavigate();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [reloadKey, setReloadKey] = useState(0);
+    const [data, setData] = useState({ loading: true, error: "", customers: [] });
+    const [adding, setAdding] = useState(false);
+    const [sendingId, setSendingId] = useState(null);
+    const [invite, setInvite] = useState(null);
+    const [notice, setNotice] = useState(null);
 
-  useEffect(() => {
-    api
-      .get("/sales/customers")
-      .then((response) => {
-        setCustomers(response.customers || []);
-      })
-      .catch((err) => {
-        console.error("Customers API error:", err);
-        setError("Unable to load customers. Please try again.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    useEffect(() => {
+        let active = true;
+        salesCare
+            .listCustomers()
+            .then((response) => {
+                if (active) setData({ loading: false, error: "", customers: response.customers || [] });
+            })
+            .catch((err) => {
+                if (active) setData({ loading: false, error: errorText(err, "Unable to load customers. Please try again."), customers: [] });
+            });
+        return () => {
+            active = false;
+        };
+    }, [reloadKey]);
 
-  const filteredCustomers = customers.filter((customer) =>
-    [
-      customer.name,
-      customer.company,
-      customer.email,
-      customer.phone,
-      customer.city,
-      customer.address,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+    const sendLogin = async (customer) => {
+        setSendingId(customer.id);
+        setNotice(null);
+        try {
+            setInvite(await salesCare.sendLogin(customer.id));
+            setReloadKey((key) => key + 1);
+        } catch (err) {
+            setNotice({ type: "error", text: errorText(err, "Could not send the login.") });
+        } finally {
+            setSendingId(null);
+        }
+    };
 
-  return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>Customers</h1>
-          <p>View and manage your assigned customers.</p>
+    const query = searchTerm.toLowerCase();
+    const filtered = data.customers.filter((customer) =>
+        [customer.customerCode, customer.name, customer.company, customer.email, customer.phone, customer.city]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(query)
+    );
+
+    return (
+        <div className="page-container">
+            <div className="page-header">
+                <div>
+                    <h1>Customers</h1>
+                    <p>Your customers, their products and portal logins.</p>
+                </div>
+                <button type="button" className="primary-button" onClick={() => setAdding(true)}>
+                    <Plus size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />
+                    Add Customer
+                </button>
+            </div>
+
+            <Notice notice={notice} onClose={() => setNotice(null)} />
+
+            <div className="leads-card">
+                <div className="leads-card-header">
+                    <div>
+                        <h2>Your Customers</h2>
+                        <p className="section-description">Customers assigned to you</p>
+                    </div>
+                    <div className="lead-count">{filtered.length} Customers</div>
+                </div>
+
+                <div className="lead-toolbar">
+                    <div className="lead-search">
+                        <Search size={17} />
+                        <input type="text" placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                </div>
+
+                <div className="table-container">
+                    <table className="leads-table">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Code</th>
+                                <th>Phone</th>
+                                <th>City</th>
+                                <th>Portal login</th>
+                                <th>Open requests</th>
+                                <th>Added</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.loading ? (
+                                <tr><td colSpan="8">Loading customers...</td></tr>
+                            ) : data.error ? (
+                                <tr><td colSpan="8" role="alert">{data.error}</td></tr>
+                            ) : filtered.length === 0 ? (
+                                <tr><td colSpan="8">No customers found.</td></tr>
+                            ) : (
+                                filtered.map((customer) => (
+                                    <tr key={customer.id}>
+                                        <td>
+                                            <div className="lead-name">
+                                                <div className="lead-avatar">{(customer.name || "?").charAt(0).toUpperCase()}</div>
+                                                <div>
+                                                    <strong>{customer.name}</strong>
+                                                    <div style={{ fontSize: 12, color: "var(--muted-text)" }}>{customer.email || "No email"}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{customer.customerCode}</td>
+                                        <td>{customer.phone || "—"}</td>
+                                        <td>{customer.city || "—"}</td>
+                                        <td><PortalBadge portal={customer.portal} /></td>
+                                        <td>{customer.openRequests || 0}</td>
+                                        <td>{formatDate(customer.createdAt)}</td>
+                                        <td>
+                                            <div className="cc-row-actions">
+                                                <button type="button" className="cc-icon-btn" title="View" onClick={() => navigate(`/salesExecutive/customers/${customer.id}`)}>
+                                                    <Eye size={16} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="cc-icon-btn"
+                                                    title={customer.portal?.status === "Active" ? "Send password reset link" : "Send login"}
+                                                    onClick={() => sendLogin(customer)}
+                                                    disabled={sendingId === customer.id || customer.portal?.status === "Disabled"}
+                                                >
+                                                    <Send size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {adding && (
+                <AddCustomerDialog
+                    onClose={() => setAdding(false)}
+                    onCreated={() => setReloadKey((key) => key + 1)}
+                />
+            )}
+
+            {invite && (
+                <Modal title="Login sent" onClose={() => setInvite(null)}>
+                    <div className="cc-form">
+                        <InviteResult result={invite} />
+                        <div className="cc-actions">
+                            <button type="button" className="cc-btn cc-btn--primary" onClick={() => setInvite(null)}>Done</button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
-      </div>
-
-      <div className="leads-card">
-        <div className="leads-card-header">
-          <div>
-            <h2>Your Customers</h2>
-            <p className="section-description">
-              Customers assigned to you
-            </p>
-          </div>
-
-          <div className="lead-count">
-            {filteredCustomers.length} Customers
-          </div>
-        </div>
-
-        <div className="lead-toolbar">
-          <div className="lead-search">
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="table-container">
-          {loading ? (
-            <p>Loading customers...</p>
-          ) : error ? (
-            <p role="alert">{error}</p>
-          ) : (
-            <table className="leads-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Company</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Total Sales</th>
-                  <th>No. of Sales</th>
-                  <th>Latest Sale</th>
-                  <th>Payment Status</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredCustomers.length === 0 ? (
-                  <tr>
-                    <td colSpan="9">No customers found.</td>
-                  </tr>
-                ) : (
-                  filteredCustomers.map((customer) => {
-                    const name =
-                      customer.name ||
-                      customer.customerName ||
-                      `Customer ${customer.userId || ""}`.trim();
-
-                    const status = customer.status || "Active";
-                    const paymentStatus =
-                      customer.latestPaymentStatus || "";
-
-                    return (
-                      <tr
-                        key={
-                          customer._id ||
-                          customer.email ||
-                          customer.userId
-                        }
-                      >
-                        <td>
-                          <div className="lead-name">
-                            <div className="lead-avatar">
-                              {name.charAt(0).toUpperCase()}
-                            </div>
-                            <strong>{name}</strong>
-                          </div>
-                        </td>
-
-                        <td>{customer.company || "—"}</td>
-                        <td>{customer.email || "—"}</td>
-                        <td>{customer.phone || "—"}</td>
-
-                        <td>
-                          <strong>
-                            {formatCurrency(customer.totalSales)}
-                          </strong>
-                        </td>
-
-                        <td>{customer.salesCount ?? 0}</td>
-
-                        <td>{formatDate(customer.latestSaleDate)}</td>
-
-                        <td>
-                          {paymentStatus ? (
-                            <span
-                              className={
-                                paymentStatus.toLowerCase() === "paid"
-                                  ? "lead-status status-qualified"
-                                  : "lead-status status-contacted"
-                              }
-                            >
-                              {paymentStatus}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-
-                        <td>
-                          <span
-                            className={
-                              status === "Active"
-                                ? "lead-status status-qualified"
-                                : "lead-status status-contacted"
-                            }
-                          >
-                            {status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default Customers;

@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Users,
@@ -10,6 +9,7 @@ import {
   CreditCard,
   Bell,
   CircleHelp,
+  Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -18,6 +18,7 @@ export default function Sidebar() {
   { label: "Dashboard", path: "/SalesExecutive", icon: LayoutDashboard },
   { label: "Leads", path: "/SalesExecutive/leads", icon: Users },
   { label: "Customers", path: "/SalesExecutive/customers", icon: UserRound },
+  { label: "Service Requests", path: "/SalesExecutive/service-requests", icon: Wrench },
   { label: "Tasks", path: "/SalesExecutive/tasks", icon: CheckSquare },
   { label: "Calendar", path: "/SalesExecutive/calendar", icon: CalendarDays },
   { label: "Notes", path: "/SalesExecutive/notes", icon: NotebookPen },

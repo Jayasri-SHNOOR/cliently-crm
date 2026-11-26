@@ -27,6 +27,9 @@ import KnowledgeBase from "./pages/KnowledgeBase/KnowledgeBase";
 import ArticleEditor from "./pages/KnowledgeBase/ArticleEditor";
 import ArticleView from "./pages/KnowledgeBase/ArticleView";
 
+import ServiceJobsList from "./pages/ServiceJobs/ServiceJobsList";
+import ServiceJobDetail from "./pages/ServiceJobs/ServiceJobDetail";
+
 import Assets from "./pages/Assets/Assets";
 import AssetDetail from "./pages/Assets/AssetDetail";
 
@@ -51,7 +54,7 @@ function OperationsApp() {
 
   return (
     <div className="operations">
-      <Sidebar user={user} />
+      <Sidebar user={user} onLogout={handleLogout} />
 
       <div className="ops-main">
         <Topbar user={user} onProfile={handleProfile} onLogout={handleLogout} />
@@ -71,6 +74,9 @@ function OperationsApp() {
               <Route path="knowledge-base/new" element={<ArticleEditor />} />
               <Route path="knowledge-base/:id" element={<ArticleView />} />
               <Route path="knowledge-base/:id/edit" element={<ArticleEditor />} />
+
+              <Route path="service-jobs" element={<ServiceJobsList />} />
+              <Route path="service-jobs/:id" element={<ServiceJobDetail />} />
 
               <Route path="assets" element={<Assets />} />
               <Route path="assets/:id" element={<AssetDetail />} />

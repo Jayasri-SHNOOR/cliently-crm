@@ -5,6 +5,7 @@ import {
   ClipboardList,
   BookOpen,
   Boxes,
+  Wrench,
   LogOut,
 } from "lucide-react";
 
@@ -26,6 +27,11 @@ const navigationItems = [
     label: "Work Orders",
     path: "/operations/work-orders",
     icon: ClipboardList,
+  },
+  {
+    label: "Service Jobs",
+    path: "/operations/service-jobs",
+    icon: Wrench,
   },
   {
     label: "Knowledge Base",

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import PortalLayout from "./PortalLayout";
-import { formatLoginId, getSite, loginCustomer, logoutCustomer, restoreSession } from "./portalApi";
+import { formatLoginId, getSite, loginCustomer, restoreSession } from "./portalApi";
 
 const REASON_MESSAGES = {
     SIGNED_OUT: "You have been signed out.",
@@ -101,17 +101,6 @@ function CustomerLogin() {
         }
     };
 
-    const handleSignOut = async () => {
-        setLoading(true);
-        try {
-            await logoutCustomer();
-        } finally {
-            setSignedIn(null);
-            setReason("SIGNED_OUT");
-            setLoading(false);
-        }
-    };
-
     const handleForgot = () => {
         setError("");
         const contact = company?.phone || company?.email;
@@ -121,19 +110,7 @@ function CustomerLogin() {
     };
 
     if (signedIn) {
-        return (
-            <PortalLayout slug={slug} company={company}>
-                <div className="login-heading">
-                    <h1>Signed in</h1>
-                    <p>
-                        Welcome, {signedIn.name}. Your login ID is <strong>{signedIn.loginId}</strong>.
-                    </p>
-                </div>
-                <button type="button" className="sign-in-button" onClick={handleSignOut} disabled={loading}>
-                    <span>{loading ? "Signing out..." : "Sign out"}</span>
-                </button>
-            </PortalLayout>
-        );
+        return <Navigate to={`/site/${slug}/portal`} replace />;
     }
 
     const reasonMessage = REASON_MESSAGES[reason] || "";

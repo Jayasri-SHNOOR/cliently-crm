@@ -13,6 +13,7 @@ const pageTitles = {
   "/operations": "Dashboard",
   "/operations/tickets": "Support Tickets",
   "/operations/work-orders": "Work Orders",
+  "/operations/service-jobs": "Service Jobs",
   "/operations/knowledge-base": "Knowledge Base",
   "/operations/assets": "Inventory & Assets",
 };
@@ -32,6 +33,8 @@ function Topbar({ user, onLogout, onProfile }) {
       ? "Ticket Details"
       : currentPath.startsWith("/operations/work-orders/")
         ? "Work Order Details"
+        : currentPath.startsWith("/operations/service-jobs/")
+          ? "Service Job Details"
         : currentPath.startsWith("/operations/knowledge-base/")
           ? "Knowledge Base"
           : currentPath.startsWith("/operations/assets/")

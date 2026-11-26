@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   LayoutDashboard, Users, Briefcase, UserRound, Settings,
-  HelpCircle, PackageCheck, CreditCard, ContactRound,
+  HelpCircle, PackageCheck, CreditCard, ContactRound, KeyRound,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { clearSession } from '../../lib/session'
@@ -18,6 +18,7 @@ import Deals from './components/Deals'
 import Employees from './components/Employees'
 import HelpSupport from './components/HelpSupport'
 import Subscriptions from './components/Subscriptions'
+import PortalAccess from './components/PortalAccess'
 
 const BRAND = { initials: 'DH', name: 'DevHub', sub: 'Powered by Cliently' }
 
@@ -25,6 +26,7 @@ const MENU = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'leads', label: 'Leads', icon: Users },
   { id: 'customers', label: 'Customers', icon: ContactRound },
+  { id: 'portal-access', label: 'Portal Access', icon: KeyRound },
   { id: 'deals', label: 'Deals', icon: Briefcase },
   { id: 'employees', label: 'Employees', icon: UserRound },
   { id: 'products', label: 'Our Products', icon: PackageCheck },
@@ -63,6 +65,7 @@ function ClientAdmin() {
     >
       {currentPage === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
       {currentPage === 'customers' && <Customers />}
+      {currentPage === 'portal-access' && <PortalAccess />}
       {currentPage === 'leads' && <Leads />}
       {currentPage === 'products' && <Products />}
       {currentPage === 'deals' && <Deals />}
