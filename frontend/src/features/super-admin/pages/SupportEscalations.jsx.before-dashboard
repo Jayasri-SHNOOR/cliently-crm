@@ -1,0 +1,15 @@
+﻿import "./SupportEscalations.css";
+
+export default function SupportEscalations() {
+  return (
+    <div className="support-escalations">
+      <h2>Support & Escalations</h2>
+      <p>Manage platform support tickets and escalations.</p>
+
+      <div className="support-welcome-card">
+        <h3>Support Ticket Management</h3>
+        <p>Support dashboard connected successfully.</p>
+      </div>
+    </div>
+  );
+}

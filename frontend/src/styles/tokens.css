@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --deep-teal: #123C3A;
+  --mint-accent: #75D5C5;
+  --teal-accent-dark: #55B9A8;
+  --soft-background: #F4FAF8;
+  --light-mint-card: #EAF6F3;
+  --pale-mint: #DDF6F1;
+  --soft-border: #CFE4DF;
+  --dark-text: #183735;
+  --muted-text: #637875;
+  --white: #FFFFFF;
+  --teal-hover: #1D514D;
+  --sidebar-text: #B8CFCC;
+  --sidebar-muted: #82A9A3;
+  --sidebar-sub: #9BB5B1;
+  --danger-hover: #713D3D;
+  --link-teal: #178F83;
+  --bg-muted: #EEF2EF;
+
+  --sidebar-w: 250px;
+  --sidebar-w-sm: 72px;
+  --topbar-h: 72px;
+  --radius-card: 22px;
+  --font: 'Manrope', sans-serif;
+}
