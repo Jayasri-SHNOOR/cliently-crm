@@ -13,5 +13,6 @@ router.use('/notes', salesExecutiveOnly, require('./routes/noteRoutes'));
 router.use('/products', salesExecutiveOnly, require('./routes/productRoutes'));
 router.use('/notifications', salesExecutiveOnly, require('./routes/notificationRoutes'));
 router.use('/profile', salesExecutiveOnly, require('./routes/profileRoutes'));
+router.use('/payments', salesExecutiveOnly, require('./routes/salesPaymentRoutes'));
 
 module.exports = router;

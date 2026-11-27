@@ -162,7 +162,7 @@ export default function Topbar({
                 <div>
                   <strong>{name}</strong>
                   <span>{user.role}</span>
-                  {user.company && <span>{user.company}</span>}
+                  <span>{user?.tenant?.name || user?.tenant}</span>
                 </div>
               </div>
               {onProfile && (

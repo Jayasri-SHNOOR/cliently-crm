@@ -1,20 +1,16 @@
-
 const express = require("express");
-const router = express.Router();
-
 const {
   getActivities,
+  createActivity,
   updateActivity,
   deleteActivity,
 } = require("../controllers/activityController");
 
-// GET all meetings
+const router = express.Router();
+
 router.get("/", getActivities);
-
-// EDIT a meeting
+router.post("/", createActivity);
 router.put("/:id", updateActivity);
-
-// DELETE a meeting
 router.delete("/:id", deleteActivity);
 
 module.exports = router;

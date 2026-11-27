@@ -19,7 +19,7 @@ const getNotes = async (req, res) => {
     }
 
     const { search, category, isPinned } = req.query;
-    const filter = { tenantId };
+    const filter = { tenantId, userId: req.user.id };
 
     if (search) {
       const searchRegex = new RegExp(escapeRegex(search), "i");
@@ -71,7 +71,7 @@ const getNoteById = async (req, res) => {
       });
     }
 
-    const note = await Note.findOne({ _id: id, tenantId });
+    const note = await Note.findOne({ _id: id, tenantId, userId: req.user.id });
 
     if (!note) {
       return res.status(404).json({
@@ -116,6 +116,7 @@ const createNote = async (req, res) => {
 
     const note = await Note.create({
       tenantId,
+      userId: req.user.id,
       title,
       content,
       category,
@@ -193,7 +194,7 @@ const updateNote = async (req, res) => {
     }
 
     const note = await Note.findOneAndUpdate(
-      { _id: id, tenantId },
+      { _id: id, tenantId, userId: req.user.id },
       updates,
       {
         new: true,
@@ -239,6 +240,7 @@ const deleteNote = async (req, res) => {
     const note = await Note.findOneAndDelete({
       _id: id,
       tenantId,
+      userId: req.user.id,
     });
 
     if (!note) {

@@ -1,231 +1,197 @@
+import { useState } from "react";
+import { Users, UserPlus, CheckCircle2, CircleSlash } from "lucide-react";
+import TablePage from "../../../shared/ui/TablePage";
+import PageState from "../../../shared/ui/PageState";
+import { inr } from "../../../shared/ui/format";
+import { salesCare } from "../../customer-care/careApi";
+import { InviteResult, Modal, Notice } from "../../customer-care/CareParts";
+import { LEAD_STATUSES, errorMessage, formatDate, salesApi } from "../services/salesApi";
+import useLoad from "../services/useLoad";
 
-import { useState, useEffect } from "react";
-import { Search, MoreHorizontal } from "lucide-react";
-import api from "../services/api";
+const EMPTY = { name: "", company: "", email: "", phone: "", productInterested: "", value: "", message: "" };
 
-function Leads() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+function LeadForm({ lead, onClose, onSaved }) {
+  const [form, setForm] = useState(() =>
+    lead
+      ? {
+          name: lead.name || "", company: lead.company || "", email: lead.email || "", phone: lead.phone || "",
+          productInterested: lead.productName || lead.productInterested || "", value: lead.value ? String(lead.value) : "", message: lead.message || "",
+        }
+      : EMPTY
+  );
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchLeads = async () => {
+  const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!form.name.trim()) return setError("Lead name is required");
+    if (form.value && (!Number.isFinite(Number(form.value)) || Number(form.value) < 0)) return setError("Enter a valid value");
+    setSaving(true);
+    setError("");
+    const body = {
+      name: form.name.trim(), company: form.company.trim(), email: form.email.trim(), phone: form.phone.trim(),
+      productInterested: form.productInterested.trim(), value: form.value ? Number(form.value) : 0, message: form.message.trim(),
+    };
     try {
-      setLoading(true);
-      setError("");
-
-      const response = await api.get("/api/sales/leads");
-
-      setLeads(
-        Array.isArray(response.data) ? response.data : []
-      );
+      const result = lead ? await salesApi.updateLead(lead._id, body) : await salesApi.createLead(body);
+      onSaved(result.message);
     } catch (err) {
-      console.error("Leads API error:", err);
-      setError(err.message || "Unable to load leads.");
-    } finally {
-      setLoading(false);
+      setError(errorMessage(err, "Could not save the lead."));
+      setSaving(false);
     }
   };
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const filteredLeads = leads.filter((lead) => {
-    const name = lead.name || "";
-    const company = lead.company || "";
-    const contact = `${lead.email || ""} ${lead.phone || ""}`;
-
-    const matchesSearch =
-      `${name} ${company} ${contact}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "All" || lead.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  function formatDate(value) {
-    if (!value) return "—";
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return "—";
-
-    return date.toLocaleDateString("en-IN", {
-      month: "short",
-      day: "numeric",
-    });
-  }
-
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>Leads</h1>
-          <p>Manage and follow up with your assigned leads.</p>
+    <Modal title={lead ? "Edit lead" : "Add lead"} subtitle={lead ? lead.name : "A lead you found yourself (walk-in, call, referral)"} onClose={onClose} wide>
+      <form className="cc-form" onSubmit={submit}>
+        <div className="cc-form-grid">
+          <label>Name *<input name="name" value={form.name} onChange={change} maxLength={120} disabled={saving} /></label>
+          <label>Company<input name="company" value={form.company} onChange={change} maxLength={120} disabled={saving} /></label>
+          <label>Email<input name="email" type="email" value={form.email} onChange={change} maxLength={120} disabled={saving} /></label>
+          <label>Phone<input name="phone" value={form.phone} onChange={change} maxLength={20} disabled={saving} /></label>
+          <label>Product interested<input name="productInterested" value={form.productInterested} onChange={change} maxLength={120} disabled={saving} /></label>
+          <label>Expected value (₹)<input name="value" type="number" min="0" value={form.value} onChange={change} disabled={saving} /></label>
+          <label className="cc-full">Notes<textarea name="message" rows={3} value={form.message} onChange={change} maxLength={1000} disabled={saving} /></label>
         </div>
-
-       
-      </div>
-
-      <div className="leads-card">
-        <div className="leads-card-header">
-          <div>
-            <h2>Your Leads</h2>
-            <p className="section-description">
-              Leads assigned to you
-            </p>
-          </div>
-
-          <div className="lead-count">
-            {filteredLeads.length} Leads
-          </div>
+        {error && <Notice notice={{ type: "error", text: error }} />}
+        <div className="cc-actions">
+          <button type="button" className="cc-btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="cc-btn cc-btn--primary" disabled={saving}>{saving ? "Saving..." : "Save lead"}</button>
         </div>
-
-        <div className="lead-toolbar">
-          <div className="lead-search">
-            <Search size={17} />
-
-            <input
-              type="text"
-              placeholder="Search leads..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="filter-button"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="All">All Statuses</option>
-            <option value="New">New</option>
-            <option value="Contacted">Contacted</option>
-            <option value="Qualified">Qualified</option>
-            <option value="Demo">Demo</option>
-            <option value="Proposal">Proposal</option>
-            <option value="Negotiation">Negotiation</option>
-            <option value="Won">Won</option>
-            <option value="Lost">Lost</option>
-          </select>
-        </div>
-
-        {error && (
-          <div role="alert" style={{ color: "#b42318", margin: "12px" }}>
-            {error}
-
-            <button
-              type="button"
-              className="filter-button"
-              onClick={fetchLeads}
-              style={{ marginLeft: "12px" }}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        <div className="table-container">
-          <table className="leads-table">
-            <thead>
-              <tr>
-                <th>Lead</th>
-                <th>Company</th>
-                <th>Contact</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Last Contacted</th>
-                <th>Next Follow-up</th>
-                <th></th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="9">Loading leads...</td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan="9">Unable to display leads.</td>
-                </tr>
-              ) : filteredLeads.length === 0 ? (
-                <tr>
-                  <td colSpan="9">
-                    {searchTerm || statusFilter !== "All"
-                      ? "No matching leads found."
-                      : "No leads available."}
-                  </td>
-                </tr>
-              ) : (
-                filteredLeads.map((lead) => {
-                  const name = lead.name || "Unnamed";
-                  const company = lead.company || "—";
-                  const contact =
-                    [lead.email, lead.phone].filter(Boolean).join(" / ") || "—";
-                  const source = lead.source || "—";
-                  const status = lead.status || "New";
-
-                  return (
-                    <tr key={lead._id}>
-                      <td>
-                        <div className="lead-name">
-                          <div className="lead-avatar">
-                            {name.charAt(0).toUpperCase()}
-                          </div>
-                          <strong>{name}</strong>
-                        </div>
-                      </td>
-
-                      <td>{company}</td>
-                      <td>{contact}</td>
-                      <td>{source}</td>
-
-                      <td>
-                        <span
-                          className={`lead-status status-${String(status)
-                            .toLowerCase()
-                            .replace(/\s+/g, "-")}`}
-                        >
-                          {status}
-                        </span>
-                      </td>
-
-                      <td>—</td>
-                      <td>—</td>
-                      <td>—</td>
-
-                      <td>
-                        <button
-                          type="button"
-                          className="action-button"
-                          aria-label={`More options for ${name}`}
-                          title="More options"
-                          onClick={() =>
-                            window.alert(
-                              "Lead actions will be added after confirming the assignment workflow."
-                            )
-                          }
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-export default Leads;
+export default function Leads() {
+  const { data, loading, error, reload } = useLoad(salesApi.leads);
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  if (loading || error) return <PageState loading={loading} error={error} onRetry={reload} />;
+
+  const leads = Array.isArray(data?.data) ? data.data : [];
+
+  const run = async (lead, action) => {
+    setBusyId(lead._id);
+    setNotice(null);
+    try {
+      await action();
+    } catch (err) {
+      setNotice({ type: "error", text: errorMessage(err) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const changeStatus = (lead, status) =>
+    run(lead, async () => {
+      const result = await salesApi.updateLead(lead._id, { status });
+      setNotice({ type: "success", text: result.message });
+      reload();
+    });
+
+  const convert = (lead) =>
+    run(lead, async () => {
+      const result = await salesCare.createCustomer({ leadId: lead._id });
+      setDialog({ type: "invite", result });
+      reload();
+    });
+
+  const remove = (lead) => {
+    if (!window.confirm(`Delete lead ${lead.name}?`)) return;
+    run(lead, async () => {
+      const result = await salesApi.deleteLead(lead._id);
+      setNotice({ type: "success", text: result.message });
+      reload();
+    });
+  };
+
+  const rows = leads.map((lead) => ({
+    ...lead,
+    id: lead._id,
+    contact: [lead.email, lead.phone].filter(Boolean).join(" / ") || "—",
+    product: lead.productName || lead.productInterested || "General enquiry",
+    assigned: formatDate(lead.assignedAt || lead.createdAt),
+  }));
+
+  const columns = [
+    { key: "name", label: "Lead", render: (r) => (<div><strong>{r.name}</strong><div style={{ fontSize: 11, color: "var(--muted-text)" }}>{r.company || "—"}</div></div>) },
+    { key: "contact", label: "Contact" },
+    { key: "product", label: "Product" },
+    { key: "value", label: "Value", render: (r) => (r.value ? inr(r.value) : "—") },
+    { key: "source", label: "Source" },
+    {
+      key: "status", label: "Status",
+      render: (r) => (
+        <select className="ui-select" value={r.status} disabled={busyId === r._id || r.status === "Won"} onChange={(e) => changeStatus(r, e.target.value)} aria-label={`Status for ${r.name}`}>
+          {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ),
+    },
+    { key: "assigned", label: "Assigned" },
+    {
+      key: "actions", label: "Actions",
+      render: (r) => (
+        <div className="cc-row-actions">
+          {r.status !== "Won" && r.status !== "Lost" && (
+            <button type="button" className="cc-btn cc-btn--small cc-btn--primary" disabled={busyId === r._id} onClick={() => convert(r)}>Make customer</button>
+          )}
+          <button type="button" className="cc-btn cc-btn--small" disabled={busyId === r._id} onClick={() => setDialog({ type: "edit", lead: r })}>Edit</button>
+          {r.source === "Manual" && (
+            <button type="button" className="cc-btn cc-btn--small cc-btn--danger" disabled={busyId === r._id} onClick={() => remove(r)}>Delete</button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const n = (status) => leads.filter((l) => l.status === status).length;
+
+  return (
+    <>
+      {notice && <div style={{ padding: "16px 28px 0" }}><Notice notice={notice} onClose={() => setNotice(null)} /></div>}
+      <TablePage
+        title="Leads" subtitle="Leads assigned to you. Move them through the stages, then make them customers."
+        actions={<button className="ui-btn" onClick={() => setDialog({ type: "add" })}><UserPlus size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />Add lead</button>}
+        kpis={[
+          { label: "Total Leads", value: leads.length, icon: Users },
+          { label: "New", value: n("New"), icon: UserPlus },
+          { label: "Won", value: n("Won"), icon: CheckCircle2 },
+          { label: "Lost", value: n("Lost"), icon: CircleSlash },
+        ]}
+        columns={columns} rows={rows}
+        filters={[{ key: "status", label: "Statuses", options: LEAD_STATUSES }]}
+        searchKeys={["name", "company", "contact", "product"]} searchPlaceholder="Search leads..."
+        panelTitle="My Leads"
+      />
+
+      {(dialog?.type === "add" || dialog?.type === "edit") && (
+        <LeadForm
+          lead={dialog.lead}
+          onClose={() => setDialog(null)}
+          onSaved={(message) => {
+            setDialog(null);
+            setNotice({ type: "success", text: message });
+            reload();
+          }}
+        />
+      )}
+
+      {dialog?.type === "invite" && (
+        <Modal title="Customer created" onClose={() => setDialog(null)}>
+          <div className="cc-form">
+            <InviteResult result={dialog.result} />
+            <p className="cc-muted">Add the products they bought from Customers → open the customer.</p>
+            <div className="cc-actions">
+              <button type="button" className="cc-btn cc-btn--primary" onClick={() => setDialog(null)}>Done</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}

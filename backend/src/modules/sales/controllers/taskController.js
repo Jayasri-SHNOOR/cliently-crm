@@ -23,7 +23,7 @@ const getTasks = async (req, res) => {
     if (!tenantId) return;
 
     const { search, status, priority } = req.query;
-    const filter = { tenantId };
+    const filter = { tenantId, userId: req.user.id };
 
     if (search) {
       const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -64,7 +64,7 @@ const getTaskById = async (req, res) => {
       });
     }
 
-    const task = await Task.findOne({ _id: id, tenantId });
+    const task = await Task.findOne({ _id: id, tenantId, userId: req.user.id });
 
     if (!task) {
       return res.status(404).json({
@@ -100,6 +100,7 @@ const createTask = async (req, res) => {
 
     const task = await Task.create({
       tenantId,
+      userId: req.user.id,
       title: title.trim(),
       description: description || "",
       dueDate: dueDate || null,
@@ -170,7 +171,7 @@ const updateTask = async (req, res) => {
     }
 
     const task = await Task.findOneAndUpdate(
-      { _id: id, tenantId },
+      { _id: id, tenantId, userId: req.user.id },
       updates,
       { new: true, runValidators: true }
     );
@@ -214,6 +215,7 @@ const deleteTask = async (req, res) => {
     const task = await Task.findOneAndDelete({
       _id: id,
       tenantId,
+      userId: req.user.id,
     });
 
     if (!task) {

@@ -12,3 +12,12 @@ export const getQuotations = () => api.get('/manager/quotations').then(data)
 export const getReports = (params) => api.get('/manager/reports', { params }).then(data)
 export const updateLeadPriority = (id, priority) =>
   api.patch(`/manager/leads/${id}/priority`, { priority }).then(res => res.data)
+export const getFinance = () => api.get('/manager/finance').then(data)
+
+export const formatDate = (value) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}

@@ -10,6 +10,26 @@ import {
   assignLead
 } from '../services/managerApi'
 
+function toRow(lead) {
+  return {
+    ...lead,
+    id: String(lead.id),
+    customer: lead.company || lead.name,
+    product: lead.product || 'General enquiry',
+    executive: lead.executive || 'Unassigned',
+    deadline: lead.nextFollowUp
+      ? new Date(lead.nextFollowUp).toISOString().slice(0, 10)
+      : ''
+  }
+}
+
+function fetchLeadData() {
+  return Promise.all([
+    getLeads({ page: 1, limit: 100 }),
+    getExecutives()
+  ]).then(([leadData, executiveData]) => ({ leadData, executiveData }))
+}
+
 export default function LeadAssignment() {
   const [rows, setRows] = useState([])
   const [executives, setExecutives] = useState([])
@@ -17,28 +37,17 @@ export default function LeadAssignment() {
   const [error, setError] = useState('')
   const [savingId, setSavingId] = useState(null)
 
+  function applyData({ leadData, executiveData }) {
+    setRows((leadData.leads || []).map(toRow))
+    setExecutives(executiveData.executives || [])
+  }
+
   async function loadData() {
     setLoading(true)
     setError('')
 
     try {
-      const [leadData, executiveData] = await Promise.all([
-        getLeads({ page: 1, limit: 100 }),
-        getExecutives()
-      ])
-
-      setRows((leadData.leads || []).map((lead) => ({
-        ...lead,
-        id: String(lead.id),
-        customer: lead.company || lead.name,
-        product: lead.product || 'General enquiry',
-        executive: lead.executive || 'Unassigned',
-        deadline: lead.nextFollowUp
-          ? new Date(lead.nextFollowUp).toISOString().slice(0, 10)
-          : ''
-      })))
-
-      setExecutives(executiveData.executives || [])
+      applyData(await fetchLeadData())
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load leads.')
     } finally {
@@ -47,7 +56,22 @@ export default function LeadAssignment() {
   }
 
   useEffect(() => {
-    loadData()
+    let active = true
+
+    fetchLeadData()
+      .then((result) => {
+        if (active) applyData(result)
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || 'Failed to load leads.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const update = (id, patch) => {
@@ -75,19 +99,7 @@ export default function LeadAssignment() {
 
       setRows((current) =>
         current.map((item) =>
-          item.id === lead.id
-            ? {
-                ...item,
-                ...saved,
-                id: String(saved.id),
-                customer: saved.company || saved.name,
-                product: saved.product || 'General enquiry',
-                executive: saved.executive || 'Unassigned',
-                deadline: saved.nextFollowUp
-                  ? new Date(saved.nextFollowUp).toISOString().slice(0, 10)
-                  : ''
-              }
-            : item
+          item.id === lead.id ? { ...item, ...toRow(saved) } : item
         )
       )
     } catch (err) {

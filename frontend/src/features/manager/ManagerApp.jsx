@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   LayoutDashboard, Users, UserCheck, UserRound, CalendarClock, Briefcase,
-  FileText, Wallet, TrendingUp, BarChart3, Bell, Settings,
+  FileText, Wallet, TrendingUp, BarChart3, Bell, Settings, ContactRound, Wrench,
 } from 'lucide-react'
 
 import AppShell from '../../layouts/AppShell'
@@ -16,6 +16,8 @@ import TeamMembers from './pages/TeamMembers'
 import FollowUps from './pages/FollowUps'
 import Deals from './pages/Deals'
 import Quotations from './pages/Quotations'
+import CustomerCare from './pages/CustomerCare'
+import ServiceRequests from './pages/ServiceRequests'
 import Finance from './pages/Finance'
 import TeamPerformance from './pages/TeamPerformance'
 import Reports from './pages/Reports'
@@ -33,6 +35,9 @@ const MENU = [
   { id: 'followups', label: 'Follow-ups', icon: CalendarClock },
   { id: 'deals', label: 'Deals', icon: Briefcase },
   { id: 'quotations', label: 'Quotations', icon: FileText },
+  { section: 'CUSTOMERS' },
+  { id: 'customers', label: 'Customers', icon: ContactRound },
+  { id: 'service-requests', label: 'Service Requests', icon: Wrench },
   { section: 'TEAM' },
   { id: 'team', label: 'Team Members', icon: UserRound },
   { id: 'performance', label: 'Team Performance', icon: TrendingUp },
@@ -47,6 +52,7 @@ const MENU = [
 const PAGES = {
   dashboard: Dashboard, leads: LeadManagement, assignment: LeadAssignment,
   followups: FollowUps, deals: Deals, quotations: Quotations,
+  customers: CustomerCare, 'service-requests': ServiceRequests,
   team: TeamMembers, performance: TeamPerformance,
   finance: Finance, reports: Reports,
   notifications: Notifications, settings: ManagerSettings,

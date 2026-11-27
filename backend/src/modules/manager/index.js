@@ -11,6 +11,7 @@ router.use('/deals', require('./routes/dealRoutes'))
 router.use('/team', require('./routes/teamRoutes'))
 router.use('/reports', require('./routes/reportRoutes'))
 router.use('/quotations', require('./routes/quotationRoutes'))
+router.use('/finance', require('./routes/financeRoutes'))
 router.use('/settings', require('./routes/settingsRoutes'))
 
 module.exports = router

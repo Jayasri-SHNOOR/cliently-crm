@@ -1,367 +1,74 @@
+import { useState } from "react";
+import PageHeader from "../../../shared/ui/PageHeader";
+import Panel from "../../../shared/ui/Panel";
+import PageState from "../../../shared/ui/PageState";
+import "../../../shared/ui/ui.css";
+import { updateCurrentUser } from "../../../lib/session";
+import { Notice } from "../../customer-care/CareParts";
+import { errorMessage, formatDate, salesApi } from "../services/salesApi";
+import useLoad from "../services/useLoad";
 
-import { useEffect, useState } from "react";
-import {
-  UserRound,
-  Mail,
-  Phone,
-  BriefcaseBusiness,
-  MapPin,
-  CalendarDays,
-  Pencil,
-  Save,
-  X,
-  ShieldCheck,
-} from "lucide-react";
-
-const API_URL = "http://localhost:5000/api/sales/profile";
-
-const defaultProfile = {
-  name: "",
-  email: "",
-  phone: "",
-  role: "Sales Executive",
-  department: "Sales",
-  location: "",
-  joinedDate: "",
-};
-
-function normalizeProfile(data) {
-  const item = data?.profile || data?.user || data;
-
-  return {
-    ...defaultProfile,
-    name: item?.name || "",
-    email: item?.email || "",
-    phone: item?.phone || "",
-    role: item?.role || item?.designation || "Sales Executive",
-    department: item?.department || "Sales",
-    location: item?.location || "",
-    joinedDate: item?.joinedDate || item?.joiningDate || item?.createdAt || "",
-    _id: item?._id || item?.id,
-  };
-}
-
-function formatJoinedDate(value) {
-  if (!value) return "Not provided";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("en-IN", {
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function Profile() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState(defaultProfile);
-  const [form, setForm] = useState(defaultProfile);
-  const [loading, setLoading] = useState(true);
+function ProfileForm({ profile, onSaved }) {
+  const [form, setForm] = useState({ name: profile.name || "", phone: profile.phone || "" });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  async function loadProfile() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(API_URL);
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to load profile.");
-      }
-
-      const loadedProfile = normalizeProfile(data);
-      setProfile(loadedProfile);
-      setForm(loadedProfile);
-    } catch (err) {
-      setError(err.message || "Unable to connect to the backend.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  function handleChange(event) {
-    const { name, value } = event.target;
-    setForm((previous) => ({ ...previous, [name]: value }));
-    setSaved(false);
-  }
-
-  async function handleSave(event) {
+  const submit = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setError("");
-    setSaved(false);
-
+    setNotice(null);
     try {
-      const response = await fetch(API_URL, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          location: form.location,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to save profile.");
-      }
-
-      const updatedProfile = normalizeProfile(
-        data?.profile || data?.user
-          ? data
-          : { ...profile, ...form }
-      );
-
-      setProfile(updatedProfile);
-      setForm(updatedProfile);
-      setIsEditing(false);
-      setSaved(true);
+      const result = await salesApi.updateProfile({ name: form.name.trim(), phone: form.phone.trim() });
+      updateCurrentUser({ name: result.data?.name || form.name.trim() });
+      setNotice({ type: "success", text: result.message });
+      onSaved();
     } catch (err) {
-      setError(err.message || "Unable to save profile.");
+      setNotice({ type: "error", text: errorMessage(err, "Could not save your profile.") });
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleCancel() {
-    setForm(profile);
-    setIsEditing(false);
-    setSaved(false);
-    setError("");
-  }
-
-  if (loading) {
-    return <div className="page-container">Loading profile...</div>;
-  }
+  };
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>My Profile</h1>
-          <p>View and manage your sales executive profile.</p>
-        </div>
-
-        {!isEditing ? (
-          <button
-            className="profile-edit-button"
-            onClick={() => {
-              setForm(profile);
-              setIsEditing(true);
-              setSaved(false);
-              setError("");
-            }}
-          >
-            <Pencil size={17} />
-            Edit Profile
-          </button>
-        ) : (
-          <button className="profile-cancel-button" onClick={handleCancel}>
-            <X size={17} />
-            Cancel
-          </button>
-        )}
+    <form onSubmit={submit}>
+      <div className="ui-form">
+        <label className="ui-field">Full name<input className="ui-input" name="name" value={form.name} onChange={change} maxLength={80} disabled={saving} required /></label>
+        <label className="ui-field">Phone<input className="ui-input" name="phone" value={form.phone} onChange={change} maxLength={20} disabled={saving} /></label>
+        <label className="ui-field">Email<input className="ui-input" value={profile.email || ""} disabled readOnly /></label>
+        <label className="ui-field">Role<input className="ui-input" value="Sales Executive" disabled readOnly /></label>
       </div>
-
-      {error && (
-        <div className="profile-error" role="alert">
-          {error}
-          <button type="button" onClick={loadProfile}>
-            Retry
-          </button>
-        </div>
-      )}
-
-      {saved && (
-        <div className="profile-success" role="status">
-          Profile updated successfully.
-        </div>
-      )}
-
-      <div className="profile-layout">
-        <section className="profile-card profile-overview">
-          <div className="profile-cover" />
-
-          <div className="profile-avatar">
-            <UserRound size={42} />
-          </div>
-
-          <h2>{profile.name || "Name not provided"}</h2>
-          <p className="profile-role">{profile.role}</p>
-
-          <span className="profile-active">
-            <span />
-            Active
-          </span>
-
-          <div className="profile-overview-divider" />
-
-          <div className="profile-overview-item">
-            <BriefcaseBusiness size={18} />
-            <span>{profile.department} Department</span>
-          </div>
-
-          <div className="profile-overview-item">
-            <MapPin size={18} />
-            <span>{profile.location || "Location not provided"}</span>
-          </div>
-
-          <div className="profile-overview-item">
-            <CalendarDays size={18} />
-            <span>Joined {formatJoinedDate(profile.joinedDate)}</span>
-          </div>
-        </section>
-
-        <section className="profile-card profile-details">
-          <div className="profile-section-heading">
-            <div>
-              <h2>Personal Information</h2>
-              <p>Keep your contact details up to date.</p>
-            </div>
-            <UserRound size={22} />
-          </div>
-
-          <form onSubmit={handleSave}>
-            <div className="profile-form-grid">
-              <div className="profile-field">
-                <label htmlFor="profile-name">Full Name</label>
-                <div className="profile-input-wrap">
-                  <UserRound size={17} />
-                  <input
-                    id="profile-name"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    disabled={!isEditing || saving}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="profile-field">
-                <label htmlFor="profile-email">Email Address</label>
-                <div className="profile-input-wrap">
-                  <Mail size={17} />
-                  <input
-                    id="profile-email"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    disabled={!isEditing || saving}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="profile-field">
-                <label htmlFor="profile-phone">Phone Number</label>
-                <div className="profile-input-wrap">
-                  <Phone size={17} />
-                  <input
-                    id="profile-phone"
-                    name="phone"
-                    type="tel"
-                    value={form.phone}
-                    onChange={handleChange}
-                    placeholder="Enter phone number"
-                    disabled={!isEditing || saving}
-                  />
-                </div>
-              </div>
-
-              <div className="profile-field">
-                <label htmlFor="profile-role">Job Title</label>
-                <div className="profile-input-wrap">
-                  <BriefcaseBusiness size={17} />
-                  <input
-                    id="profile-role"
-                    name="role"
-                    value={form.role}
-                    disabled
-                    readOnly
-                  />
-                </div>
-              </div>
-
-              <div className="profile-field">
-                <label htmlFor="profile-department">Department</label>
-                <input
-                  id="profile-department"
-                  className="profile-plain-input"
-                  name="department"
-                  value={form.department}
-                  disabled
-                  readOnly
-                />
-              </div>
-
-              <div className="profile-field">
-                <label htmlFor="profile-location">Location</label>
-                <div className="profile-input-wrap">
-                  <MapPin size={17} />
-                  <input
-                    id="profile-location"
-                    name="location"
-                    value={form.location}
-                    onChange={handleChange}
-                    disabled={!isEditing || saving}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {isEditing && (
-              <div className="profile-form-actions">
-                <button
-                  type="button"
-                  className="profile-cancel-button"
-                  onClick={handleCancel}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="profile-save-button"
-                  disabled={saving}
-                >
-                  <Save size={17} />
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            )}
-          </form>
-
-          <div className="profile-security-note">
-            <ShieldCheck size={21} />
-            <div>
-              <strong>Account Information</strong>
-              <p>
-                Your role and department are managed by the organization.
-                Contact your administrator if these details need changing.
-              </p>
-            </div>
-          </div>
-        </section>
+      <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+        <button className="ui-btn" type="submit" disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
       </div>
-    </div>
+      {notice && <div style={{ marginTop: 14 }}><Notice notice={notice} onClose={() => setNotice(null)} /></div>}
+    </form>
   );
 }
 
-export default Profile;
+export default function Profile() {
+  const { data, loading, error, reload } = useLoad(salesApi.profile);
+
+  if (loading || error) return <PageState loading={loading} error={error} onRetry={reload} />;
+
+  const profile = data.data || {};
+
+  return (
+    <main className="ui-page">
+      <PageHeader title="My Profile" subtitle="Your contact details" />
+      <section className="ui-grid-2">
+        <Panel title="Personal details" subtitle="Your name and phone are shown to your team">
+          <ProfileForm key={`${profile.name}|${profile.phone}`} profile={profile} onSaved={reload} />
+        </Panel>
+        <Panel title="Account" subtitle="Managed by your Client Admin">
+          <div className="ui-list-item"><div><strong>Company</strong><span>{profile.company?.name || profile.company?.companyName || "—"}</span></div></div>
+          <div className="ui-list-item"><div><strong>Department</strong><span>{profile.department || "Sales"}</span></div></div>
+          <div className="ui-list-item"><div><strong>Designation</strong><span>{profile.designation || "Sales Executive"}</span></div></div>
+          <div className="ui-list-item"><div><strong>Joined</strong><span>{formatDate(profile.joiningDate || profile.createdAt)}</span></div></div>
+          <div className="ui-list-item"><div><strong>Last sign-in</strong><span>{formatDate(profile.lastLoginAt)}</span></div></div>
+          <p className="ui-empty" style={{ textAlign: "left" }}>To change your email or reset your password, contact your Client Admin.</p>
+        </Panel>
+      </section>
+    </main>
+  );
+}

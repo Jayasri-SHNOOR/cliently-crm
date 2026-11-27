@@ -1,155 +1,68 @@
-
 import { useState } from "react";
-import {
-  Search,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  IndianRupee,
-} from "lucide-react";
+import { Wallet, Receipt, AlertTriangle } from "lucide-react";
+import PageHeader from "../../../shared/ui/PageHeader";
+import KpiCard from "../../../shared/ui/KpiCard";
+import Panel from "../../../shared/ui/Panel";
+import DataTable from "../../../shared/ui/DataTable";
+import StatusBadge from "../../../shared/ui/StatusBadge";
+import PageState from "../../../shared/ui/PageState";
+import { inr } from "../../../shared/ui/format";
+import "../../../shared/ui/ui.css";
+import { formatDate, salesApi } from "../services/salesApi";
+import useLoad from "../services/useLoad";
 
-function Payments() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+const paymentCols = [
+  { key: "ref", label: "Reference" },
+  { key: "customer", label: "Customer" },
+  { key: "purpose", label: "For" },
+  { key: "date", label: "Date", render: (r) => formatDate(r.date) },
+  { key: "amount", label: "Amount", render: (r) => inr(r.amount) },
+  { key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} /> },
+];
 
-  // Payment records will be fetched from the backend later.
-  const payments = [];
+const outstandingCols = [
+  { key: "requestNumber", label: "Request" },
+  { key: "customer", label: "Customer" },
+  { key: "serviceType", label: "Service" },
+  { key: "amount", label: "Amount", render: (r) => inr(r.amount) },
+  { key: "since", label: "Charged on", render: (r) => formatDate(r.since) },
+];
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesSearch =
-      `${payment.customer} ${payment.paymentId}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+export default function Payments() {
+  const [tab, setTab] = useState("payments");
+  const { data, loading, error, reload } = useLoad(salesApi.payments);
 
-    const matchesStatus =
-      statusFilter === "All" || payment.status === statusFilter;
+  if (loading || error) return <PageState loading={loading} error={error} onRetry={reload} />;
 
-    return matchesSearch && matchesStatus;
-  });
-
-  const formatPrice = (amount) =>
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 2,
-    }).format(amount);
+  const s = data.summary || {};
+  const payments = (data.payments || []).map((p) => ({ ...p, id: String(p.id) }));
+  const outstanding = (data.outstanding || []).map((o) => ({ ...o, id: String(o.id) }));
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>Payments</h1>
-          <p>Manage and track customer payments securely.</p>
-        </div>
+    <main className="ui-page">
+      <PageHeader
+        title="Payments" subtitle="Online payments from your customers"
+        actions={<button className="ui-btn ui-btn--ghost" onClick={reload}>Refresh</button>}
+      />
+      <section className="ui-kpis">
+        <KpiCard label="Received" value={inr(s.received)} icon={Wallet} />
+        <KpiCard label="Payments Received" value={s.receivedCount ?? 0} icon={Receipt} />
+        <KpiCard label="Unpaid Charges" value={`${inr(s.outstanding)} (${s.outstandingCount ?? 0})`} icon={AlertTriangle} />
+        <KpiCard label="Failed Attempts" value={s.failedCount ?? 0} icon={AlertTriangle} />
+      </section>
+      <div className="ui-tabs">
+        <button className={`ui-tab ${tab === "payments" ? "active" : ""}`} onClick={() => setTab("payments")}>Payments</button>
+        <button className={`ui-tab ${tab === "outstanding" ? "active" : ""}`} onClick={() => setTab("outstanding")}>Unpaid service charges</button>
       </div>
-
-      <div className="payment-summary">
-        <div className="payment-summary-card">
-          <span>Total Payments</span>
-          <h2>0</h2>
-          <CreditCard size={22} />
-        </div>
-
-        <div className="payment-summary-card">
-          <span>Successful Payments</span>
-          <h2>0</h2>
-          <CheckCircle size={22} />
-        </div>
-
-        <div className="payment-summary-card">
-          <span>Pending Payments</span>
-          <h2>0</h2>
-          <Clock size={22} />
-        </div>
-
-        <div className="payment-summary-card">
-          <span>Total Collected</span>
-          <h2>{formatPrice(0)}</h2>
-          <IndianRupee size={22} />
-        </div>
-      </div>
-
-      <div className="leads-card payments-card">
-        <div className="payments-toolbar">
-          <div>
-            <h2>Payment History</h2>
-            <p className="section-description">
-              View and track customer transactions.
-            </p>
-          </div>
-
-          <div className="payments-filters">
-            <div className="payments-search">
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Search customer or payment ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="Filter by payment status"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Success">Success</option>
-              <option value="Pending">Pending</option>
-              <option value="Failed">Failed</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="leads-table-wrapper">
-          <table className="leads-table payments-table">
-            <thead>
-              <tr>
-                <th>Payment ID</th>
-                <th>Customer</th>
-                <th>Amount</th>
-                <th>Payment Date</th>
-                <th>Method</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredPayments.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="payments-empty">
-                    No payment records found.
-                  </td>
-                </tr>
-              ) : (
-                filteredPayments.map((payment) => (
-                  <tr key={payment.paymentId}>
-                    <td>{payment.paymentId}</td>
-                    <td>{payment.customer}</td>
-                    <td>{formatPrice(payment.amount)}</td>
-                    <td>{payment.date}</td>
-                    <td>{payment.method}</td>
-                    <td>
-                      <span
-                        className={`payment-status ${payment.status.toLowerCase()}`}
-                      >
-                        {payment.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="payments-footer">
-          Showing {filteredPayments.length} payment records
-        </div>
-      </div>
-    </div>
+      {tab === "payments" ? (
+        <Panel title="Payments">
+          <DataTable columns={paymentCols} rows={payments} empty="No payments from your customers yet." />
+        </Panel>
+      ) : (
+        <Panel title="Unpaid service charges" subtitle="Customers pay these from the customer portal">
+          <DataTable columns={outstandingCols} rows={outstanding} empty="No unpaid charges." />
+        </Panel>
+      )}
+    </main>
   );
 }
-
-export default Payments;
