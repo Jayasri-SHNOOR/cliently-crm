@@ -1,23 +1,30 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export default function useFetch(fetcher, deps = []) {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const fetcherRef = useRef(fetcher)
+  const [tick, setTick] = useState(0)
+  const [result, setResult] = useState({ key: null, data: null, error: '' })
+  const key = `${JSON.stringify(deps)}#${tick}`
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      setData(await fetcher())
-    } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }, deps)
+  useEffect(() => {
+    fetcherRef.current = fetcher
+  })
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    let active = true
+    Promise.resolve()
+      .then(() => fetcherRef.current())
+      .then((data) => {
+        if (active) setResult({ key, data, error: '' })
+      })
+      .catch((err) => {
+        if (active) setResult((current) => ({ key, data: current.data, error: err.response?.data?.message || 'Something went wrong' }))
+      })
+    return () => { active = false }
+  }, [key])
 
-  return { data, loading, error, reload: load }
+  const reload = useCallback(() => setTick((value) => value + 1), [])
+  const loading = result.key !== key
+
+  return { data: result.data, loading, error: loading ? '' : result.error, reload }
 }

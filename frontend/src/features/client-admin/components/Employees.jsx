@@ -63,7 +63,7 @@ function Employees() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [activeRole, setActiveRole] = useState('Sales Executive')
-  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [pickedEmployee, setSelectedEmployee] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState(emptyForm)
   const [formError, setFormError] = useState('')
@@ -96,19 +96,18 @@ function Employees() {
     }
   }, [])
   useEffect(() => {
-    loadEmployees()
+    const first = setTimeout(() => loadEmployees(), 0)
     const timer = setInterval(() => {
       if (!document.hidden) loadEmployees(true)
     }, 30000)
-    return () => clearInterval(timer)
+    return () => {
+      clearTimeout(first)
+      clearInterval(timer)
+    }
   }, [loadEmployees])
-  useEffect(() => {
-    setSelectedEmployee((current) =>
-      current
-        ? employees.find((employee) => employee.id === current.id) || null
-        : null
-    )
-  }, [employees])
+  const selectedEmployee = pickedEmployee
+    ? employees.find((employee) => employee.id === pickedEmployee.id) || null
+    : null
   const loadSeats = useCallback(async () => {
     try {
       const response = await api.get('/settings/users')
@@ -118,7 +117,8 @@ function Employees() {
     }
   }, [])
   useEffect(() => {
-    loadSeats()
+    const timer = setTimeout(loadSeats, 0)
+    return () => clearTimeout(timer)
   }, [loadSeats])
   const filteredEmployees = employees.filter((employee) => {
     const search = searchTerm.toLowerCase()

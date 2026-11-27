@@ -9,24 +9,26 @@ function ProfileActivityPanel() {
   useEffect(() => {
     let active = true;
 
-    setLoading(true);
-    setError("");
+    const timer = setTimeout(() => {
+      setLoading(true);
+      setError("");
 
-    fetchOwnActivity()
-      .then(data => {
-        if (active) setActivity(data);
-      })
-      .catch(err => {
-        if (active) {
-          setActivity([]);
-          setError(err.message || "Unable to load activity.");
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      fetchOwnActivity()
+        .then(data => {
+          if (active) setActivity(data);
+        })
+        .catch(err => {
+          if (active) {
+            setActivity([]);
+            setError(err.message || "Unable to load activity.");
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 0);
 
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(timer); };
   }, [revision]);
 
   const formatDate = value =>
@@ -117,24 +119,26 @@ function ProfileSessionsPanel() {
   useEffect(() => {
     let active = true;
 
-    setLoading(true);
-    setError("");
+    const timer = setTimeout(() => {
+      setLoading(true);
+      setError("");
 
-    fetchOwnSessions()
-      .then(data => {
-        if (active) setSessions(data);
-      })
-      .catch(err => {
-        if (active) {
-          setSessions([]);
-          setError(err.message || "Unable to load sessions.");
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+      fetchOwnSessions()
+        .then(data => {
+          if (active) setSessions(data);
+        })
+        .catch(err => {
+          if (active) {
+            setSessions([]);
+            setError(err.message || "Unable to load sessions.");
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 0);
 
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(timer); };
   }, [revision]);
 
   async function revoke(session) {
@@ -431,31 +435,6 @@ const featureAccess = [
 
 
 
-const integrations = [
-  {
-    name: "Twilio",
-    description: "Messaging and communication services",
-    initials: "T",
-  },
-  {
-    name: "Stripe",
-    description: "Payments and subscription billing",
-    initials: "S",
-  },
-  {
-    name: "Google Workspace",
-    description: "Productivity and workspace services",
-    initials: "G",
-  },
-];
-
-const services = [
-  ["Application Server", "86 ms"],
-  ["Database", "142 ms"],
-  ["API Gateway", "94 ms"],
-  ["Background Jobs", "118 ms"],
-];
-
 function FeatureState({ state }) {
   const enabled = state === "Enabled";
 
@@ -465,13 +444,6 @@ function FeatureState({ state }) {
       {state}
     </span>
   );
-}
-
-function scrollToSection(id) {
-  document.getElementById(id)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
 }
 
 function getTenantCreatedAt(tenant) {
@@ -913,6 +885,23 @@ function ProfileDialog({ onClose, onOpenSettings }) {
   );
 }
 
+const defaultSettings = {
+  organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
+  regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
+  security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
+  notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
+};
+
+const normalizeDashboardSettings = (saved = {}) => {
+  const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
+  return {
+    organization: { ...defaultSettings.organization, ...(source.organization || {}) },
+    regional: { ...defaultSettings.regional, ...(source.regional || {}) },
+    security: { ...defaultSettings.security, ...(source.security || {}) },
+    notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
+  };
+};
+
 export default function SuperAdminApp({ onLogout }) {
   const {
     tenants,
@@ -976,7 +965,9 @@ export default function SuperAdminApp({ onLogout }) {
   };
 
   useEffect(() => {
-    if (activePage === "notifications") refreshNotifications();
+    if (activePage !== "notifications") return undefined;
+    const timer = setTimeout(refreshNotifications, 0);
+    return () => clearTimeout(timer);
   }, [activePage]);
 
   const markNotificationRead = async (notification) => {
@@ -1509,23 +1500,6 @@ export default function SuperAdminApp({ onLogout }) {
   };
 
   // Super Admin settings mapped directly to the PlatformSettings MongoDB schema.
-  const defaultSettings = {
-    organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
-    regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
-    security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
-    notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
-  };
-
-  const normalizeDashboardSettings = (saved = {}) => {
-    const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
-    return {
-      organization: { ...defaultSettings.organization, ...(source.organization || {}) },
-      regional: { ...defaultSettings.regional, ...(source.regional || {}) },
-      security: { ...defaultSettings.security, ...(source.security || {}) },
-      notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
-    };
-  };
-
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -2094,8 +2068,3 @@ export default function SuperAdminApp({ onLogout }) {
 </div>
   );
 }
-
-
-
-
-

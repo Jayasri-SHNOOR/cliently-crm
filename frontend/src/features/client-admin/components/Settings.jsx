@@ -52,8 +52,11 @@ function Settings({ initialSection = 'company' }) {
     phone: '',
     role: ''
   })
-  useEffect(() => {
-  setActiveSection(initialSection)}, [initialSection])
+  const [shownSection, setShownSection] = useState(initialSection)
+  if (shownSection !== initialSection) {
+    setShownSection(initialSection)
+    setActiveSection(initialSection)
+  }
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -116,9 +119,9 @@ function Settings({ initialSection = 'company' }) {
   }, [])
 
   useEffect(() => {
-    if (activeSection === 'profile') {
-      fetchProfile()
-    }
+    if (activeSection !== 'profile') return undefined
+    const timer = setTimeout(fetchProfile, 0)
+    return () => clearTimeout(timer)
   }, [activeSection, fetchProfile])
 
   const handleProfileChange = (event) => {
@@ -191,7 +194,8 @@ function Settings({ initialSection = 'company' }) {
   }, [])
 
   useEffect(() => {
-    fetchCompany()
+    const timer = setTimeout(fetchCompany, 0)
+    return () => clearTimeout(timer)
   }, [fetchCompany])
 
   const handleCompanyChange = (event) => {
@@ -293,9 +297,9 @@ function Settings({ initialSection = 'company' }) {
   }, [])
 
   useEffect(() => {
-    if (activeSection === 'users') {
-      fetchUsers()
-    }
+    if (activeSection !== 'users') return undefined
+    const timer = setTimeout(fetchUsers, 0)
+    return () => clearTimeout(timer)
   }, [activeSection, fetchUsers])
 
   const handleToggleUserStatus = async (user) => {
@@ -366,9 +370,9 @@ function Settings({ initialSection = 'company' }) {
   }, [])
 
   useEffect(() => {
-    if (activeSection === 'billing') {
-      fetchBilling()
-    }
+    if (activeSection !== 'billing') return undefined
+    const timer = setTimeout(fetchBilling, 0)
+    return () => clearTimeout(timer)
   }, [activeSection, fetchBilling])
 
   const fetchPlans = async () => {
