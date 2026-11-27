@@ -182,13 +182,16 @@ export default function useTenants() {
   // ----------------------------------------
 
   useEffect(() => {
-    refreshTenantData(true);
+    const firstLoad = window.setTimeout(() => {
+      refreshTenantData(true);
+    }, 0);
 
     const refreshTimer = window.setInterval(() => {
       refreshTenantData(false);
     }, 30000);
 
     return () => {
+      window.clearTimeout(firstLoad);
       window.clearInterval(refreshTimer);
     };
   }, []);

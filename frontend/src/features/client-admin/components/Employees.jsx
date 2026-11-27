@@ -72,7 +72,7 @@ function Employees() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [activeRole, setActiveRole] = useState('Sales Executive')
-  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [pickedEmployee, setSelectedEmployee] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState(emptyForm)
   const [formError, setFormError] = useState('')
@@ -109,22 +109,18 @@ function Employees() {
   }, [])
 
   useEffect(() => {
-    loadEmployees()
-
+    const first = setTimeout(() => loadEmployees(), 0)
     const timer = setInterval(() => {
       if (!document.hidden) loadEmployees(true)
     }, 30000)
-
-    return () => clearInterval(timer)
+    return () => {
+      clearTimeout(first)
+      clearInterval(timer)
+    }
   }, [loadEmployees])
-
-  useEffect(() => {
-    setSelectedEmployee((current) =>
-      current
-        ? employees.find((employee) => employee.id === current.id) || null
-        : null
-    )
-  }, [employees])
+  const selectedEmployee = pickedEmployee
+    ? employees.find((employee) => employee.id === pickedEmployee.id) || null
+    : null
 
   const loadSeats = useCallback(async () => {
     try {
@@ -136,7 +132,8 @@ function Employees() {
   }, [])
 
   useEffect(() => {
-    loadSeats()
+    const timer = setTimeout(loadSeats, 0)
+    return () => clearTimeout(timer)
   }, [loadSeats])
 
   const filteredEmployees = employees.filter((employee) => {
@@ -362,6 +359,25 @@ function Employees() {
       )
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  const handleDeleteEmployee = async (employee) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${employee.name}? This action cannot be undone.`
+    )
+    if (!confirmed) return
+
+    try {
+      setPageError('')
+      setNotice('')
+      await api.delete(`/employees/${employee.id}`)
+      setEmployees((previous) => previous.filter((item) => item.id !== employee.id))
+      setSelectedEmployee(null)
+      setNotice(`${employee.name} deleted successfully.`)
+      loadSeats()
+    } catch (error) {
+      setPageError(error.response?.data?.message || 'Unable to delete employee. Please try again.')
     }
   }
 
@@ -769,6 +785,13 @@ function Employees() {
                   : selectedEmployee.status === 'Active'
                     ? 'Deactivate'
                     : 'Activate'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteEmployee(selectedEmployee)}
+              >
+                Delete Employee
               </button>
             </div>
 

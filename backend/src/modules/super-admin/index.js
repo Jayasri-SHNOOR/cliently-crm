@@ -26,6 +26,7 @@ router.use('/announcements', announcementRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/settings", settingRouter);
 router.use("/users", userRoutes);
+router.use("/profile", require("./routes/profileRoutes"));
 router.use("/usage", usageRoutes);
 router.use("/support", supportRoutes);
 

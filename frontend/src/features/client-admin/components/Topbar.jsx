@@ -61,7 +61,7 @@ export default function ClientAdminTopbar({ onNavigate, currentPage, settingsSec
         { title: 'Deals', items: toItems(r.deals, 'deals', 'No customer') },
       ].filter((g) => g.items.length)
     } catch (err) {
-      throw new Error(err.response?.data?.message || 'Unable to search right now.')
+      throw new Error(err.response?.data?.message || 'Unable to search right now.', { cause: err })
     }
   }, [onNavigate])
 
