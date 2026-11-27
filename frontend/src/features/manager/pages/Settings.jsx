@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react'
 import { UserRound, Camera, Trash2, LockKeyhole } from 'lucide-react'
 import PageHeader from '../../../shared/ui/PageHeader'
-import { getAccessToken, updateCurrentUser } from '../../../lib/session'
+import { updateCurrentUser } from '../../../lib/session'
+import { apiFetch } from '../../../lib/api'
+import { useCurrentUser } from '../../../lib/useSession'
 import '../../../shared/ui/ui.css'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '')
-const BASE_URL = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`
 
 const initialForm = {
   firstName: '',
@@ -28,10 +28,6 @@ const initialForm = {
   city: '',
   state: '',
   postalCode: '',
-  newEmail: '',
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: '',
 }
 
 const initialNotifications = {
@@ -48,51 +44,11 @@ function normalizeRole(value) {
     .replace(/[\s-]+/g, '_')
 }
 
-function getStoredRole() {
-  if (typeof window === 'undefined') return ''
-
-  for (const key of ['role', 'userRole', 'currentRole']) {
-    const value = localStorage.getItem(key)
-    if (value) return normalizeRole(value)
-  }
-
-  for (const key of ['user', 'currentUser', 'authUser']) {
-    try {
-      const user = JSON.parse(localStorage.getItem(key) || 'null')
-      const role =
-        user?.role ||
-        user?.user?.role ||
-        user?.data?.role ||
-        user?.userRole
-
-      if (role) return normalizeRole(role)
-    } catch {}
-  }
-
-  return ''
-}
-
 async function apiRequest(path, options = {}) {
-  const token = getAccessToken()
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
+  return apiFetch(`/api${path}`, {
+    method: options.method || 'GET',
+    body: options.body ? JSON.parse(options.body) : undefined,
   })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || data.error || `Request failed (${response.status})`
-    )
-  }
-
-  return data
 }
 
 const cardStyle = {
@@ -177,7 +133,8 @@ export default function Settings({ role: roleProp }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const role = normalizeRole(roleProp || getStoredRole())
+  const currentUser = useCurrentUser()
+  const role = normalizeRole(roleProp || currentUser?.role)
 
   const isClientAdmin = [
     'CLIENT_ADMIN',
@@ -414,14 +371,6 @@ export default function Settings({ role: roleProp }) {
     event.preventDefault()
 
     if (saving) return
-
-    if (
-      form.newPassword &&
-      form.newPassword !== form.confirmPassword
-    ) {
-      setMessage('New password and confirm password do not match.')
-      return
-    }
 
     const fullName = [
       form.firstName,
@@ -700,40 +649,21 @@ export default function Settings({ role: roleProp }) {
 
         {section(
           'Account & Security',
-          'Manage your account email and password.',
+          'Your sign-in email and password.',
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '26px',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: 'var(--page-background, #f3f4f6)',
+              color: 'var(--muted-text, #6b7280)',
+              fontSize: '13px',
             }}
           >
-            <div>
-              <h3 style={{ ...titleStyle, fontSize: '15px' }}>
-                Change Email
-              </h3>
-
-              <div style={gridStyle} className="settings-fields-grid">
-                {field('New Email Address', 'newEmail', 'Enter new email', 'email')}
-              </div>
-            </div>
-
-            <div
-              style={{
-                borderTop: '1px solid var(--border-color, #e5e7eb)',
-                paddingTop: '24px',
-              }}
-            >
-              <h3 style={{ ...titleStyle, fontSize: '15px' }}>
-                Change Password
-              </h3>
-
-              <div style={gridStyle} className="settings-fields-grid">
-                {field('Current Password', 'currentPassword', 'Enter current password', 'password')}
-                {field('New Password', 'newPassword', 'Enter new password', 'password')}
-                {field('Confirm New Password', 'confirmPassword', 'Confirm new password', 'password')}
-              </div>
-            </div>
+            <LockKeyhole size={16} />
+            You sign in with {form.email || 'your work email'}. To change your email or reset your password, contact your Client Admin.
           </div>,
           'account-security'
         )}

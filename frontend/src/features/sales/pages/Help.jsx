@@ -1,83 +1,37 @@
-import { CircleHelp, Users, CheckSquare, CalendarDays, Package, Bell, Mail } from "lucide-react";
+import { Users, ContactRound, Wrench, CheckSquare, CalendarDays, CreditCard, Mail } from "lucide-react";
+import PageHeader from "../../../shared/ui/PageHeader";
+import Panel from "../../../shared/ui/Panel";
+import "../../../shared/ui/ui.css";
 
-function Help() {
-  const helpItems = [
-    {
-      icon: Users,
-      title: "Leads",
-      description: "View and manage your leads and their contact details.",
-    },
-    {
-      icon: Users,
-      title: "Customers",
-      description: "View customer information and track sales details.",
-    },
-    {
-      icon: CheckSquare,
-      title: "Tasks",
-      description: "Review your tasks and keep track of pending work.",
-    },
-    {
-      icon: CalendarDays,
-      title: "Calendar",
-      description: "View upcoming meetings and scheduled activities.",
-    },
-    {
-      icon: Package,
-      title: "Products",
-      description: "Browse available products and their details.",
-    },
-    {
-      icon: Bell,
-      title: "Notifications",
-      description: "Check notifications and stay updated.",
-    },
-  ];
+const TOPICS = [
+  { icon: Users, title: "Leads", text: "Leads assigned to you by your Manager appear here. Move them through the stages. When a lead buys, click “Make customer”: the customer gets a login email automatically." },
+  { icon: ContactRound, title: "Customers", text: "Open a customer to edit their details, add the products they bought, and resend their portal login." },
+  { icon: Wrench, title: "Service Requests", text: "Your customers request service from the customer portal. Assign an operational staff member, then set a charge if the service is paid." },
+  { icon: CreditCard, title: "Payments", text: "Customers pay service charges online. Paid and unpaid charges are listed here." },
+  { icon: CheckSquare, title: "Tasks & Notes", text: "Your own to-do list and private notes. Only you can see them." },
+  { icon: CalendarDays, title: "Calendar", text: "Add meetings with customers. Task due dates are shown here too." },
+];
 
+export default function Help() {
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>Help & Support</h1>
-          <p>Find guidance for using your Sales Executive Dashboard.</p>
-        </div>
-        <CircleHelp size={32} />
-      </div>
-
-      <div className="help-intro">
-        <h2>How can we help you?</h2>
-        <p>
-          Use the sections below to understand the features available
-          in your CRM portal.
-        </p>
-      </div>
-
-      <div className="help-grid">
-        {helpItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <div className="help-card" key={item.title}>
-              <Icon size={24} />
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
+    <main className="ui-page">
+      <PageHeader title="Help" subtitle="How the sales workspace works" />
+      <section className="ui-grid-2">
+        {TOPICS.map(({ icon: Icon, title, text }) => (
+          <Panel key={title} title={title}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <Icon size={20} style={{ flexShrink: 0, color: "var(--teal-accent-dark)" }} />
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--muted-text)" }}>{text}</p>
             </div>
-          );
-        })}
-      </div>
-
-      <div className="help-contact">
-        <Mail size={22} />
-        <div>
-          <h3>Need further assistance?</h3>
-          <p>
-            Contact your team lead or CRM administrator for help
-            with access, data, or technical issues.
-          </p>
+          </Panel>
+        ))}
+      </section>
+      <Panel title="Need more help?">
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Mail size={18} style={{ color: "var(--teal-accent-dark)" }} />
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted-text)" }}>Contact your Manager or Client Admin for access, assignments and account changes.</p>
         </div>
-      </div>
-    </div>
+      </Panel>
+    </main>
   );
 }
-
-export default Help;

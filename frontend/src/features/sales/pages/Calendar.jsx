@@ -1,193 +1,196 @@
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import PageHeader from "../../../shared/ui/PageHeader";
+import Panel from "../../../shared/ui/Panel";
+import StatusBadge from "../../../shared/ui/StatusBadge";
+import PageState from "../../../shared/ui/PageState";
+import "../../../shared/ui/ui.css";
+import { salesCare } from "../../customer-care/careApi";
+import { Modal, Notice } from "../../customer-care/CareParts";
+import { errorMessage, formatDate, salesApi, toDateTimeInput } from "../services/salesApi";
+import useLoad from "../services/useLoad";
 
-import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
-} from "lucide-react";
-import api from "../services/api";
+function loadCalendar() {
+  return Promise.all([
+    salesApi.meetings(),
+    salesApi.tasks(),
+    salesCare.listCustomers().catch(() => ({ customers: [] })),
+  ]).then(([meetings, tasks, customers]) => ({
+    meetings: meetings.activities || [],
+    tasks: (tasks.tasks || []).filter((t) => t.dueDate && t.status !== "Completed"),
+    customers: customers.customers || [],
+    now: Date.now(),
+  }));
+}
 
-function Calendar() {
-  const [currentDate, setCurrentDate] = useState(() => {
-    const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1);
-  });
+function dayKey(value) {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+function dayLabel(key) {
+  return new Date(`${key}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" });
+}
+
+function timeOf(value) {
+  return new Date(value).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function MeetingForm({ meeting, customers, onClose, onSaved }) {
+  const [form, setForm] = useState(() => ({
+    description: meeting?.description || "",
+    activityDate: toDateTimeInput(meeting?.activityDate),
+    customerId: meeting?.customerId?._id || meeting?.customerId || "",
+  }));
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  // Fetch actual saved tasks
-  useEffect(() => {
-    async function loadTasks() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await api.get("/api/sales/tasks");
-        setTasks(response.tasks || []);
-      } catch (err) {
-        console.error("Calendar tasks API error:", err);
-        setError(err.message || "Unable to load tasks for the calendar.");
-      } finally {
-        setLoading(false);
-      }
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!form.description.trim()) return setError("What is the meeting about?");
+    if (!form.activityDate) return setError("Choose a date and time");
+    setSaving(true);
+    setError("");
+    const body = {
+      description: form.description.trim(),
+      activityDate: new Date(form.activityDate).toISOString(),
+      customerId: form.customerId || null,
+    };
+    try {
+      const result = meeting ? await salesApi.updateMeeting(meeting._id, body) : await salesApi.createMeeting(body);
+      onSaved(result.message);
+    } catch (err) {
+      setError(errorMessage(err, "Could not save the meeting."));
+      setSaving(false);
     }
-
-    loadTasks();
-  }, []);
-
-  const monthName = currentDate.toLocaleString("en-IN", {
-    month: "long",
-    year: "numeric",
-  });
-
-  function changeMonth(amount) {
-    setCurrentDate(new Date(year, month + amount, 1));
-  }
-
-  function resetCalendar() {
-    const today = new Date();
-    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
-  }
-
-  // Display only actual saved tasks for the selected month
-  const taskEvents = tasks
-    .filter((task) => task.dueDate)
-    .map((task) => {
-      const dueDate = new Date(task.dueDate);
-
-      return {
-        day: dueDate.getDate(),
-        title: task.title,
-        status: task.status || "Pending",
-        taskId: task._id,
-        dueDate,
-      };
-    })
-    .filter(
-      (task) =>
-        !Number.isNaN(task.dueDate.getTime()) &&
-        task.dueDate.getFullYear() === year &&
-        task.dueDate.getMonth() === month
-    );
+  };
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1>Calendar</h1>
-          <p>View your saved tasks and scheduled activities.</p>
+    <Modal title={meeting ? "Edit meeting" : "Add meeting"} onClose={onClose}>
+      <form className="cc-form" onSubmit={submit}>
+        <label>About *<input name="description" value={form.description} onChange={change} maxLength={500} placeholder="e.g. Product demo" disabled={saving} /></label>
+        <label>Date and time *<input type="datetime-local" name="activityDate" value={form.activityDate} onChange={change} disabled={saving} /></label>
+        <label>
+          Customer
+          <select name="customerId" value={form.customerId} onChange={change} disabled={saving}>
+            <option value="">No customer</option>
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.customerCode})</option>)}
+          </select>
+        </label>
+        {error && <Notice notice={{ type: "error", text: error }} />}
+        <div className="cc-actions">
+          <button type="button" className="cc-btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="cc-btn cc-btn--primary" disabled={saving}>{saving ? "Saving..." : "Save meeting"}</button>
         </div>
-      </div>
-
-      <div className="leads-card calendar-card">
-        <div className="calendar-header">
-          <div>
-            <h2>{monthName}</h2>
-            <p className="section-description">
-              Your sales schedule
-            </p>
-          </div>
-
-          <div className="calendar-controls">
-            <button
-              className="calendar-nav"
-              onClick={() => changeMonth(-1)}
-              aria-label="Previous month"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <button
-              className="calendar-today"
-              onClick={resetCalendar}
-            >
-              Today
-            </button>
-
-            <button
-              className="calendar-nav"
-              onClick={() => changeMonth(1)}
-              aria-label="Next month"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <p role="alert" style={{ color: "#b42318" }}>
-            {error}
-          </p>
-        )}
-
-        <div className="calendar-grid">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-            (day) => (
-              <div className="calendar-weekday" key={day}>
-                {day}
-              </div>
-            )
-          )}
-
-          {Array.from({ length: firstDay }, (_, index) => (
-            <div
-              className="calendar-day empty-day"
-              key={`empty-${index}`}
-            />
-          ))}
-
-          {Array.from({ length: daysInMonth }, (_, index) => {
-            const day = index + 1;
-
-            const dayTaskEvents = taskEvents.filter(
-              (event) => event.day === day
-            );
-
-            return (
-              <div className="calendar-day" key={day}>
-                <span className="calendar-date">{day}</span>
-
-                {dayTaskEvents.map((event) => (
-                  <div
-                    className="calendar-event"
-                    key={event.taskId}
-                    title={`Task status: ${event.status}`}
-                  >
-                    <strong>{event.title}</strong>
-                    <span>Task · {event.status}</span>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-
-        {loading && <p>Loading tasks...</p>}
-
-        {!loading && !error && taskEvents.length === 0 && (
-          <p className="empty-tasks">
-            No saved tasks for this month.
-          </p>
-        )}
-
-        <div className="calendar-note">
-          <CalendarDays size={17} />
-          <span>
-            Only saved tasks with due dates are displayed.
-          </span>
-        </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-export default Calendar;
+export default function Calendar() {
+  const { data, loading, error, reload } = useLoad(loadCalendar);
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
+  if (loading || error) return <PageState loading={loading} error={error} onRetry={reload} />;
+
+  const act = async (id, action) => {
+    setBusyId(id);
+    setNotice(null);
+    try {
+      const result = await action();
+      setNotice({ type: "success", text: result.message });
+      reload();
+    } catch (err) {
+      setNotice({ type: "error", text: errorMessage(err) });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const todayStart = new Date(data.now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const upcomingMeetings = data.meetings.filter((m) => m.status === "Pending" && new Date(m.activityDate) >= todayStart);
+  const pastMeetings = data.meetings.filter((m) => !upcomingMeetings.includes(m)).reverse().slice(0, 10);
+
+  const agenda = {};
+  for (const m of upcomingMeetings) (agenda[dayKey(m.activityDate)] ||= []).push({ kind: "meeting", at: m.activityDate, item: m });
+  for (const t of data.tasks) {
+    const key = new Date(t.dueDate) < todayStart ? dayKey(todayStart) : dayKey(t.dueDate);
+    (agenda[key] ||= []).push({ kind: "task", at: t.dueDate, item: t });
+  }
+  const days = Object.keys(agenda).sort();
+
+  return (
+    <main className="ui-page">
+      <PageHeader
+        title="Calendar" subtitle="Your meetings and task due dates"
+        actions={<button className="ui-btn" onClick={() => setDialog({ meeting: null })}><Plus size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />Add meeting</button>}
+      />
+      <Notice notice={notice} onClose={() => setNotice(null)} />
+
+      <Panel title="Upcoming" subtitle="Overdue tasks are shown under today">
+        {days.length === 0 && <p className="ui-empty">Nothing scheduled. Add a meeting or give your tasks a due date.</p>}
+        {days.map((key) => (
+          <div key={key} style={{ marginBottom: 14 }}>
+            <h3 style={{ margin: "6px 0 8px", fontSize: 13, fontWeight: 800, color: "var(--deep-teal)" }}>{dayLabel(key)}</h3>
+            {agenda[key]
+              .sort((a, b) => new Date(a.at) - new Date(b.at))
+              .map(({ kind, item }) =>
+                kind === "meeting" ? (
+                  <div className="ui-list-item" key={`m-${item._id}`}>
+                    <div>
+                      <strong>{timeOf(item.activityDate)} · {item.description}</strong>
+                      <span>{item.customerId?.name ? `With ${item.customerId.name}` : "Meeting"}</span>
+                    </div>
+                    <div className="cc-row-actions">
+                      <button type="button" className="cc-btn cc-btn--small cc-btn--primary" disabled={busyId === item._id} onClick={() => act(item._id, () => salesApi.updateMeeting(item._id, { status: "Completed" }))}>Done</button>
+                      <button type="button" className="cc-btn cc-btn--small" disabled={busyId === item._id} onClick={() => setDialog({ meeting: item })}>Edit</button>
+                      <button type="button" className="cc-btn cc-btn--small cc-btn--danger" disabled={busyId === item._id} onClick={() => act(item._id, () => salesApi.updateMeeting(item._id, { status: "Cancelled" }))}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ui-list-item" key={`t-${item._id}`}>
+                    <div>
+                      <strong>Task · {item.title}</strong>
+                      <span>Due {formatDate(item.dueDate)} · {item.status}</span>
+                    </div>
+                    <StatusBadge status={new Date(item.dueDate) < todayStart ? "Overdue" : item.priority} />
+                  </div>
+                )
+              )}
+          </div>
+        ))}
+      </Panel>
+
+      <Panel title="Past & cancelled meetings">
+        {pastMeetings.length === 0 && <p className="ui-empty">No past meetings.</p>}
+        {pastMeetings.map((m) => (
+          <div className="ui-list-item" key={m._id}>
+            <div><strong>{m.description}</strong><span>{formatDate(m.activityDate)}{m.customerId?.name ? ` · ${m.customerId.name}` : ""}</span></div>
+            <div className="cc-row-actions">
+              <StatusBadge status={m.status} />
+              <button type="button" className="cc-btn cc-btn--small cc-btn--danger" disabled={busyId === m._id} onClick={() => act(m._id, () => salesApi.deleteMeeting(m._id))}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </Panel>
+
+      {dialog && (
+        <MeetingForm
+          meeting={dialog.meeting}
+          customers={data.customers}
+          onClose={() => setDialog(null)}
+          onSaved={(message) => {
+            setDialog(null);
+            setNotice({ type: "success", text: message });
+            reload();
+          }}
+        />
+      )}
+    </main>
+  );
+}

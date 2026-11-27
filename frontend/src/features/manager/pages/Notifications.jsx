@@ -1,20 +1,33 @@
-import { useState } from 'react'
 import PageHeader from '../../../shared/ui/PageHeader'
 import Panel from '../../../shared/ui/Panel'
+import PageState from '../../../shared/ui/PageState'
 import '../../../shared/ui/ui.css'
-import { notifications as seed } from '../services/mockData'
+import { loadAttention } from '../services/attention'
+import useLoad from '../services/useLoad'
 
-export default function Notifications() {
-  const [items, setItems] = useState(seed)
+export default function Notifications({ onNavigate }) {
+  const { data, loading, error, reload } = useLoad(loadAttention)
+
+  if (loading || error) return <PageState loading={loading} error={error} onRetry={reload} />
+
   return (
     <main className="ui-page">
       <PageHeader
-        title="Notifications" subtitle="Reminders and important updates"
-        actions={<button className="ui-btn ui-btn--ghost" onClick={() => setItems((c) => c.map((n) => ({ ...n, read: true })))}>Mark all as read</button>}
+        title="Notifications" subtitle="Things that need your attention right now"
+        actions={<button className="ui-btn ui-btn--ghost" onClick={reload}>Refresh</button>}
       />
       <Panel>
-        {items.map((n) => (
-          <div className={`ui-list-item ${n.read ? '' : 'unread'}`} key={n.id}>
+        {data.length === 0 && <p className="ui-empty">Nothing needs your attention right now.</p>}
+        {data.map((n) => (
+          <div
+            className="ui-list-item unread"
+            key={n.id}
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onNavigate?.(n.page)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onNavigate?.(n.page) }}
+          >
             <div><strong>{n.title}</strong><span>{n.message}</span></div>
             <span>{n.time}</span>
           </div>

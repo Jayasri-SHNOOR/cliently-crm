@@ -21,6 +21,11 @@ const activitySchema = new mongoose.Schema(
       default: null,
     },
 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
     activityType: {
       type: String,
       required: true,

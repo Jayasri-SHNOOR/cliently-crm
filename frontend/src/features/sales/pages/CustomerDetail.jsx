@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, Send, Trash2 } from "lucide-react";
 import { salesCare } from "../../customer-care/careApi";
 import { InviteResult, Notice, PaymentBadge, PortalBadge, StatusBadge } from "../../customer-care/CareParts";
 import { errorText, formatDate, todayInput } from "../../customer-care/careFormat";
+import "../../customer-care/care.css";
 
 function loadCustomer(id) {
     return Promise.all([salesCare.getCustomer(id), salesCare.listCatalogue().catch(() => ({ products: [] }))]).then(([detail, catalogue]) => ({
@@ -98,11 +99,11 @@ function CustomerDetail() {
         });
     };
 
-    if (data.id !== id) return <div className="page-container">Loading customer...</div>;
+    if (data.id !== id) return <div className="cc-page">Loading customer...</div>;
 
     if (!detail) {
         return (
-            <div className="page-container">
+            <div className="cc-page">
                 <button type="button" className="cc-back" onClick={() => navigate("/salesExecutive/customers")}><ArrowLeft size={16} /> Customers</button>
                 <p role="alert">{data.error || "Customer not found."}</p>
             </div>
@@ -114,15 +115,15 @@ function CustomerDetail() {
     const changeProduct = (event) => setProductForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
     return (
-        <div className="page-container">
+        <div className="cc-page">
             <button type="button" className="cc-back" onClick={() => navigate("/salesExecutive/customers")}><ArrowLeft size={16} /> Customers</button>
 
-            <div className="page-header">
+            <header className="cc-head">
                 <div>
                     <h1>{customer.name}</h1>
                     <p>{customer.customerCode}{customer.company ? ` · ${customer.company}` : ""}</p>
                 </div>
-            </div>
+            </header>
 
             <Notice notice={notice} onClose={() => setNotice(null)} />
 

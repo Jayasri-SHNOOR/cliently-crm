@@ -10,6 +10,11 @@ const noteSchema = new mongoose.Schema(
       index: true,
     },
 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
     title: {
       type: String,
       required: [true, "Note title is required"],
@@ -43,5 +48,3 @@ noteSchema.index({ tenantId: 1, updatedAt: -1 });
 
 module.exports = mongoose.models.Note ||
   mongoose.model("Note", noteSchema);
-
-

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Plus, Search, Send } from "lucide-react";
+import { Eye, Plus, Send } from "lucide-react";
 import { salesCare } from "../../customer-care/careApi";
 import { InviteResult, Modal, Notice, PortalBadge } from "../../customer-care/CareParts";
 import { errorText, formatDate } from "../../customer-care/careFormat";
+import "../../customer-care/care.css";
 
 const EMPTY_FORM = { leadId: "", name: "", email: "", phone: "", company: "", address: "", city: "" };
 
@@ -154,68 +155,52 @@ function Customers() {
     );
 
     return (
-        <div className="page-container">
-            <div className="page-header">
+        <div className="cc-page">
+            <header className="cc-head">
                 <div>
                     <h1>Customers</h1>
                     <p>Your customers, their products and portal logins.</p>
                 </div>
-                <button type="button" className="primary-button" onClick={() => setAdding(true)}>
-                    <Plus size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />
-                    Add Customer
+                <button type="button" className="cc-btn cc-btn--primary" onClick={() => setAdding(true)}>
+                    <Plus size={15} /> Add Customer
                 </button>
-            </div>
+            </header>
 
             <Notice notice={notice} onClose={() => setNotice(null)} />
 
-            <div className="leads-card">
-                <div className="leads-card-header">
-                    <div>
-                        <h2>Your Customers</h2>
-                        <p className="section-description">Customers assigned to you</p>
-                    </div>
-                    <div className="lead-count">{filtered.length} Customers</div>
+            <div className="cc-card">
+                <div className="cc-toolbar">
+                    <input className="cc-search" type="text" placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <span className="cc-badge">{filtered.length} customers</span>
                 </div>
 
-                <div className="lead-toolbar">
-                    <div className="lead-search">
-                        <Search size={17} />
-                        <input type="text" placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-
-                <div className="table-container">
-                    <table className="leads-table">
-                        <thead>
-                            <tr>
-                                <th>Customer</th>
-                                <th>Code</th>
-                                <th>Phone</th>
-                                <th>City</th>
-                                <th>Portal login</th>
-                                <th>Open requests</th>
-                                <th>Added</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.loading ? (
-                                <tr><td colSpan="8">Loading customers...</td></tr>
-                            ) : data.error ? (
-                                <tr><td colSpan="8" role="alert">{data.error}</td></tr>
-                            ) : filtered.length === 0 ? (
-                                <tr><td colSpan="8">No customers found.</td></tr>
-                            ) : (
-                                filtered.map((customer) => (
+                {data.loading ? (
+                    <p className="cc-empty">Loading customers...</p>
+                ) : data.error ? (
+                    <p className="cc-empty" role="alert">{data.error}</p>
+                ) : filtered.length === 0 ? (
+                    <p className="cc-empty">No customers found.</p>
+                ) : (
+                    <div className="cc-table-wrap">
+                        <table className="cc-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Code</th>
+                                    <th>Phone</th>
+                                    <th>City</th>
+                                    <th>Portal login</th>
+                                    <th>Open requests</th>
+                                    <th>Added</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.map((customer) => (
                                     <tr key={customer.id}>
                                         <td>
-                                            <div className="lead-name">
-                                                <div className="lead-avatar">{(customer.name || "?").charAt(0).toUpperCase()}</div>
-                                                <div>
-                                                    <strong>{customer.name}</strong>
-                                                    <div style={{ fontSize: 12, color: "var(--muted-text)" }}>{customer.email || "No email"}</div>
-                                                </div>
-                                            </div>
+                                            <strong>{customer.name}</strong>
+                                            <small>{customer.email || "No email"}</small>
                                         </td>
                                         <td>{customer.customerCode}</td>
                                         <td>{customer.phone || "—"}</td>
@@ -240,11 +225,11 @@ function Customers() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {adding && (

@@ -1,5 +1,6 @@
 import Topbar from '../../../layouts/Topbar'
-import { notifications } from '../services/mockData'
+import { loadAttention } from '../services/attention'
+import useLoad from '../services/useLoad'
 
 const TITLES = {
   dashboard: ['Dashboard', 'Overview'],
@@ -9,6 +10,8 @@ const TITLES = {
   followups: ['Follow-ups & Activities', 'Customer Engagement'],
   deals: ['Deals', 'Sales Conversion'],
   quotations: ['Quotations', 'Price Proposals'],
+  customers: ['Customers', 'Customer Accounts'],
+  'service-requests': ['Service Requests', 'Customer Service'],
   finance: ['Finance', 'Invoices & Payments'],
   performance: ['Team Performance', 'Analytics'],
   reports: ['Reports', 'Sales & Financial'],
@@ -18,13 +21,15 @@ const TITLES = {
 
 export default function ManagerTopbar({ currentPage, user, onNavigate }) {
   const [title, subtitle] = TITLES[currentPage] || TITLES.dashboard
+  const { data } = useLoad(loadAttention)
+  const items = data || []
   return (
     <Topbar
       breadcrumb={{ title, subtitle }}
       user={user}
       notifications={{
-        items: notifications,
-        unread: notifications.filter((n) => !n.read).length,
+        items,
+        unread: items.length,
         onSelect: () => onNavigate('notifications'),
       }}
       onProfile={() => onNavigate('settings')}
