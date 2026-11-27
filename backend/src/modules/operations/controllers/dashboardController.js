@@ -26,10 +26,21 @@ function toObjectId(id){
   return new mongoose.Types.ObjectId(String(id))
 }
 
-async function ticketStats(tenantId){
+// Operational Staff only see tickets / work orders assigned to them.
+// Other roles (e.g. Client Admin summary) get the whole company.
+function ownScope(user){
+  if(!user || user.role !== 'OPERATIONAL_STAFF'){
+    return {}
+  }
+  return {
+    assignedTo: user.employeeId ? toObjectId(user.employeeId) : new mongoose.Types.ObjectId()
+  }
+}
+
+async function ticketStats(tenantId, scope = {}){
   const now = Date.now()
   const [result] = await Ticket.aggregate([
-    {$match: {tenantId}},
+    {$match: {tenantId, ...scope}},
     {
       $facet: {
         byStatus: [{$group: {_id: '$status', count: {$sum: 1}}}],
@@ -60,9 +71,9 @@ async function ticketStats(tenantId){
   }
 }
 
-async function workOrderStats(tenantId){
+async function workOrderStats(tenantId, scope = {}){
   const [result] = await WorkOrder.aggregate([
-    {$match:{tenantId}},
+    {$match:{tenantId, ...scope}},
     {
       $facet: {
         byStatus: [{$group: {_id:'$status',count: {$sum: 1}}}],
@@ -87,6 +98,7 @@ async function workOrderStats(tenantId){
   }
 }
 
+// Assets and knowledge base are shared company resources (not per-person)
 async function assetStats(tenantId){
   const [result] = await Asset.aggregate([
     {$match: {tenantId}},
@@ -121,9 +133,9 @@ async function articleStats(tenantId){
   }
 }
 
-async function upcomingWorkOrders(tenantId){
+async function upcomingWorkOrders(tenantId, scope = {}){
   const rows = await WorkOrder.aggregate([
-    {$match: {tenantId, status: {$nin: CLOSED_WORK_ORDER_STATUSES}}},
+    {$match: {tenantId, ...scope, status: {$nin: CLOSED_WORK_ORDER_STATUSES}}},
     {$addFields: {noDueDate: {$cond: [{$eq: [{$ifNull: ['$dueDate', null]}, null]}, 1, 0]}}},
     {$sort: {noDueDate: 1, dueDate: 1, createdAt: -1}},
     {$limit: LIST_SIZE},
@@ -136,6 +148,7 @@ async function upcomingWorkOrders(tenantId){
   })
 }
 
+// Used by the Client Admin dashboard: company-wide summary
 async function getOperationsSummary(tenantId){
   const id = toObjectId(tenantId)
   const [tickets, workOrders, assets] = await Promise.all([
@@ -159,17 +172,18 @@ async function getOperationsSummary(tenantId){
 async function getDashboard(req, res, next){
   try{
     const tenantId = toObjectId(req.user.tenantId)
+    const scope = ownScope(req.user)
     const [tickets, workOrders, assets, knowledgeBase, recentTickets, upcoming, lowStockAssets] = await Promise.all([
-      ticketStats(tenantId),
-      workOrderStats(tenantId),
+      ticketStats(tenantId, scope),
+      workOrderStats(tenantId, scope),
       assetStats(tenantId),
       articleStats(tenantId),
-      Ticket.find({ tenantId })
+      Ticket.find({ tenantId, ...scope })
         .sort({ createdAt: -1 })
         .limit(LIST_SIZE)
         .select('number subject customer.name priority status createdAt')
         .lean(),
-      upcomingWorkOrders(tenantId),
+      upcomingWorkOrders(tenantId, scope),
       Asset.find({
         tenantId,
         status: {$ne: 'Retired'},
