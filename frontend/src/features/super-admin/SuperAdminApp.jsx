@@ -63,31 +63,6 @@ const featureAccess = [
 
 
 
-const integrations = [
-  {
-    name: "Twilio",
-    description: "Messaging and communication services",
-    initials: "T",
-  },
-  {
-    name: "Stripe",
-    description: "Payments and subscription billing",
-    initials: "S",
-  },
-  {
-    name: "Google Workspace",
-    description: "Productivity and workspace services",
-    initials: "G",
-  },
-];
-
-const services = [
-  ["Application Server", "86 ms"],
-  ["Database", "142 ms"],
-  ["API Gateway", "94 ms"],
-  ["Background Jobs", "118 ms"],
-];
-
 function FeatureState({ state }) {
   const enabled = state === "Enabled";
 
@@ -97,13 +72,6 @@ function FeatureState({ state }) {
       {state}
     </span>
   );
-}
-
-function scrollToSection(id) {
-  document.getElementById(id)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
 }
 
 function getTenantCreatedAt(tenant) {
@@ -181,7 +149,7 @@ function ProfileDialog({ onClose, onOpenSettings }) {
       <section className="cliently-profile-shell" role="dialog" aria-modal="true" aria-labelledby="cliently-profile-title">
         <header className="cliently-profile-top">
           <div className="cliently-profile-brand"><span className="cliently-profile-brandmark">C</span><span>CLIENTLY CRM <small style={{display:"block",fontSize:9,opacity:.65,fontWeight:600,letterSpacing:".15em"}}>PLATFORM CONTROL</small></span></div>
-          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button>
+          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>ÃƒÆ’Ã†â€™Ãƒâ€{"\u00a0"}Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button>
         </header>
 
         <main className="cliently-profile-main">
@@ -192,7 +160,7 @@ function ProfileDialog({ onClose, onOpenSettings }) {
 
           <section className="cliently-profile-hero">
             <div className="cliently-profile-avatar">SA</div>
-            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently Platform</p><div className="cliently-profile-meta"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â° {profile.email}</span><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â  Platform-wide access</span><span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Active workspace</span></div></div>
+            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently Platform</p><div className="cliently-profile-meta"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â° {profile.email}</span><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â{"\u00a0"} Platform-wide access</span><span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Active workspace</span></div></div>
           </section>
 
           <nav className="cliently-profile-tabs" aria-label="Profile sections">
@@ -224,12 +192,29 @@ function ProfileDialog({ onClose, onOpenSettings }) {
 
           {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
 
-          <footer className="cliently-profile-actions"><small>CLIENTLY CRM ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button></div></footer>
+          <footer className="cliently-profile-actions"><small>CLIENTLY CRM ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â{"\u00a0"}ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button></div></footer>
         </main>
       </section>
     </div>
   );
 }
+
+const defaultSettings = {
+  organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
+  regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
+  security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
+  notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
+};
+
+const normalizeDashboardSettings = (saved = {}) => {
+  const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
+  return {
+    organization: { ...defaultSettings.organization, ...(source.organization || {}) },
+    regional: { ...defaultSettings.regional, ...(source.regional || {}) },
+    security: { ...defaultSettings.security, ...(source.security || {}) },
+    notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
+  };
+};
 
 export default function SuperAdminApp({ onLogout }) {
   const {
@@ -294,7 +279,9 @@ export default function SuperAdminApp({ onLogout }) {
   };
 
   useEffect(() => {
-    if (activePage === "notifications") refreshNotifications();
+    if (activePage !== "notifications") return undefined;
+    const timer = setTimeout(refreshNotifications, 0);
+    return () => clearTimeout(timer);
   }, [activePage]);
 
   const markNotificationRead = async (notification) => {
@@ -827,23 +814,6 @@ export default function SuperAdminApp({ onLogout }) {
   };
 
   // Super Admin settings mapped directly to the PlatformSettings MongoDB schema.
-  const defaultSettings = {
-    organization: { companyName: "Cliently", supportEmail: "", supportUrl: "" },
-    regional: { timezone: "Asia/Kolkata", language: "en", dateFormat: "DD/MM/YYYY", timeFormat: "24h", currency: "INR", weekStartsOn: "Monday" },
-    security: { twoFactorRequired: false, sessionTimeoutMinutes: 30, passwordMinLength: 8, requireUppercase: true, requireNumber: true, requireSpecialCharacter: false },
-    notifications: { emailEnabled: true, systemAlertsEnabled: true, securityAlerts: true, billingAlerts: true },
-  };
-
-  const normalizeDashboardSettings = (saved = {}) => {
-    const source = saved?.data && typeof saved.data === "object" ? saved.data : saved;
-    return {
-      organization: { ...defaultSettings.organization, ...(source.organization || {}) },
-      regional: { ...defaultSettings.regional, ...(source.regional || {}) },
-      security: { ...defaultSettings.security, ...(source.security || {}) },
-      notifications: { ...defaultSettings.notifications, ...(source.notifications || {}) },
-    };
-  };
-
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);

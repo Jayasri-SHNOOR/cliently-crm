@@ -427,6 +427,8 @@ export default function AuditLogs() {
       .filter(Boolean)
   ).size;
 
+  const loadedAt = lastUpdated ? lastUpdated.getTime() : 0;
+
   const last24HoursOnPage = logs.filter((log) => {
     const timestamp = new Date(
       log.occurredAt
@@ -434,8 +436,8 @@ export default function AuditLogs() {
 
     return (
       Number.isFinite(timestamp) &&
-      timestamp >= Date.now() - 86400000 &&
-      timestamp <= Date.now()
+      timestamp >= loadedAt - 86400000 &&
+      timestamp <= loadedAt
     );
   }).length;
 

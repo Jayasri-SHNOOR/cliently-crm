@@ -5,9 +5,7 @@ export default function Topbar({
   breadcrumb, user = {}, onSearch, searchPlaceholder = 'Search...', notifications, onProfile,
 }) {
   const [query, setQuery] = useState('')
-  const [groups, setGroups] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [results, setResults] = useState({ q: '', groups: [], error: '' })
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -16,26 +14,27 @@ export default function Topbar({
   const notifRef = useRef(null)
   const profileRef = useRef(null)
 
-  useEffect(() => {
-    const q = query.trim()
-    if (!onSearch || q.length < 2) { setGroups([]); setError(''); setLoading(false); return }
-    if (q.length > 50) { setGroups([]); setError('Search must be 50 characters or less.'); setLoading(false); return }
+  const trimmed = query.trim()
+  const searchable = Boolean(onSearch) && trimmed.length >= 2 && trimmed.length <= 50
+  const loading = searchable && results.q !== trimmed
+  const groups = searchable ? results.groups : []
+  const error = trimmed.length > 50 && onSearch
+    ? 'Search must be 50 characters or less.'
+    : searchable && !loading ? results.error : ''
 
+  useEffect(() => {
+    if (!searchable) return undefined
     let active = true
-    setLoading(true)
-    setError('')
     const timer = setTimeout(async () => {
       try {
-        const result = await onSearch(q)
-        if (active) setGroups(result)
+        const result = await onSearch(trimmed)
+        if (active) setResults({ q: trimmed, groups: result, error: '' })
       } catch (err) {
-        if (active) { setError(err.message || 'Unable to search right now.'); setGroups([]) }
-      } finally {
-        if (active) setLoading(false)
+        if (active) setResults({ q: trimmed, groups: [], error: err.message || 'Unable to search right now.' })
       }
     }, 300)
     return () => { active = false; clearTimeout(timer) }
-  }, [query, onSearch])
+  }, [trimmed, searchable, onSearch])
 
   useEffect(() => {
     const onDown = (e) => {

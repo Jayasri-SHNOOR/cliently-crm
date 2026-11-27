@@ -63,7 +63,8 @@ function Subscriptions() {
   }
 
   useEffect(() => {
-    loadSubscriptions()
+    const timer = setTimeout(loadSubscriptions, 0)
+    return () => clearTimeout(timer)
   }, [])
 
   const updateField = (event) => {
@@ -178,10 +179,6 @@ function Subscriptions() {
 
   const pendingCount = subscriptions.filter(
     (item) => item.status === 'Pending'
-  ).length
-
-  const expiredCount = subscriptions.filter(
-    (item) => item.status === 'Expired'
   ).length
 
   const totalRevenue = subscriptions

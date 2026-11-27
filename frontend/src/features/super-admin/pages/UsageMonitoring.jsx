@@ -41,7 +41,8 @@ export default function UsageMonitoring() {
   };
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(loadData, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const stats = overview?.tenants || {
