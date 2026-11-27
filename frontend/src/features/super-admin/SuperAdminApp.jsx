@@ -1,4 +1,372 @@
-﻿import Users from "./pages/Users";
+import { fetchOwnActivity } from "./profileApi";
+
+function ProfileActivityPanel() {
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    setLoading(true);
+    setError("");
+
+    fetchOwnActivity()
+      .then(data => {
+        if (active) setActivity(data);
+      })
+      .catch(err => {
+        if (active) {
+          setActivity([]);
+          setError(err.message || "Unable to load activity.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [revision]);
+
+  const formatDate = value =>
+    value ? new Date(value).toLocaleString() : "Not available";
+
+  return (
+    <section className="cliently-profile-panel">
+      <h4>Account activity</h4>
+
+      <p className="cliently-profile-subtitle">
+        Recent recorded actions associated with your account.
+      </p>
+
+      <button
+        type="button"
+        className="cliently-profile-action secondary"
+        disabled={loading}
+        onClick={() => setRevision(value => value + 1)}
+      >
+        Refresh activity
+      </button>
+
+      {loading && <p>Loading activity...</p>}
+
+      {error && (
+        <p role="alert" style={{color:"#b91c1c"}}>
+          {error}
+        </p>
+      )}
+
+      {!loading && !error && (
+        <>
+          <p style={{marginTop:12}}>
+            {activity.length} recent recorded event(s)
+          </p>
+
+          {activity.length === 0 && (
+            <p>No recorded account activity found.</p>
+          )}
+
+          {activity.map(item => (
+            <div
+              key={item._id}
+              className="cliently-profile-row"
+              style={{
+                marginTop:12,
+                padding:14,
+                display:"flex",
+                flexDirection:"column",
+                alignItems:"stretch",
+                gap:6,
+                overflowWrap:"anywhere"
+              }}
+            >
+              <strong>{item.event}</strong>
+
+              <small>
+                {item.category} | {item.severity}
+              </small>
+
+              <span>{formatDate(item.occurredAt)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      <p className="cliently-profile-note" style={{marginTop:14}}>
+        Showing up to 30 recorded audit events for your account.
+        This is not a complete sign-in or account history.
+      </p>
+    </section>
+  );
+}
+
+import {
+  fetchOwnSessions,
+  revokeOwnSession
+} from "./profileApi";
+
+function ProfileSessionsPanel() {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    setLoading(true);
+    setError("");
+
+    fetchOwnSessions()
+      .then(data => {
+        if (active) setSessions(data);
+      })
+      .catch(err => {
+        if (active) {
+          setSessions([]);
+          setError(err.message || "Unable to load sessions.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [revision]);
+
+  async function revoke(session) {
+    if (busy || session.current) return;
+
+    if (!window.confirm("Sign out this other session?")) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await revokeOwnSession(session.id);
+
+      setSessions(previous =>
+        previous.filter(item => item.id !== session.id)
+      );
+
+      setMessage("Session revoked successfully.");
+      setRevision(value => value + 1);
+    } catch (err) {
+      setError(err.message || "Unable to revoke session.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const formatDate = value =>
+    value ? new Date(value).toLocaleString() : "Not available";
+
+  return (
+    <section className="cliently-profile-panel">
+      <h4>Active sessions</h4>
+
+      <p className="cliently-profile-subtitle">
+        Manage your signed-in browser sessions.
+      </p>
+
+      <button
+        type="button"
+        className="cliently-profile-action secondary"
+        disabled={loading || busy}
+        onClick={() => {
+          setMessage("");
+          setRevision(value => value + 1);
+        }}
+      >
+        Refresh sessions
+      </button>
+
+      {loading && <p>Loading sessions...</p>}
+
+      {error && (
+        <p role="alert" style={{color:"#b91c1c"}}>
+          {error}
+        </p>
+      )}
+
+      {message && (
+        <p role="status" style={{color:"#16704a"}}>
+          {message}
+        </p>
+      )}
+
+      {!loading && !error && (
+        <>
+          <p style={{marginTop:12}}>
+            {sessions.length} active session(s)
+          </p>
+
+          {sessions.length === 0 && (
+            <p>No active sessions found.</p>
+          )}
+
+          {sessions.map(session => (
+            <div
+              className="cliently-profile-row"
+              key={session.id}
+              style={{
+                marginTop:12,
+                padding:14,
+                display:"flex",
+                flexDirection:"column",
+                alignItems:"stretch",
+                gap:8
+              }}
+            >
+              <strong>
+                {session.current
+                  ? "Current session"
+                  : "Other signed-in session"}
+              </strong>
+
+              <small style={{overflowWrap:"anywhere"}}>
+                {session.userAgent}
+              </small>
+
+              <span>Signed in: {formatDate(session.createdAt)}</span>
+
+              <span>
+                Last activity: {formatDate(session.lastActivityAt)}
+              </span>
+
+              <span>
+                Expires: {formatDate(session.expiresAt)}
+              </span>
+
+              {!session.current && (
+                <button
+                  type="button"
+                  className="cliently-profile-action secondary"
+                  disabled={busy || loading}
+                  onClick={() => revoke(session)}
+                >
+                  Revoke session
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      <p className="cliently-profile-note" style={{marginTop:14}}>
+        Your current session is protected from revocation here.
+        Use Logout to end it.
+      </p>
+    </section>
+  );
+}
+
+import { fetchSettings as fetchProfileSettings } from "./settingsApi";
+
+function ProfilePreferencesPanel({ onOpenSettings }) {
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    fetchProfileSettings()
+      .then(data => {
+        if (active) setSettings(data);
+      })
+      .catch(err => {
+        if (active) {
+          setError(err.message || "Unable to load preferences.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const displayBoolean = value =>
+    typeof value === "boolean"
+      ? (value ? "Enabled" : "Disabled")
+      : "Not available";
+
+  const regional = settings?.regional;
+  const notifications = settings?.notifications;
+
+  return (
+    <section className="cliently-profile-panel">
+      <h4>Workspace preferences</h4>
+
+      <p className="cliently-profile-subtitle">
+        View the current platform configuration.
+      </p>
+
+      {loading && <p>Loading preferences...</p>}
+
+      {error && (
+        <p role="alert" style={{color:"#b91c1c"}}>
+          {error}
+        </p>
+      )}
+
+      {!loading && !error && settings && (
+        <div className="cliently-profile-statgrid">
+          {[
+            ["Configured language",
+              regional?.language === "en"
+                ? "English"
+                : regional?.language],
+            ["Configured timezone", regional?.timezone],
+            ["Date format", regional?.dateFormat],
+            ["Time format", regional?.timeFormat],
+            ["Currency", regional?.currency],
+            ["Week starts on", regional?.weekStartsOn],
+            ["Email notification setting",
+              displayBoolean(notifications?.emailEnabled)],
+            ["System alert setting",
+              displayBoolean(notifications?.systemAlertsEnabled)]
+          ].map(([label, value]) => (
+            <div className="cliently-profile-stat" key={label}>
+              <small>{label}</small>
+              <strong>{value ?? "Not available"}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="cliently-profile-note" style={{marginTop:14}}>
+        These are platform-wide settings, not personal preferences.
+        Individual theme and language controls are not currently supported.
+      </p>
+
+      <button
+        type="button"
+        className="cliently-profile-action"
+        style={{marginTop:12}}
+        onClick={onOpenSettings}
+      >
+        Manage platform settings
+      </button>
+    </section>
+  );
+}
+
+import {
+  getCurrentUser,
+  getAccessToken,
+  setSession
+} from "../../lib/session";
+
+import { fetchProfile, updateProfile } from "./profileApi";
+import Users from "./pages/Users";
 import AuditLogs from "./pages/AuditLogs";
 import UsageMonitoring from "./pages/UsageMonitoring";
 import SupportEscalations from "./pages/SupportEscalations";
@@ -113,45 +481,156 @@ function getTenantCreatedAt(tenant) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function syncProfileIdentity(user) {
+  const currentUser = getCurrentUser();
+  const token = getAccessToken();
+
+  if (
+    !currentUser ||
+    !token ||
+    currentUser.role !== "SUPER_ADMIN" ||
+    String(currentUser.id) !== String(user._id)
+  ) {
+    return;
+  }
+
+  if (currentUser.name === user.name) return;
+
+  setSession({
+    accessToken: token,
+    user: {
+      ...currentUser,
+      name: user.name
+    }
+  });
+}
+
 function ProfileDialog({ onClose, onOpenSettings }) {
   const [tab, setTab] = useState("profile");
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [profile, setProfile] = useState({
-    name: "Super Admin",
-    email: "Not connected",
-    phone: "Not provided",
-    department: "Platform Administration",
-  });
-  const [draft, setDraft] = useState(profile);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [draft, setDraft] = useState({ name: "", phone: "" });
 
   const tabs = [
-    { id: "profile", label: "Profile", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â°" },
-    { id: "security", label: "Security", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
-    { id: "access", label: "Access & Roles", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±" },
-    { id: "preferences", label: "Preferences", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
-    { id: "sessions", label: "Sessions", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£" },
-    { id: "activity", label: "Activity", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
+    { id: "profile", label: "Profile" },
+    { id: "security", label: "Security" },
+    { id: "access", label: "Access & Roles" },
+    { id: "preferences", label: "Preferences" },
+    { id: "sessions", label: "Sessions" },
+    { id: "activity", label: "Activity" }
   ];
 
+  function normalizeProfile(user) {
+    return {
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.mobileNumber || "",
+      role: user.role,
+      status: user.status,
+      lastLoginAt: user.lastLoginAt,
+      security: user.security || {}
+    };
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    fetchProfile()
+      .then(user => {
+        if (!active) return;
+        syncProfileIdentity(user);
+      const data = normalizeProfile(user);
+        setProfile(data);
+        setDraft(data);
+      })
+      .catch(err => {
+        if (active) setError(err.message || "Unable to load profile.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
   const updateDraft = (field, value) => {
-    setDraft((current) => ({ ...current, [field]: value }));
+    setDraft(current => ({ ...current, [field]: value }));
     setSaved(false);
+    setError("");
   };
 
   const cancelEdit = () => {
     setDraft(profile);
     setEditing(false);
     setSaved(false);
+    setError("");
   };
 
-  const saveProfilePreview = () => {
-    // This updates the current UI only. Connect this action to a profile API
-    // before treating profile changes as persisted account data.
-    setProfile(draft);
-    setEditing(false);
-    setSaved(true);
+  const saveProfilePreview = async () => {
+    if (saving || !profile) return;
+
+    if (!draft.name.trim() || draft.name.trim().length > 100) {
+      setError("Enter a valid full name.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSaved(false);
+
+    try {
+      const user = await updateProfile({
+        name: draft.name.trim(),
+        mobileNumber: draft.phone.trim()
+      });
+
+      syncProfileIdentity(user);
+      const data = normalizeProfile(user);
+      setProfile(data);
+      setDraft(data);
+      setEditing(false);
+      setSaved(true);
+    } catch (err) {
+      setError(err.message || "Unable to save profile.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading || !profile) {
+    return (
+      <div style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 3000,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(18,60,58,.62)"
+      }}>
+        <section role="dialog" aria-modal="true" aria-label="My Profile"
+          style={{
+            background: "#fff",
+            padding: 30,
+            borderRadius: 16,
+            color: "#183735"
+          }}>
+          <h3>My Profile</h3>
+          <p>{loading ? "Loading profile..." : error}</p>
+          <button type="button" onClick={onClose}>Close</button>
+        </section>
+      </div>
+    );
+  }
+
+  const initials = profile.name.trim().split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(word => word[0].toUpperCase())
+    .join("") || "SA";
 
   return (
     <div className="cliently-profile-overlay" role="presentation" onMouseDown={(event) => {
@@ -176,23 +655,135 @@ function ProfileDialog({ onClose, onOpenSettings }) {
         .cliently-profile-list{display:grid;gap:10px}.cliently-profile-row{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid rgba(125,158,198,.15);border-radius:13px;background:rgba(7,18,34,.42)}.cliently-profile-row-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:rgba(36,191,194,.13);color:#357f74}.cliently-profile-row strong{display:block;color:#183735;font-size:12px}.cliently-profile-row span{display:block;margin-top:4px;color:#637875;font-size:11px;line-height:1.5}.cliently-profile-note{padding:13px;border:1px solid rgba(62,178,190,.2);border-radius:13px;background:rgba(10,73,86,.18);color:#637875;font-size:11px;line-height:1.6}
         .cliently-profile-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:17px}.cliently-profile-actions small{color:#637875;font-size:10px}.cliently-profile-action{padding:10px 15px;border:1px solid transparent;border-radius:10px;background:linear-gradient(110deg,#75d5c5,#357f74);color:#123c3a;font-size:12px;font-weight:850;cursor:pointer}.cliently-profile-action.secondary{border-color:#cfe4df;background:#eaf6f3;color:#35514e}.cliently-profile-action:disabled{opacity:.5;cursor:not-allowed}
         @media(max-width:760px){.cliently-profile-overlay{padding:8px}.cliently-profile-shell{max-height:97vh;border-radius:18px}.cliently-profile-main{padding:18px 14px}.cliently-profile-top{padding:0 16px}.cliently-profile-heading{align-items:flex-start;flex-direction:column}.cliently-profile-hero{padding:17px;align-items:flex-start}.cliently-profile-avatar{width:60px;height:60px;flex-basis:60px;border-radius:18px}.cliently-profile-layout{grid-template-columns:1fr}.cliently-profile-tabs{justify-content:flex-start}.cliently-profile-tab{flex:0 0 auto}.cliently-profile-field{grid-template-columns:1fr;gap:6px}.cliently-profile-actions{align-items:flex-start;flex-direction:column}}
+        .cliently-profile-overlay{
+          box-sizing:border-box;
+          overflow:hidden;
+          padding:16px;
+        }
+
+        .cliently-profile-shell{
+          box-sizing:border-box;
+          width:min(1180px,100%);
+          min-width:0;
+          max-width:100%;
+          max-height:calc(100dvh - 32px);
+          overflow-x:hidden;
+          overflow-y:auto;
+        }
+
+        .cliently-profile-shell *{
+          box-sizing:border-box;
+        }
+
+        .cliently-profile-top{
+          color:#ffffff;
+          gap:12px;
+        }
+
+        .cliently-profile-brand{
+          color:#ffffff;
+        }
+
+        .cliently-profile-close{
+          flex-shrink:0;
+        }
+
+        .cliently-profile-heading{
+          flex-wrap:wrap;
+        }
+
+        .cliently-profile-hero-copy{
+          overflow-wrap:anywhere;
+        }
+
+        .cliently-profile-pill{
+          background:#ddf6f1;
+          color:#24665d;
+          max-width:100%;
+          white-space:normal;
+        }
+
+        .cliently-profile-readonly{
+          background:#f4faf8;
+          border:1px solid #cfe4df;
+          color:#183735;
+        }
+
+        .cliently-profile-stat,
+        .cliently-profile-row{
+          background:#f4faf8;
+          color:#183735;
+        }
+
+        .cliently-profile-stat small{
+          color:#637875;
+        }
+
+        .cliently-profile-crown{
+          flex-shrink:0;
+          font-size:18px;
+          font-weight:800;
+        }
+
+        .cliently-profile-side{
+          min-width:0;
+        }
+
+        .cliently-profile-actions{
+          flex-wrap:wrap;
+        }
+
+        .cliently-profile-action{
+          max-width:100%;
+        }
+
+        .cliently-profile-row-icon:empty{
+          display:none;
+        }
+
+        .cliently-profile-tab span:empty{
+          display:none;
+        }
+
+        @media(max-width:760px){
+          .cliently-profile-overlay{
+            padding:8px;
+          }
+
+          .cliently-profile-shell{
+            max-height:calc(100dvh - 16px);
+          }
+
+          .cliently-profile-layout{
+            grid-template-columns:minmax(0,1fr);
+          }
+
+          .cliently-profile-hero{
+            flex-wrap:wrap;
+          }
+
+          .cliently-profile-statgrid{
+            grid-template-columns:1fr;
+          }
+        }
+
       `}</style>
 
       <section className="cliently-profile-shell" role="dialog" aria-modal="true" aria-labelledby="cliently-profile-title">
         <header className="cliently-profile-top">
           <div className="cliently-profile-brand"><span className="cliently-profile-brandmark">C</span><span>CLIENTLY CRM <small style={{display:"block",fontSize:9,opacity:.65,fontWeight:600,letterSpacing:".15em"}}>PLATFORM CONTROL</small></span></div>
-          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button>
+          <button type="button" className="cliently-profile-close" aria-label="Close profile" onClick={onClose}>&times;</button>
         </header>
 
         <main className="cliently-profile-main">
           <div className="cliently-profile-heading">
             <div><div className="cliently-profile-breadcrumb">Account centre&nbsp; / &nbsp;Administrator identity</div><h2 id="cliently-profile-title">My Profile</h2><p>Manage your identity, security preferences and platform access.</p></div>
-            <span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â&nbsp; SUPER ADMIN</span>
+            <span className="cliently-profile-pill">&nbsp; SUPER ADMIN</span>
           </div>
 
           <section className="cliently-profile-hero">
-            <div className="cliently-profile-avatar">SA</div>
-            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently Platform</p><div className="cliently-profile-meta"><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â° {profile.email}</span><span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¹ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â  Platform-wide access</span><span className="cliently-profile-pill">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Active workspace</span></div></div>
+            <div className="cliently-profile-avatar">{initials}</div>
+            <div className="cliently-profile-hero-copy"><h3>{profile.name || "Super Admin"}</h3><p>Platform Administrator  Cliently Platform</p><div className="cliently-profile-meta"><span> {profile.email}</span><span> Platform-wide access</span><span className="cliently-profile-pill"> Active workspace</span></div></div>
           </section>
 
           <nav className="cliently-profile-tabs" aria-label="Profile sections">
@@ -201,30 +792,121 @@ function ProfileDialog({ onClose, onOpenSettings }) {
 
           {tab === "profile" && <div className="cliently-profile-layout">
             <section className="cliently-profile-panel">
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ Edit profile"}</button></div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><h4>Personal information</h4><button type="button" className="cliently-profile-action secondary" disabled={saving} onClick={() => { setDraft(profile); setEditing((value) => !value); setSaved(false); }}>{editing ? "Stop editing" : " Edit profile"}</button></div>
               <p className="cliently-profile-subtitle">Your administrator identity and contact details.</p>
               <div className="cliently-profile-fields">
-                {[["name","Full name"],["email","Email address"],["phone","Phone number"],["department","Department"]].map(([field,label]) => <div className="cliently-profile-field" key={field}><label htmlFor={`cliently-profile-${field}`}>{label}</label>{editing ? <input id={`cliently-profile-${field}`} value={draft[field]} onChange={(event) => updateDraft(field,event.target.value)} /> : <div className="cliently-profile-readonly">{profile[field]}</div>}</div>)}
+                {[["name","Full name"],["email","Email address"],["phone","Phone number"]].map(([field,label]) => <div className="cliently-profile-field" key={field}><label htmlFor={`cliently-profile-${field}`}>{label}</label>{editing && field !== "email" ? <input disabled={saving} id={`cliently-profile-${field}`} value={draft[field]} onChange={(event) => updateDraft(field,event.target.value)} /> : <div className="cliently-profile-readonly">{profile[field] || "Not provided"}</div>}</div>)}
               </div>
-              <div className="cliently-profile-actions"><small>{saved ? "Preview updated in this dialog. Backend profile persistence is not connected yet." : "Changes are a local preview until a profile API is connected."}</small><div style={{display:"flex",gap:8}}>{editing && <><button type="button" className="cliently-profile-action secondary" onClick={cancelEdit}>Cancel</button><button type="button" className="cliently-profile-action" onClick={saveProfilePreview}>Apply preview</button></>}</div></div>
+              <div className="cliently-profile-actions"><small>{error || (saved ? "Profile saved successfully." : "Name and mobile number can be updated.")}</small><div style={{display:"flex",gap:8}}>{editing && <><button type="button" className="cliently-profile-action secondary" disabled={saving} onClick={cancelEdit}>Cancel</button><button type="button" className="cliently-profile-action" disabled={saving} onClick={saveProfilePreview}>{saving ? "Saving..." : "Save changes"}</button></>}</div></div>
             </section>
             <aside className="cliently-profile-side">
-              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âº</div></section>
-              <section className="cliently-profile-panel"><h4>Account overview</h4><p className="cliently-profile-subtitle">Account details currently available in this dashboard.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Access scope</small><strong>Platform-wide</strong><em>Administrator</em></div><div className="cliently-profile-stat"><small>Account status</small><strong>Active</strong><em>Current UI role</em></div><div className="cliently-profile-stat"><small>Email</small><strong style={{fontSize:11}}>{profile.email}</strong></div><div className="cliently-profile-stat"><small>Department</small><strong style={{fontSize:11}}>{profile.department}</strong></div></div></section>
+              <section className="cliently-profile-panel cliently-profile-identity"><div><small>PLATFORM IDENTITY</small><strong>Super Admin</strong><small>Full platform access and control</small></div><div className="cliently-profile-crown">SA</div></section>
+              <section className="cliently-profile-panel"><h4>Account overview</h4><p className="cliently-profile-subtitle">Account details currently available in this dashboard.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Access scope</small><strong>Platform-wide</strong><em>Administrator</em></div><div className="cliently-profile-stat"><small>Account status</small><strong>{profile.status}</strong><em>Account status</em></div><div className="cliently-profile-stat"><small>Email</small><strong style={{fontSize:11}}>{profile.email}</strong></div><div className="cliently-profile-stat"><small>Last login</small><strong style={{fontSize:11}}>{profile.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : "Not available"}</strong></div></div></section>
             </aside>
           </div>}
 
-          {tab === "security" && <section className="cliently-profile-panel"><h4>Security centre</h4><p className="cliently-profile-subtitle">Security controls for the administrator account.</p><div className="cliently-profile-list"><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ</div><div><strong>Authentication</strong><span>Login is managed by the existing Firebase and CRM session authentication flow.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡</div><div><strong>Multi-factor authentication</strong><span>Status is not currently exposed by the profile API. No security status is assumed.</span></div></div><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨</div><div><strong>Session protection</strong><span>Refresh and access-token handling remain controlled by the backend session service.</span></div></div></div></section>}
+                    {tab === "security" && (
+            <section className="cliently-profile-panel">
+              <h4>Security centre</h4>
+              <p className="cliently-profile-subtitle">
+                Authentication and session protection for your account.
+              </p>
 
-          {tab === "access" && <section className="cliently-profile-panel"><h4>Access & roles</h4><p className="cliently-profile-subtitle">Platform role overview. Actual permissions are enforced by backend authorization.</p><div className="cliently-profile-list">{[["Platform administration","Global platform configuration and oversight"],["Tenant management","Manage tenant lifecycle and status"],["Subscriptions & plans","Review subscriptions, billing cycles and plan configuration"],["Integrations & operations","Manage integrations and monitor system health"],["Security & audit","Review security events and platform audit information"]].map(([title,desc]) => <div className="cliently-profile-row" key={title}><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</div><div><strong>{title}</strong><span>{desc}</span></div></div>)}</div><p className="cliently-profile-note" style={{marginTop:14}}>This screen is informational. It does not grant permissions or change backend roles.</p></section>}
+              <div className="cliently-profile-statgrid">
+                {[
+                  ["Authentication", profile.security?.authentication],
+                  ["Account status", profile.status],
+                  ["Access token lifetime",
+                    profile.security?.accessTokenMinutes != null
+                      ? `${profile.security.accessTokenMinutes} minutes`
+                      : null],
+                  ["Inactivity timeout",
+                    profile.security?.idleTimeoutMinutes != null
+                      ? `${profile.security.idleTimeoutMinutes} minutes`
+                      : null],
+                  ["Maximum session duration",
+                    profile.security?.maximumSessionHours != null
+                      ? `${profile.security.maximumSessionHours} hours`
+                      : null],
+                  ["Current session expires",
+                    profile.security?.sessionExpiresAt
+                      ? new Date(profile.security.sessionExpiresAt).toLocaleString()
+                      : null],
+                  ["Multi-factor authentication",
+                    profile.security?.mfaStatus],
+                  ["Last successful login",
+                    profile.lastLoginAt
+                      ? new Date(profile.lastLoginAt).toLocaleString()
+                      : null]
+                ].map(([label, value]) => (
+                  <div className="cliently-profile-stat" key={label}>
+                    <small>{label}</small>
+                    <strong>{value ?? "Not available"}</strong>
+                  </div>
+                ))}
+              </div>
 
-          {tab === "preferences" && <section className="cliently-profile-panel"><h4>Workspace preferences</h4><p className="cliently-profile-subtitle">Personal display options can be connected to a user-preferences endpoint.</p><div className="cliently-profile-statgrid"><div className="cliently-profile-stat"><small>Interface theme</small><strong>Dark ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Cliently</strong><em>Current workspace style</em></div><div className="cliently-profile-stat"><small>Language</small><strong>English</strong><em>Displayed interface language</em></div><div className="cliently-profile-stat"><small>Timezone</small><strong>Asia/Kolkata</strong><em>Suggested local setting</em></div><div className="cliently-profile-stat"><small>Notifications</small><strong>Platform defaults</strong><em>Managed in Settings</em></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Preference controls are not wired to persistent storage yet. Platform-wide defaults remain in the existing Settings module.</p></section>}
+              <p className="cliently-profile-note" style={{marginTop:14}}>
+                Session protection is enforced by the backend.
+                Password and MFA management are not available
+                through this profile interface.
+              </p>
+            </section>
+          )}
 
-          {tab === "sessions" && <section className="cliently-profile-panel"><h4>Active sessions</h4><p className="cliently-profile-subtitle">Signed-in devices and session controls.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£</div><div><strong>Session information unavailable</strong><span>The current backend does not provide a session-list endpoint to this profile view. No device count or login time is fabricated.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>Connect this panel to the session-management API before enabling device revocation.</p></section>}
+                    {tab === "access" && (
+            <section className="cliently-profile-panel">
+              <h4>Access &amp; roles</h4>
 
-          {tab === "activity" && <section className="cliently-profile-panel"><h4>Account activity</h4><p className="cliently-profile-subtitle">Recent administrator actions and sign-in history.</p><div className="cliently-profile-row"><div className="cliently-profile-row-icon">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</div><div><strong>No activity feed connected</strong><span>Verified profile activity will appear here when an audit or activity API is connected.</span></div></div><p className="cliently-profile-note" style={{marginTop:14}}>We do not display sample events as real account history.</p></section>}
+              <p className="cliently-profile-subtitle">
+                Your authenticated account role and access scope.
+              </p>
 
-          <footer className="cliently-profile-actions"><small>CLIENTLY CRM ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â</button></div></footer>
+              <div className="cliently-profile-statgrid">
+                <div className="cliently-profile-stat">
+                  <small>Assigned role</small>
+                  <strong>{profile.role || "Not available"}</strong>
+                </div>
+
+                <div className="cliently-profile-stat">
+                  <small>Account status</small>
+                  <strong>{profile.status || "Not available"}</strong>
+                </div>
+
+                <div className="cliently-profile-stat">
+                  <small>Access scope</small>
+                  <strong>
+                    {profile.role === "SUPER_ADMIN"
+                      ? "Platform-wide"
+                      : "Not available"}
+                  </strong>
+                </div>
+
+                <div className="cliently-profile-stat">
+                  <small>Role modification</small>
+                  <strong>Read-only</strong>
+                </div>
+              </div>
+
+              <p className="cliently-profile-note" style={{marginTop:14}}>
+                Actual access permissions are enforced by backend
+                authorization. This page does not grant permissions
+                or allow role changes.
+              </p>
+            </section>
+          )}
+
+          {tab === "preferences" && (
+            <ProfilePreferencesPanel
+              onOpenSettings={onOpenSettings}
+            />
+          )}
+
+          {tab === "sessions" && <ProfileSessionsPanel />}
+
+          {tab === "activity" && <ProfileActivityPanel />}
+
+          <footer className="cliently-profile-actions"><small>CLIENTLY CRM  PLATFORM ADMINISTRATION</small><div style={{display:"flex",gap:9}}><button type="button" className="cliently-profile-action secondary" onClick={onClose}>Close</button><button type="button" className="cliently-profile-action" onClick={onOpenSettings}>Open platform settings </button></div></footer>
         </main>
       </section>
     </div>

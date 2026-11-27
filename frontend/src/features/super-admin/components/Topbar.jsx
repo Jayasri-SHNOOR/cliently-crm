@@ -1,3 +1,4 @@
+import { useCurrentUser } from "../../../lib/useSession";
 import "./Topbar.css";
 export default function Topbar({
   activePage,
@@ -7,6 +8,18 @@ export default function Topbar({
   setProfileDialogOpen,
   handleAdminLogout,
 }) {
+  const currentUser = useCurrentUser();
+
+  const adminName =
+    currentUser?.name?.trim() || "Super Admin";
+
+  const initials = adminName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(word => word[0].toUpperCase())
+    .join("") || "SA";
+
   return (
 <header className="dashboard-header">
           <div>
@@ -28,9 +41,9 @@ export default function Topbar({
                 aria-expanded={profileMenuOpen}
                 onClick={() => setProfileMenuOpen((open) => !open)}
               >
-                <span className="admin-avatar">SA</span>
+                <span className="admin-avatar">{initials}</span>
                 <span className="admin-profile-info">
-                  <strong>Super Admin</strong>
+                  <strong title={adminName}>{adminName}</strong>
                   <span>Platform Administrator</span>
                 </span>
                 <span className="profile-arrow" aria-hidden="true">⌄</span>
@@ -46,7 +59,7 @@ export default function Topbar({
                   />
                   <div className="admin-profile-menu" role="menu">
                     <div className="profile-menu-heading">
-                      <strong>Super Admin</strong>
+                      <strong title={adminName}>{adminName}</strong>
                       <span>Platform Administrator</span>
                     </div>
                     <button
