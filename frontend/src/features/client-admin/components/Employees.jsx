@@ -3,13 +3,16 @@ import { sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '../../login/config/firebase'
 import api from '../services/api'
 import './Employees.css'
+
 const ROLES = ['Sales Executive', 'Operational Staff', 'Manager']
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Intern']
+
 const ROLE_DEPARTMENT = {
   'Sales Executive': 'Sales',
   'Operational Staff': 'Operations',
   Manager: 'Management'
 }
+
 const emptyForm = {
   name: '',
   email: '',
@@ -19,17 +22,21 @@ const emptyForm = {
   employeeCode: '',
   designation: '',
   employmentType: 'Full-time',
-  dateOfJoining: ''
+  dateOfJoining: '',
+  managerId: ''
 }
+
 const formatMoney = (amount = 0) =>
   amount >= 100000
     ? `₹${(amount / 100000).toFixed(1)}L`
     : `₹${Math.round(amount).toLocaleString('en-IN')}`
+
 const formatDate = (value) => {
   if (!value) return '—'
   const [year, month, day] = value.split('-')
   return `${day}-${month}-${year}`
 }
+
 const normalizeEmployee = (employee) => ({
   ...employee,
   id: employee._id || employee.id,
@@ -39,6 +46,7 @@ const normalizeEmployee = (employee) => ({
   employeeCode: employee.employeeCode || '',
   designation: employee.designation || '',
   employmentType: employee.employmentType || 'Full-time',
+  managerId: employee.managerId || '',
   dateOfJoining: employee.dateOfJoining
     ? String(employee.dateOfJoining).slice(0, 10)
     : '',
@@ -58,6 +66,7 @@ const normalizeEmployee = (employee) => ({
   followUps: employee.followUps ?? 0,
   status: employee.status || 'Active'
 })
+
 function Employees() {
   const [employees, setEmployees] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -75,13 +84,16 @@ function Employees() {
   const [sendingInvite, setSendingInvite] = useState(false)
   const [seats, setSeats] = useState(null)
   const [editingId, setEditingId] = useState(null)
+
   const loadEmployees = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true)
+
       const response = await api.get('/employees')
       const employeeList = Array.isArray(response.data)
         ? response.data
         : response.data.employees || []
+
       setEmployees(employeeList.map(normalizeEmployee))
       setPageError('')
     } catch (error) {
@@ -95,6 +107,7 @@ function Employees() {
       if (!silent) setLoading(false)
     }
   }, [])
+
   useEffect(() => {
     const first = setTimeout(() => loadEmployees(), 0)
     const timer = setInterval(() => {
@@ -108,6 +121,7 @@ function Employees() {
   const selectedEmployee = pickedEmployee
     ? employees.find((employee) => employee.id === pickedEmployee.id) || null
     : null
+
   const loadSeats = useCallback(async () => {
     try {
       const response = await api.get('/settings/users')
@@ -116,25 +130,44 @@ function Employees() {
       setSeats(null)
     }
   }, [])
+
   useEffect(() => {
     const timer = setTimeout(loadSeats, 0)
     return () => clearTimeout(timer)
   }, [loadSeats])
+
   const filteredEmployees = employees.filter((employee) => {
     const search = searchTerm.toLowerCase()
+
     const matchesSearch =
       employee.name.toLowerCase().includes(search) ||
       employee.email.toLowerCase().includes(search)
+
     const matchesStatus =
       statusFilter === 'All' || employee.status === statusFilter
+
     const matchesRole = employee.role === activeRole
+
     return matchesSearch && matchesStatus && matchesRole
   })
+
+  const managerOptions = employees.filter(
+    (employee) =>
+      employee.role === 'Manager' &&
+      employee.status === 'Active' &&
+      employee.id !== editingId
+  )
+
+  const managerName = (id) =>
+    employees.find((employee) => employee.id === id)?.name || '—'
+
   const roleCount = (role) =>
     employees.filter((employee) => employee.role === role).length
+
   const activeUsers = employees.filter(
     (employee) => employee.status === 'Active'
   ).length
+
   const openAddForm = () => {
     setEditingId(null)
     setFormData({
@@ -145,6 +178,7 @@ function Employees() {
     setFormError('')
     setShowForm(true)
   }
+
   const openEditForm = (employee) => {
     setEditingId(employee.id)
     setFormData({
@@ -157,41 +191,51 @@ function Employees() {
       employeeCode: employee.employeeCode,
       designation: employee.designation,
       employmentType: employee.employmentType,
-      dateOfJoining: employee.dateOfJoining
+      dateOfJoining: employee.dateOfJoining,
+      managerId: employee.managerId
     })
     setFormError('')
     setSelectedEmployee(null)
     setShowForm(true)
   }
+
   const closeForm = () => {
     if (saving) return
     setShowForm(false)
     setFormError('')
   }
+
   const handleInputChange = (event) => {
     const { name, value } = event.target
+
     setFormData((previous) => ({
       ...previous,
       [name]: value
     }))
   }
+
   // Firebase emails the employee a "set your password" link.
   // The Client Admin never sees the link or the password.
   const sendInvite = (email) => sendPasswordResetEmail(auth, email)
+
   const handleSaveEmployee = async (event) => {
     event.preventDefault()
     setFormError('')
     setNotice('')
+
     const normalizedEmail = formData.email.trim().toLowerCase()
+
     const emailExists = employees.some(
       (employee) =>
         employee.id !== editingId &&
         employee.email.toLowerCase() === normalizedEmail
     )
+
     if (emailExists) {
       setFormError('An employee with this email already exists.')
       return
     }
+
     const payload = {
       name: formData.name.trim(),
       email: normalizedEmail,
@@ -201,18 +245,24 @@ function Employees() {
       employeeCode: formData.employeeCode.trim(),
       designation: formData.designation.trim(),
       employmentType: formData.employmentType,
-      dateOfJoining: formData.dateOfJoining || null
+      dateOfJoining: formData.dateOfJoining || null,
+      managerId:
+        formData.role === 'Manager' ? null : formData.managerId || null
     }
+
     try {
       setSaving(true)
+
       if (editingId) {
         const response = await api.put(`/employees/${editingId}`, payload)
+
         const existing = employees.find((item) => item.id === editingId) || {}
         const updatedEmployee = normalizeEmployee({
           ...existing,
           ...(response.data.employee || response.data),
           id: editingId
         })
+
         setEmployees((previous) =>
           previous.map((item) =>
             item.id === editingId ? updatedEmployee : item
@@ -226,9 +276,11 @@ function Employees() {
         loadEmployees(true)
       } else {
         const response = await api.post('/employees', payload)
+
         const createdEmployee = normalizeEmployee(
           response.data.employee || response.data
         )
+
         setEmployees((previous) => [...previous, createdEmployee])
         setSelectedEmployee(createdEmployee)
         setActiveRole(createdEmployee.role)
@@ -237,6 +289,7 @@ function Employees() {
         setFormData(emptyForm)
         setShowForm(false)
         loadSeats()
+
         try {
           await sendInvite(createdEmployee.email)
           setNotice(`Invite email sent to ${createdEmployee.email}.`)
@@ -257,6 +310,7 @@ function Employees() {
       setSaving(false)
     }
   }
+
   const handleResendInvite = async (employee) => {
     try {
       setSendingInvite(true)
@@ -270,26 +324,32 @@ function Employees() {
       setSendingInvite(false)
     }
   }
+
   const handleDeactivate = async (employee) => {
     const newStatus = employee.status === 'Active' ? 'Inactive' : 'Active'
+
     try {
       setUpdatingStatus(true)
       setPageError('')
       setNotice('')
+
       const response = await api.put(`/employees/${employee.id}`, {
         status: newStatus
       })
+
       const updatedEmployee = normalizeEmployee({
         ...employee,
         ...(response.data.employee || response.data),
         id: employee.id,
         status: response.data?.employee?.status || newStatus
       })
+
       setEmployees((previous) =>
         previous.map((item) =>
           item.id === employee.id ? updatedEmployee : item
         )
       )
+
       setSelectedEmployee(updatedEmployee)
       loadSeats()
     } catch (error) {
@@ -301,11 +361,13 @@ function Employees() {
       setUpdatingStatus(false)
     }
   }
+
   const handleDeleteEmployee = async (employee) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete ${employee.name}? This action cannot be undone.`
     )
     if (!confirmed) return
+
     try {
       setPageError('')
       setNotice('')
@@ -318,6 +380,7 @@ function Employees() {
       setPageError(error.response?.data?.message || 'Unable to delete employee. Please try again.')
     }
   }
+
   const getInitials = (name = '') =>
     name
       .split(' ')
@@ -326,11 +389,14 @@ function Employees() {
       .join('')
       .slice(0, 2)
       .toUpperCase()
+
   const getWinRate = (employee) =>
     employee.deals
       ? ((employee.won / employee.deals) * 100).toFixed(1)
       : '0.0'
+
   const getPercent = (part, total) => (total ? (part / total) * 100 : 0)
+
   return (
     <main className="employees-page">
       <section className="employees-header">
@@ -338,6 +404,7 @@ function Employees() {
           <h1>Employees</h1>
           <p>Manage your team and monitor their performance.</p>
         </div>
+
         <button
           type="button"
           className="add-employee-button"
@@ -346,25 +413,30 @@ function Employees() {
           + Add Employee
         </button>
       </section>
+
       {pageError && (
         <p className="employee-form-error" role="alert">
           {pageError}
         </p>
       )}
+
       {notice && (
         <p className="employee-notice" role="status">
           {notice}
         </p>
       )}
+
       <section className="employees-summary">
         <div className="employee-summary-card">
           <span>Total Users</span>
           <strong>{employees.length}</strong>
         </div>
+
         <div className="employee-summary-card">
           <span>Active Users</span>
           <strong>{activeUsers}</strong>
         </div>
+
         <div className="employee-summary-card">
           <span>Seats Used</span>
           <strong>
@@ -372,6 +444,7 @@ function Employees() {
           </strong>
         </div>
       </section>
+
       <section className="employees-table-card">
         <div className="employee-tabs">
           {ROLES.map((role) => (
@@ -385,6 +458,7 @@ function Employees() {
             </button>
           ))}
         </div>
+
         <div className="employees-toolbar">
           <div className="employee-search">
             <span>⌕</span>
@@ -395,6 +469,7 @@ function Employees() {
               onChange={(event) => setSearchTerm(event.target.value)}
             />
           </div>
+
           <div className="employee-filters">
             <select
               value={statusFilter}
@@ -406,6 +481,7 @@ function Employees() {
             </select>
           </div>
         </div>
+
         <div className="employees-table-wrapper">
           <table className="employees-table">
             <thead>
@@ -418,6 +494,7 @@ function Employees() {
                 <th>STATUS</th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
@@ -434,20 +511,25 @@ function Employees() {
                         <div className="employee-avatar">
                           {getInitials(employee.name)}
                         </div>
+
                         <div>
                           <strong>{employee.name}</strong>
                           <span>{employee.email}</span>
                         </div>
                       </div>
                     </td>
+
                     <td>
                       <span className="employee-role">{employee.role}</span>
                     </td>
+
                     <td>{employee.deals}</td>
                     <td>{employee.won}</td>
+
                     <td className="employee-revenue">
                       {formatMoney(employee.revenue)}
                     </td>
+
                     <td>
                       <span
                         className={`employee-status ${employee.status.toLowerCase()}`}
@@ -461,6 +543,7 @@ function Employees() {
             </tbody>
           </table>
         </div>
+
         {!loading && filteredEmployees.length === 0 && (
           <div className="no-employees">
             <h3>No employees found</h3>
@@ -468,6 +551,7 @@ function Employees() {
           </div>
         )}
       </section>
+
       {showForm && (
         <div className="employee-modal-overlay" onClick={closeForm}>
           <form
@@ -484,6 +568,7 @@ function Employees() {
                     : "Enter the new employee's details. An email will be sent so they can set their own password."}
                 </p>
               </div>
+
               <button
                 type="button"
                 className="employee-close-button"
@@ -494,6 +579,7 @@ function Employees() {
                 ×
               </button>
             </div>
+
             <label htmlFor="employee-name">Full Name *</label>
             <input
               id="employee-name"
@@ -504,6 +590,7 @@ function Employees() {
               onChange={handleInputChange}
               required
             />
+
             <label htmlFor="employee-email">Email Address *</label>
             <input
               id="employee-email"
@@ -514,6 +601,7 @@ function Employees() {
               onChange={handleInputChange}
               required
             />
+
             <label htmlFor="employee-role">Role / Department *</label>
             <select
               id="employee-role"
@@ -527,6 +615,26 @@ function Employees() {
                 </option>
               ))}
             </select>
+
+            {formData.role !== 'Manager' && (
+              <>
+                <label htmlFor="employee-manager">Reporting Manager</label>
+                <select
+                  id="employee-manager"
+                  name="managerId"
+                  value={formData.managerId}
+                  onChange={handleInputChange}
+                >
+                  <option value="">No manager assigned</option>
+                  {managerOptions.map((manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
             <label htmlFor="employee-phone">Phone Number</label>
             <input
               id="employee-phone"
@@ -536,6 +644,7 @@ function Employees() {
               value={formData.phone}
               onChange={handleInputChange}
             />
+
             <label htmlFor="employee-code">Employee ID</label>
             <input
               id="employee-code"
@@ -545,6 +654,7 @@ function Employees() {
               value={formData.employeeCode}
               onChange={handleInputChange}
             />
+
             <label htmlFor="employee-designation">Designation</label>
             <input
               id="employee-designation"
@@ -554,6 +664,7 @@ function Employees() {
               value={formData.designation}
               onChange={handleInputChange}
             />
+
             <label htmlFor="employee-type">Employment Type</label>
             <select
               id="employee-type"
@@ -567,6 +678,7 @@ function Employees() {
                 </option>
               ))}
             </select>
+
             <label htmlFor="employee-joining">Date of Joining</label>
             <input
               id="employee-joining"
@@ -575,11 +687,13 @@ function Employees() {
               value={formData.dateOfJoining}
               onChange={handleInputChange}
             />
+
             {formError && (
               <p className="employee-form-error" role="alert">
                 {formError}
               </p>
             )}
+
             <div className="employee-form-actions">
               <button
                 type="button"
@@ -589,6 +703,7 @@ function Employees() {
               >
                 Cancel
               </button>
+
               <button
                 type="submit"
                 className="employee-submit-button"
@@ -604,6 +719,7 @@ function Employees() {
           </form>
         </div>
       )}
+
       {selectedEmployee && (
         <div
           className="employee-panel-overlay"
@@ -618,12 +734,14 @@ function Employees() {
                 <div className="large-employee-avatar">
                   {getInitials(selectedEmployee.name)}
                 </div>
+
                 <div>
                   <h2>{selectedEmployee.name}</h2>
                   <p>{selectedEmployee.role}</p>
                   <span>● {selectedEmployee.status}</span>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedEmployee(null)}
@@ -632,11 +750,13 @@ function Employees() {
                 ×
               </button>
             </div>
+
             <div className="employee-panel-email">
               <p>{selectedEmployee.email}</p>
               {selectedEmployee.phone && <p>{selectedEmployee.phone}</p>}
               <p>{selectedEmployee.department}</p>
             </div>
+
             <div className="employee-panel-actions">
               <button
                 type="button"
@@ -644,6 +764,7 @@ function Employees() {
               >
                 Edit
               </button>
+
               {selectedEmployee.status === 'Active' && (
                 <button
                   type="button"
@@ -653,6 +774,7 @@ function Employees() {
                   {sendingInvite ? 'Sending...' : 'Resend Invite'}
                 </button>
               )}
+
               <button
                 type="button"
                 onClick={() => handleDeactivate(selectedEmployee)}
@@ -664,6 +786,7 @@ function Employees() {
                     ? 'Deactivate'
                     : 'Activate'}
               </button>
+
               <button
                 type="button"
                 onClick={() => handleDeleteEmployee(selectedEmployee)}
@@ -671,6 +794,7 @@ function Employees() {
                 Delete Employee
               </button>
             </div>
+
             <section className="employee-detail-section">
               <h3>Employment Information</h3>
               <div className="sales-metric-row">
@@ -685,6 +809,12 @@ function Employees() {
                 <span>Department</span>
                 <strong>{selectedEmployee.department || '—'}</strong>
               </div>
+              {selectedEmployee.role !== 'Manager' && (
+                <div className="sales-metric-row">
+                  <span>Reporting Manager</span>
+                  <strong>{managerName(selectedEmployee.managerId)}</strong>
+                </div>
+              )}
               <div className="sales-metric-row">
                 <span>Employment Type</span>
                 <strong>{selectedEmployee.employmentType}</strong>
@@ -694,8 +824,10 @@ function Employees() {
                 <strong>{formatDate(selectedEmployee.dateOfJoining)}</strong>
               </div>
             </section>
+
             <section className="performance-section">
               <h3>Performance Overview</h3>
+
               <div className="performance-grid">
                 <div>
                   <span>Total Deals</span>
@@ -719,8 +851,10 @@ function Employees() {
                 </div>
               </div>
             </section>
+
             <section className="employee-detail-section">
               <h3>Deal Performance</h3>
+
               <div className="deal-performance-row">
                 <span>Won</span>
                 <strong>{selectedEmployee.won}</strong>
@@ -732,6 +866,7 @@ function Employees() {
                   }}
                 />
               </div>
+
               <div className="deal-performance-row">
                 <span>Lost</span>
                 <strong>{selectedEmployee.lost}</strong>
@@ -743,6 +878,7 @@ function Employees() {
                   }}
                 />
               </div>
+
               <div className="deal-performance-row">
                 <span>In Progress</span>
                 <strong>{selectedEmployee.inProgress}</strong>
@@ -755,6 +891,7 @@ function Employees() {
                 />
               </div>
             </section>
+
             <section className="employee-detail-section">
               <h3>Revenue Performance</h3>
               <div className="revenue-row">
@@ -770,6 +907,7 @@ function Employees() {
                 <strong>{formatMoney(selectedEmployee.revenue)}</strong>
               </div>
             </section>
+
             <section className="employee-detail-section">
               <h3>Sales Performance</h3>
               <div className="sales-metric-row">
@@ -793,8 +931,10 @@ function Employees() {
                 <strong>{getWinRate(selectedEmployee)}%</strong>
               </div>
             </section>
+
             <section className="employee-detail-section">
               <h3>Activities</h3>
+
               <div className="activity-grid">
                 <div>
                   <span>Calls</span>
@@ -820,4 +960,5 @@ function Employees() {
     </main>
   )
 }
+
 export default Employees

@@ -15,7 +15,7 @@ function todayInput() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function RequestForm({ product, serviceTypes, profile, onClose, onCreated, onSessionEnd }) {
+export function RequestForm({ product, serviceTypes, profile, onClose, onCreated, onSessionEnd }) {
     const [form, setForm] = useState({
         serviceType: serviceTypes[0] || "",
         description: "",
@@ -126,7 +126,7 @@ function PortalProducts({ ctx }) {
         <section>
             <div className="cp-page-head">
                 <div>
-                    <h1>Hello, {ctx.profile.name}</h1>
+                    <h1>My products</h1>
                     <p>These are the products you bought from {ctx.profile.company?.name || "us"}.</p>
                 </div>
                 <button type="button" className="cp-btn" onClick={() => setRequestFor({ product: null })} disabled={!data.serviceTypes.length}>

@@ -3,8 +3,23 @@ const crypto = require('crypto')
 const { getAuth } = require('firebase-admin/auth')
 const Employee = require('../../../models/Employee')
 const User = require('../../../models/User')
+const AppError = require('../../../utils/AppError')
 const { assertSeatAvailable } = require('../../../utils/seats')
 const { ROLE_MAP, revokeUserSessions, syncLinkedUser } = require('../../../utils/employeeSync')
+
+// A reporting manager must be an active Manager in the same company
+async function resolveManagerId(value, tenantId, selfId) {
+  if (value === undefined || value === null || value === '') return null
+  if (!mongoose.isValidObjectId(value)) throw new AppError('Invalid manager ID', 400)
+  if (selfId && String(value) === String(selfId)) {
+    throw new AppError('An employee cannot report to themselves', 400)
+  }
+  const manager = await Employee.findOne({
+    _id: value, tenantId, role: 'Manager', status: 'Active'
+  }).select('_id').lean()
+  if (!manager) throw new AppError('Reporting manager not found', 400)
+  return manager._id
+}
 
 const getEmployees = async (req, res, next) => {
   try {
@@ -60,6 +75,10 @@ const createEmployee = async (req, res, next) => {
 
     await assertSeatAvailable(tenantId)
 
+    const managerId = role === 'Manager'
+      ? null
+      : await resolveManagerId(req.body.managerId, tenantId)
+
     const cleanEmail = email.toLowerCase().trim()
 
     // Random password nobody knows; employee sets their own via the reset email.
@@ -76,6 +95,7 @@ const createEmployee = async (req, res, next) => {
     employee = await Employee.create({
       tenantId, name, email: cleanEmail, role, department, phone,
       employeeCode, designation, employmentType, dateOfJoining,
+      managerId,
       status: 'Active'
     })
 
@@ -139,6 +159,12 @@ const updateEmployee = async (req, res, next) => {
     const current = await Employee.findOne({ _id: id, tenantId }).lean()
     if (!current) {
       return res.status(404).json({ message: 'Employee not found' })
+    }
+
+    if (updates.role === 'Manager') {
+      updates.managerId = null
+    } else if (updates.managerId !== undefined) {
+      updates.managerId = await resolveManagerId(updates.managerId, tenantId, id)
     }
 
     if (updates.status === 'Active' && current.status !== 'Active') {
