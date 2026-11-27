@@ -38,6 +38,8 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+
+    // ---- Employment Information (editable by Client Admin only) ----
     employeeCode: {
       type: String,
       trim: true
@@ -53,6 +55,13 @@ const employeeSchema = new mongoose.Schema(
     },
     dateOfJoining: {
       type: Date
+    },
+
+    // Reporting manager (for Sales Executive / Operational Staff)
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      default: null
     },
 
     status: {
@@ -72,5 +81,6 @@ employeeSchema.index(
 )
 employeeSchema.index({tenantId: 1, createdAt: -1})
 employeeSchema.index({tenantId: 1, name: 1})
+employeeSchema.index({tenantId: 1, managerId: 1})
 
 module.exports = mongoose.model('Employee', employeeSchema)

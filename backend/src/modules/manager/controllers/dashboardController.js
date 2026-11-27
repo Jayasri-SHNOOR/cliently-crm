@@ -1,11 +1,17 @@
 const Lead = require('../../../models/Lead')
 const Deal = require('../../../models/Deal')
 const { CLOSED_STATUSES } = Deal
-const { UNASSIGNED, CLOSED, MONTHS, toId, formatLead } = require('../helpers')
+const { UNASSIGNED, CLOSED, MONTHS, toId, formatLead, getTeamIds } = require('../helpers')
 
 async function getDashboard(req, res, next) {
   try {
     const tenantId = toId(req.user.tenantId)
+    const teamIds = await getTeamIds(req)
+
+    // A manager sees: leads/deals of their own team + the shared unassigned pool
+    const teamLeads = { $or: [{ executiveId: { $in: teamIds } }, ...UNASSIGNED.$or] }
+    const teamDeals = { assignedToId: { $in: teamIds } }
+
     const now = new Date()
     const open = { status: { $nin: CLOSED } }
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
@@ -14,20 +20,20 @@ async function getDashboard(req, res, next) {
       totalLeads, unassignedLeads, pendingFollowups, overdueCount,
       dealsByStatus, wonByMonth, recentUnassigned, overdueLeads
     ] = await Promise.all([
-      Lead.countDocuments({ tenantId }),
+      Lead.countDocuments({ tenantId, ...teamLeads }),
       Lead.countDocuments({ tenantId, ...UNASSIGNED }),
-      Lead.countDocuments({ tenantId, ...open, nextFollowUp: { $ne: null } }),
-      Lead.countDocuments({ tenantId, ...open, nextFollowUp: { $lt: now } }),
+      Lead.countDocuments({ tenantId, ...teamLeads, ...open, nextFollowUp: { $ne: null } }),
+      Lead.countDocuments({ tenantId, ...teamLeads, ...open, nextFollowUp: { $lt: now } }),
       Deal.aggregate([
-        { $match: { tenantId } },
+        { $match: { tenantId, ...teamDeals } },
         { $group: { _id: '$status', count: { $sum: 1 }, value: { $sum: '$value' } } }
       ]),
       Deal.aggregate([
-        { $match: { tenantId, status: 'Won', updatedAt: { $gte: sixMonthsAgo } } },
+        { $match: { tenantId, ...teamDeals, status: 'Won', updatedAt: { $gte: sixMonthsAgo } } },
         { $group: { _id: { y: { $year: '$updatedAt' }, m: { $month: '$updatedAt' } }, value: { $sum: '$value' } } }
       ]),
       Lead.find({ tenantId, ...UNASSIGNED }).sort({ createdAt: -1 }).limit(5).lean(),
-      Lead.find({ tenantId, ...open, nextFollowUp: { $lt: now } }).sort({ nextFollowUp: 1 }).limit(5).lean()
+      Lead.find({ tenantId, ...teamLeads, ...open, nextFollowUp: { $lt: now } }).sort({ nextFollowUp: 1 }).limit(5).lean()
     ])
 
     const byStatus = Object.fromEntries(dealsByStatus.map((d) => [d._id, d]))

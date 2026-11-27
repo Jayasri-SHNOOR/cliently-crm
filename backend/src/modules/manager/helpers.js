@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const Employee = require('../../models/Employee')
 
 const UNASSIGNED = {
   $or: [{ executive: { $exists: false } }, { executive: null }, { executive: '' }]
@@ -9,6 +10,15 @@ const PRIORITIES = ['High', 'Medium', 'Low']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const toId = (id) => new mongoose.Types.ObjectId(id)
+
+// Employee ids of everyone who reports to the logged-in manager
+async function getTeamIds(req) {
+  if (!req.user.employeeId) return []
+  return Employee.find({
+    tenantId: toId(req.user.tenantId),
+    managerId: toId(req.user.employeeId)
+  }).distinct('_id')
+}
 
 function formatLead(l) {
   return {
@@ -31,4 +41,4 @@ function formatLead(l) {
   }
 }
 
-module.exports = { UNASSIGNED, SALES_ROLE, CLOSED, PRIORITIES, MONTHS, toId, formatLead }
+module.exports = { UNASSIGNED, SALES_ROLE, CLOSED, PRIORITIES, MONTHS, toId, formatLead, getTeamIds }
